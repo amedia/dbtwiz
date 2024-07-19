@@ -3,6 +3,9 @@ from setuptools import find_packages, setup
 setup(
     name="dbtwiz",
     version="0.1.0",
+    author="Amedia Produkt og Teknologi",
+    url="https://github.com/amedia/dbtwiz",
+    licence="MIT",
     packages=find_packages(),
     python_requires=">=3.11.0",
     install_requires=[
