@@ -2,7 +2,6 @@ import configparser
 import functools
 from pathlib import Path
 from typing import Dict, Any
-import tomllib
 
 import typer
 
