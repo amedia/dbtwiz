@@ -2,27 +2,33 @@ import configparser
 import functools
 from pathlib import Path
 from typing import Dict, Any
+import tomllib
 
 import typer
 
-from .logging import info, error
+from .logging import info, error, fatal
 
 
 @functools.cache
-def config():
-    return Config()
+def user_config():
+    """Read and cache settings from user configuration"""
+    return UserConfig()
 
+@functools.cache
+def project_config():
+    """Read and cache settings from project configuration"""
+    return ProjectConfig()
 
-def config_path(target: str = "") -> Path:
-    """Get Path to the given target within the config directory"""
-    return config().CONFIG_PATH / target
+def user_config_path(target: str = "") -> Path:
+    """Get Path to the given target within the user configuration directory"""
+    return user_config().CONFIG_PATH / target
 
 
 class InvalidConfig(ValueError):
     pass
 
 
-class Config:
+class UserConfig:
 
     CONFIG_PATH = Path(typer.get_app_dir("dbtwiz"))
     CONFIG_FILE = CONFIG_PATH / "config.ini"
@@ -54,7 +60,7 @@ class Config:
             section, key = setting.split(":")
         else:
             section, key = "general", setting
-        config().update(section, key, value)
+        user_config().update(section, key, value)
 
 
     def __init__(self):
@@ -122,3 +128,24 @@ class Config:
         theme_index = self.THEMES["names"].index(theme)
         for key, value in self.THEMES["colors"].items():
             self.parser.set("theme", key, str(value[theme_index]))
+
+
+class ProjectConfig:
+    """Project-specific settings from pyproject.toml"""
+
+    SETTINGS = ["gcp_project", "gcp_region", "gcs_state_bucket",
+                "dbt_image_url", "dbt_service_account"]
+
+    def __init__(self) -> None:
+        project_file = Path("pyproject.toml")  # FIXME: Search up the tree from cwd
+        try:
+            with open(project_file, "rb") as f:
+                data = tomllib.load(f)
+            project_settings = data["tool"]["dbtwiz"]["project"]
+            for setting in self.SETTINGS:
+                value = project_settings[setting]
+                self.__setattr__(setting, value)
+        except KeyError:
+            error("Required setting {setting} not found in section [tool.dbtwiz.project] in pyproject.toml")
+        except FileNotFoundError:
+            fatal(f"Project file {project_file} was not found.")

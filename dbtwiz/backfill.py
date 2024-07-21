@@ -7,23 +7,15 @@ from jinja2 import Template
 from textwrap import dedent
 
 from .auth import ensure_auth
-from .config import config_path
-from .logging import debug, info, error
+from .config import user_config_path, project_config
+from .logging import debug, info
 
 
 class Backfill:
     """Backfill dbt models using Cloud Run with latest image built from master branch."""
 
-    DBT_PROJECT = "amedia-adp-dbt-core"
-    DBT_IMAGE = f"europe-north1-docker.pkg.dev/{DBT_PROJECT}/dbt-core-images/dbt-core:latest"
-    DBT_SERVICE_ACCOUNT = f"dbt-run-sa@{DBT_PROJECT}.iam.gserviceaccount.com"
-
-    RUN_PROJECT = "amedia-adp-dbt-core"
-    RUN_REGION = "europe-north1"
-
     MAX_CONCURRENT_TASKS = 8
-
-    YAML_FILE = config_path("backfill-cloudrun.yaml")
+    YAML_FILE = user_config_path("backfill-cloudrun.yaml")
 
 
     @classmethod
@@ -53,11 +45,11 @@ class Backfill:
             job_name=job_name,
             parallelism=parallelism,
             task_count=number_of_days,
-            image=cls.DBT_IMAGE,
+            image=project_config().dbt_image_url,
             selector=selector,
             start_date=date_first.strftime("%Y-%m-%d"),
             full_refresh=full_refresh,
-            service_account=cls.DBT_SERVICE_ACCOUNT,
+            service_account=project_config().dbt_service_account,
         )
         with open(cls.YAML_FILE, "w+") as f:
             f.write(job_spec_yaml)
@@ -73,7 +65,7 @@ class Backfill:
         metadata:
           name: {{ job_name }}
           labels:
-            cloud.googleapis.com/location: europe-north1
+            cloud.googleapis.com/location: {{ project_config().gcp_region }}
         spec:
           template:
             spec:
@@ -139,21 +131,24 @@ class Backfill:
 
         ensure_auth()
 
+        gcp_project = project_config().gcp_project
+        gcp_region = project_config().gcp_region
+
         info("Preparing job for execution.")
         cls.run_command(
-            ["gcloud", "run", f"--project={cls.RUN_PROJECT}",
+            ["gcloud", "run", f"--project={gcp_project}",
              "jobs", "replace", cls.YAML_FILE],
             verbose=verbose)
 
         info("Starting job execution.")
         cls.run_command(
-            ["gcloud", "run", f"--project={cls.RUN_PROJECT}",
-             "jobs", "execute", f"--region={cls.RUN_REGION}", job_name],
+            ["gcloud", "run", f"--project={gcp_project}",
+             "jobs", "execute", f"--region={gcp_region}", job_name],
             verbose=verbose)
 
         job_url = (
             f"https://console.cloud.google.com/run/jobs/details"
-            f"/{cls.RUN_REGION}/{job_name}/executions?project={cls.RUN_PROJECT}"
+            f"/{gcp_region}/{job_name}/executions?project={gcp_project}"
         )
         info(f"Job status page: {job_url}")
         if status:

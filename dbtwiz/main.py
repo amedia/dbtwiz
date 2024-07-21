@@ -4,7 +4,7 @@ import typer
 from typing_extensions import Annotated
 
 from .build import Build
-from .config import Config
+from .config import UserConfig
 from .test import Test
 from .backfill import Backfill
 from .freshness import Freshness
@@ -184,7 +184,7 @@ def config(
             help="Configuration value")],
 ):
     """Update configuration setting"""
-    Config.run(key, value)
+    UserConfig.run(key, value)
 
 
 # if __name__ == "__main__":

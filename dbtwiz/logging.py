@@ -1,5 +1,3 @@
-import sys
-
 from rich.console import Console
 
 
@@ -20,4 +18,4 @@ def error(message: str):
 
 def fatal(message: str, exit_code=1):
     error_console.print(message, style="red")
-    sys.exit(exit_code)
+    SystemExit(exit_code)

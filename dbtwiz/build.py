@@ -4,15 +4,13 @@ import os
 from google.cloud import storage
 
 from .auth import ensure_auth
+from .config import project_config
 from .dbt import dbt_invoke
-from .logging import info, debug, error
+from .logging import info, debug, error, fatal
 from .manifest import Manifest
 
 
 class Build():
-
-    STATE_PROJECT = "amedia-adp-dbt-core"
-    STATE_BUCKET = "adp-dbt-state"
 
     VALID_TARGETS = ["dev", "build", "prod-ci", "prod"]
 
@@ -92,6 +90,6 @@ class Build():
 
         if save_state:
             info("Saving state, uploading manifest to bucket.")
-            gcs = storage.Client(project=cls.STATE_PROJECT)
-            blob = gcs.bucket(cls.STATE_BUCKET).blob("manifest.json")
+            gcs = storage.Client(project=project_config().gcs_project)
+            blob = gcs.bucket(project_config().dbt_state_bucket).blob("manifest.json")
             blob.upload_from_filename("./target/manifest.json")

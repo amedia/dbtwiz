@@ -4,15 +4,15 @@ import os
 import subprocess
 import time
 
-from .logging import debug, info, warn, fatal
-from .config import config, config_path
+from .logging import info, warn
+from .config import user_config
 
 
 CREDENTIALS_JSON = Path("gcloud", "application_default_credentials.json")
 
 
 def ensure_auth():
-    if not config().getboolean("general", "auth_check"):
+    if not user_config().getboolean("general", "auth_check"):
         return
 
     if "APPDATA" in os.environ and Path(os.environ["APPDATA"], CREDENTIALS_JSON).exists():

@@ -1,6 +1,6 @@
 import functools
 import json
-# import os
+import os
 import re
 from jinja2 import Template
 from pathlib import Path
@@ -8,7 +8,7 @@ from typing import List
 
 from google.cloud import storage
 
-from .config import config, config_path
+from .config import project_config, user_config, user_config_path
 from .logging import info, debug, fatal
 from .dbt import dbt_invoke
 from .support import models_with_local_changes
@@ -17,9 +17,9 @@ from .support import models_with_local_changes
 class Manifest:
 
     MANIFEST_PATH = Path(".", "target", "manifest.json")
-    PROD_MANIFEST_PATH = config_path("prod-manifest.json")
-    MODELS_CACHE_PATH = config_path("models-cache.json")
-    MODELS_INFO_PATH = config_path("models")
+    PROD_MANIFEST_PATH = user_config_path("prod-manifest.json")
+    MODELS_CACHE_PATH = user_config_path("models-cache.json")
+    MODELS_INFO_PATH = user_config_path("models")
 
 
     @classmethod
@@ -44,8 +44,8 @@ class Manifest:
         dbt_invoke(["parse"], quiet=True)
 
         info("Fetching production manifest")
-        gcs = storage.Client(project="amedia-adp-dbt-core")
-        blob = gcs.bucket("adp-dbt-state").blob("manifest.json")
+        gcs = storage.Client(project=project_config().gcp_project)
+        blob = gcs.bucket(project_config().dbt_state_bucket).blob("manifest.json")
         blob.download_to_filename("target/prod_manifest.json")
         gcs.close()
 
@@ -62,7 +62,7 @@ class Manifest:
                 fatal("No new or modified models found.")
         else:
             model_names = models.keys()
-        formatter = config().get("model_info", "formatter")
+        formatter = user_config().get("model_info", "formatter")
         chosen_models = iterfzf.iterfzf(
             model_names,
             query=select,
@@ -124,7 +124,7 @@ class Manifest:
         template = template.replace("[/]", "\033[0m")
         # template = re.sub(r"\[c(\d+)\]", r"\033[38;5;\1m", template)
         template = re.sub(r"\[(\w+)\]",
-                          lambda m: f"\033[38;5;{config().color(m[1])}m",
+                          lambda m: f"\033[38;5;{user_config().color(m[1])}m",
                           template)
         template_object = Template(template)
         template_object.globals["model_style"] = model_style
@@ -230,5 +230,5 @@ def model_style(name: str):
         key = "dep_int"
     else:
         key = "dep_mart"
-    cval = config().color(key)
+    cval = user_config().color(key)
     return f"\033[38;5;{cval}m"
