@@ -133,19 +133,31 @@ class UserConfig:
 class ProjectConfig:
     """Project-specific settings from pyproject.toml"""
 
-    SETTINGS = ["gcp_project", "gcp_region", "gcs_state_bucket",
-                "dbt_image_url", "dbt_service_account"]
+    SETTINGS = [
+        "gcp_project",
+        "gcp_region",
+        "gcs_state_bucket",
+        "dbt_image_url",
+        "dbt_service_account"
+    ]
 
     def __init__(self) -> None:
-        project_file = Path("pyproject.toml")  # FIXME: Search up the tree from cwd
+        found = False
+        path_list = [Path.cwd()] + list(Path.cwd().parents)
+        for path in path_list:
+            if (path / "pyproject.toml").exists:
+                project_file = path / "pyproject.toml"
+                found = True
+                break
+        if not found:
+            fatal("No pyproject.toml file found in current or upstream directories.")
         try:
-            with open(project_file, "rb") as f:
-                data = tomllib.load(f)
-            project_settings = data["tool"]["dbtwiz"]["project"]
+            parser = configparser.ConfigParser()
+            parser.read(project_file)
             for setting in self.SETTINGS:
-                value = project_settings[setting]
+                value = parser.get("tool.dbtwiz.project", setting)
+                if value[0] == value[-1] and value[0] in ["'", '"']:
+                    value = value[1:-1]  # Strip surrounding quotes
                 self.__setattr__(setting, value)
-        except KeyError:
-            error("Required setting {setting} not found in section [tool.dbtwiz.project] in pyproject.toml")
-        except FileNotFoundError:
-            fatal(f"Project file {project_file} was not found.")
+        except Exception as ex:
+            fatal(f"Failed to parse file {project_file}: {ex}")
