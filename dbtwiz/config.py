@@ -28,6 +28,7 @@ class InvalidConfig(ValueError):
 
 
 class UserConfig:
+    """User-specific configuration"""
 
     CONFIG_PATH = Path(typer.get_app_dir("dbtwiz"))
     CONFIG_FILE = CONFIG_PATH / "config.ini"
