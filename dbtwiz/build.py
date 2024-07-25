@@ -73,7 +73,7 @@ class Build():
             info("Builing modified models and their downstream dependencies.")
             args["select"] = "state:modified+"
             args["defer"] = True
-            args["state"] = "/app/.manifest"
+            args["state"] = project_config().pod_manifest_path
         else:
             error("Selector is required with dev target.")
             return

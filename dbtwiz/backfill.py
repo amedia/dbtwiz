@@ -76,7 +76,7 @@ class Backfill:
                   containers:
                   - image: {{ image }}
                     command:
-                    - /app/dbtwiz
+                    - dbtwiz
                     args:
                     - build
                     - --target
