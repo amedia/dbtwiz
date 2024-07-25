@@ -136,7 +136,7 @@ class ProjectConfig:
     SETTINGS = [
         "gcp_project",
         "gcp_region",
-        "gcs_state_bucket",
+        "dbt_state_bucket",
         "dbt_image_url",
         "dbt_service_account",
         "pod_manifest_path",
