@@ -4,6 +4,7 @@ import os
 from google.cloud import storage
 
 from .auth import ensure_auth
+from .config import project_config
 from .dbt import dbt_invoke
 from .manifest import Manifest
 from .logging import info, debug, error
@@ -43,7 +44,7 @@ class Test():
             info("Testing modified models and their downstream dependencies.")
             args["select"] = "state:modified+"
             args["defer"] = True
-            args["state"] = "/app/.manifest"
+            args["state"] = project_config().pod_manifest_path
         else:
             error("Selector is required with dev target.")
             return
