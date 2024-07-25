@@ -2,7 +2,7 @@ from setuptools import find_packages, setup
 
 setup(
     name="dbtwiz",
-    version="0.1.1",
+    version="0.1.2",
     author="Amedia Produkt og Teknologi",
     url="https://github.com/amedia/dbtwiz",
     license="MIT",
