@@ -22,6 +22,10 @@ def user_config_path(target: str = "") -> Path:
     """Get Path to the given target within the user configuration directory"""
     return user_config().CONFIG_PATH / target
 
+def project_path(target: str = "") -> Path:
+    """Get Path to the given target relative to the project root directory"""
+    return project_config().root_path() / target
+
 
 class InvalidConfig(ValueError):
     pass
@@ -144,15 +148,23 @@ class ProjectConfig:
     ]
 
     def __init__(self) -> None:
-        found = False
+        self._determine_root_path()
+        self._parse_config()
+
+    def root_path(self):
+        return self.root
+
+    def _determine_root_path(self):
+        """Search upward from current path to find project root"""
         path_list = [Path.cwd()] + list(Path.cwd().parents)
         for path in path_list:
             if (path / "pyproject.toml").exists:
-                project_file = path / "pyproject.toml"
-                found = True
-                break
-        if not found:
-            fatal("No pyproject.toml file found in current or upstream directories.")
+                self.root = path
+                return
+        fatal("No pyproject.toml file found in current or upstream directories.")
+
+    def _parse_config(self):
+        project_file = self.root_path() / "pyproject.toml"
         try:
             parser = configparser.ConfigParser()
             parser.read(project_file)

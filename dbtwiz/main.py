@@ -4,6 +4,7 @@ import typer
 from typing_extensions import Annotated
 
 from .build import Build
+# from .cleanup import cleanup_materializations
 from .config import UserConfig
 from .test import Test
 from .backfill import Backfill
@@ -57,6 +58,9 @@ def build(
         work: Annotated[bool, typer.Option(
             "--work", "-w",
             help="Consider only new or changed models for interactive selection")] = False,
+        repeat_last: Annotated[bool, typer.Option(
+            "--last", "-l",
+            help="Build the last built models again")] = False,
 ) -> None:
     """Build dbt models"""
     # Validate
@@ -70,7 +74,7 @@ def build(
     # Dispatch
     Build.run(
         target.value, select, run_date, use_task_index, save_state,
-        full_refresh, upstream, downstream, work
+        full_refresh, upstream, downstream, work, repeat_last
     )
 
 
@@ -185,6 +189,16 @@ def config(
 ):
     """Update configuration setting"""
     UserConfig.run(key, value)
+
+
+# @app.command()
+# def cleanup(
+#         target: Annotated[Target, typer.Option(
+#             "--target", "-t",
+#             help="Target")] = Target.dev,
+# ):
+#     """Clean up warehouse by deleting materializations not present in manifest"""
+#     cleanup_materializations(target)
 
 
 # if __name__ == "__main__":
