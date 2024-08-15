@@ -67,7 +67,7 @@ class Manifest:
             multi=multi,
             sort=True,
             ansi=True,
-            preview=f"{formatter} {model_info_path}",
+            preview=f"{formatter} '{model_info_path}'",
             __extra__=["--preview-window=right,wrap"],
         )
         return chosen_models
