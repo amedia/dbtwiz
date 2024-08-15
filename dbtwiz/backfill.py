@@ -50,6 +50,7 @@ class Backfill:
             start_date=date_first.strftime("%Y-%m-%d"),
             full_refresh=full_refresh,
             service_account=project_config().dbt_service_account,
+            gcp_region=project_config().gcp_region,
         )
         with open(cls.YAML_FILE, "w+") as f:
             f.write(job_spec_yaml)
@@ -65,7 +66,7 @@ class Backfill:
         metadata:
           name: {{ job_name }}
           labels:
-            cloud.googleapis.com/location: {{ project_config().gcp_region }}
+            cloud.googleapis.com/location: {{ gcp_region }}
         spec:
           template:
             spec:

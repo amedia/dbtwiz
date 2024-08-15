@@ -30,9 +30,6 @@ class Manifest:
         ):
             debug("Updating models cache")
             Manifest().update_models_cache()
-        if not cls.MODELS_INFO_PATH.exists():
-            debug("Updating models info")
-            Manifest().update_models_info()
         with open(cls.MODELS_CACHE_PATH, "r") as f:
             return json.load(f)
 
@@ -46,7 +43,7 @@ class Manifest:
         info("Fetching production manifest")
         gcs = storage.Client(project=project_config().gcp_project)
         blob = gcs.bucket(project_config().dbt_state_bucket).blob("manifest.json")
-        blob.download_to_filename("target/prod_manifest.json")
+        blob.download_to_filename(cls.PROD_MANIFEST_PATH)
         gcs.close()
 
 
@@ -87,9 +84,9 @@ class Manifest:
         )
 
 
-    def __init__(self):
+    def __init__(self, path: Path = MANIFEST_PATH):
         # TODO: Check that the manifest file exists, and build it if not
-        with open(self.MANIFEST_PATH, "r") as f:
+        with open(path, "r") as f:
             manifest = json.load(f)
             self.nodes = manifest["nodes"]
             self.parent_map = manifest["parent_map"]
@@ -105,13 +102,28 @@ class Manifest:
     def update_models_info(self):
         Path.mkdir(self.MODELS_INFO_PATH, exist_ok=True)
         for model in self.models().values():
-            name = model["name"]
+            model_name = model["name"]
+            info_file = self.MODELS_INFO_PATH / f"{model_name}.txt"
+            if self.model_info_up_to_date(model, info_file):
+                continue
+            debug(f"Rendering model info to {info_file}")
             model_info = self.model_info_template(clear=True).render(model=model)
-            filename = self.MODELS_INFO_PATH / f"{name}.txt"
-            with open(filename, "w+") as f:
+            with open(info_file, "w+") as f:
                 # combine multiple blank lines into one to avoid
                 # painful handling of it in template
                 f.write(re.sub(r"\n\n+", "\n\n", model_info))
+
+
+    def model_info_up_to_date(self, model, info_file) -> bool:
+        """Is rendered model info up to date?"""
+        if not info_file.exists():
+            return False
+        info_mtime = info_file.stat().st_mtime
+        for extension in [".sql", ".yml"]:
+            ext_file = Path(model["folder"]) / (model["name"] + extension)
+            if ext_file.exists() and ext_file.stat().st_mtime > info_mtime:
+                return False
+        return True
 
 
     @functools.cache
@@ -142,6 +154,8 @@ class Manifest:
                 parent_models = self.parent_models(key)
                 child_models = self.child_models(key)
                 models[node["name"]] = dict(
+                    database=node["database"],
+                    schema=node["schema"],
                     name=node["name"],
                     path=node["path"],
                     folder=str(folder),
