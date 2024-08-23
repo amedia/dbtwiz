@@ -101,8 +101,9 @@ class Build():
         if save_state:
             info("Saving state, uploading manifest to bucket.")
             gcs = storage.Client(project=project_config().gcp_project)
-            blob = gcs.bucket(project_config().dbt_state_bucket).blob("manifest.json")
-            blob.upload_from_filename("./target/manifest.json")
+            bucket = gcs.bucket(project_config().dbt_state_bucket)
+            for filename in ["manifest.json", "run_results.json"]:
+                bucket.blob(filename).upload_from_filename(Path.cwd() / "target" / filename)
 
 
     @classmethod
