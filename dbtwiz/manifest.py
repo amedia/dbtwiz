@@ -9,7 +9,7 @@ from typing import List
 from google.cloud import storage
 
 from .config import project_config, user_config, user_config_path
-from .logging import info, debug, fatal
+from .logging import info, debug, error
 from .dbt import dbt_invoke
 from .support import models_with_local_changes
 
@@ -56,7 +56,8 @@ class Manifest:
         if work:
             model_names = models_with_local_changes(models)
             if len(model_names) == 0:
-                fatal("No new or modified models found.")
+                error("No new or modified models found.")
+                return None
         else:
             model_names = models.keys()
         formatter = user_config().get("model_info", "formatter")

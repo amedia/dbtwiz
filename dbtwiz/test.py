@@ -1,7 +1,4 @@
 from datetime import date
-import os
-
-from google.cloud import storage
 
 from .auth import ensure_auth
 from .config import project_config
@@ -34,8 +31,11 @@ class Test():
         models = Manifest.models_cached()
         if target == "dev" and select not in models.keys():
             chosen_models = Manifest.choose_models(select)
-            select = ",".join(chosen_models)
-            debug(f"Select: '{select}'")
+            if chosen_models:
+                select = ",".join(chosen_models)
+                debug(f"Select: '{select}'")
+            else:
+                select = None
 
         if select is not None and len(select) > 0:
             info(f"Testing models matching '{select}'.")
@@ -46,6 +46,7 @@ class Test():
             args["defer"] = True
             args["state"] = project_config().pod_manifest_path
         else:
+            # Running ALL tests means you'd have to build ALL models - not likely
             error("Selector is required with dev target.")
             return
 
