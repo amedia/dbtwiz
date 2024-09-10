@@ -4,7 +4,7 @@ description: Python package with CLI helper tool for dbt
 integrity: false
 name: dbtwiz
 owner: data-analyseplattform
-private-channel: '#team-data-intern'
-public-channel: '#team-data'
+private-channel: "#team-data-intern"
+public-channel: "#team-data"
 system: []
 type: library
