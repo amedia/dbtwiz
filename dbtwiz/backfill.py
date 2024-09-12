@@ -7,7 +7,7 @@ from jinja2 import Template
 from textwrap import dedent
 
 from .auth import ensure_auth
-from .config import user_config_path, project_config
+from .config import project_config, project_dbtwiz_path
 from .logging import debug, info
 
 
@@ -15,7 +15,7 @@ class Backfill:
     """Backfill dbt models using Cloud Run with latest image built from master branch."""
 
     MAX_CONCURRENT_TASKS = 8
-    YAML_FILE = user_config_path("backfill-cloudrun.yaml")
+    YAML_FILE = project_dbtwiz_path("backfill-cloudrun.yaml")
 
 
     @classmethod
