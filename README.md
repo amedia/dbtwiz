@@ -17,38 +17,38 @@ git clone git@github.com:amedia/dbtwiz
 pip install -e <local-path-to-dbtwiz-repository>
 ```
 
-## Usage
+## Configuration
 
-[backfill](#backfill)
-[build](#build)
-[cleanup](#cleanup)
-[config](#config)
-[freshness](#freshness)
-[manifest](#manifest)
-[model](#model)
-[sqlfix](#sqlfix)
-[test](#test)
+The default configuration of _dbtwiz_ will be installed the first time you run it, but you
+may want to adjust some settings from the get-go to fit your environment.
 
-<a name="#backfill"/>
-### backfill
+### Dark mode
+If you're using a dark background colour in your terminal, you should configure _dbtwiz_ to
+use bright colours for highlighting in previews and elsewhere to make the text more readable.
 
-<a name="#build"/>
-### build
+Run the following command to switch from default light mode to dark mode:
+```shell
+$ dbtwiz config theme dark
+```
 
-<a name="#cleanup"/>
-### cleanup
+### Preview formatter
 
-<a name="#config"/>
-### config
+By default, _dbtwiz_ uses the command _fmt_ tool to format text in the preview window when
+selecting models interactively. Under macOS, the _fmt_ tool won't handle ANSI escape codes,
+and unless you have the GNU coreutils version of _fmt_ you will get garbage characters in the
+preview window, and should switch to the simple _cat_ command for formatting instead:
+```shell
+$ dbtwiz config model_info:formatter "cat -s"
+```
 
-<a name="#freshness"/>
-### freshness
+## Subcommands
 
-<a name="#model"/>
-### model
-
-<a name="#sqlfix"/>
-### sqlfix
-
-<a name="#test"/>
-### test
+- [backfill](docs/backfill.md)
+- [build](docs/build.md)
+- [cleanup](#cleanup)
+- [config](#config)
+- [freshness](#freshness)
+- [manifest](#manifest)
+- [model](#model)
+- [sqlfix](#sqlfix)
+- [test](#test)
