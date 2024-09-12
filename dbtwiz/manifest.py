@@ -8,7 +8,7 @@ from typing import List
 
 from google.cloud import storage
 
-from .config import project_config, user_config, user_config_path
+from .config import project_config, user_config, project_dbtwiz_path
 from .logging import info, debug, error
 from .dbt import dbt_invoke
 from .support import models_with_local_changes
@@ -17,9 +17,9 @@ from .support import models_with_local_changes
 class Manifest:
 
     MANIFEST_PATH = Path(".", "target", "manifest.json")
-    PROD_MANIFEST_PATH = user_config_path("prod-manifest.json")
-    MODELS_CACHE_PATH = user_config_path("models-cache.json")
-    MODELS_INFO_PATH = user_config_path("models")
+    PROD_MANIFEST_PATH = project_dbtwiz_path("prod-manifest.json")
+    MODELS_CACHE_PATH = project_dbtwiz_path("models-cache.json")
+    MODELS_INFO_PATH = project_dbtwiz_path("models")
 
 
     @classmethod

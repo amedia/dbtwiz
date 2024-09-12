@@ -26,6 +26,10 @@ def project_path(target: str = "") -> Path:
     """Get Path to the given target relative to the project root directory"""
     return project_config().root_path() / target
 
+def project_dbtwiz_path(target: str = "") -> Path:
+    """Get Path to the given target relative to the project .dbtwiz directory"""
+    return project_config().root_path() / ".dbtwiz" / target
+
 
 class InvalidConfig(ValueError):
     pass

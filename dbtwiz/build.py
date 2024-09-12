@@ -6,7 +6,7 @@ from pathlib import Path
 from google.cloud import storage
 
 from .auth import ensure_auth
-from .config import project_config, project_path
+from .config import project_config, project_dbtwiz_path
 from .dbt import dbt_invoke
 from .logging import info, debug, error, fatal
 from .manifest import Manifest
@@ -16,7 +16,7 @@ class Build():
 
     VALID_TARGETS = ["dev", "build", "prod-ci", "prod"]
 
-    LAST_SELECT_FILE = project_path(".dbtwiz") / "last_select.json"
+    LAST_SELECT_FILE = project_dbtwiz_path("last_select.json")
 
 
     @classmethod
@@ -98,7 +98,7 @@ class Build():
 
         dbt_invoke(commands, **args)
 
-        if save_state:
+        if save_state and target != "dev":
             info("Saving state, uploading manifest to bucket.")
             gcs = storage.Client(project=project_config().gcp_project)
             blob = gcs.bucket(project_config().dbt_state_bucket).blob("manifest.json")
@@ -107,7 +107,7 @@ class Build():
 
     @classmethod
     def save_selected_models(cls, models):
-        Path.mkdir(project_path(".dbtwiz"), exist_ok=True)
+        Path.mkdir(project_dbtwiz_path(), exist_ok=True)
         with open(cls.LAST_SELECT_FILE, "w+") as f:
             f.write(json.dumps(models))
 
