@@ -21,8 +21,24 @@ class Backfill:
     @classmethod
     def backfill_job_name(cls, selector: str) -> str:
         """Generate job name based on the given dbt selector"""
-        name = selector.replace('_', '-').replace('+', '')
-        return f"dbt-backfill-{name}"
+        max_len = 64
+        name = selector.replace("_", "-").replace("+", "")
+        while len(name) > max_len:
+            prev_len = len(name)
+            words = name.split("-")
+            longest_word = max(words, key=len)
+            longest_word_idx = words.index(longest_word)
+            half_word = halve_str(longest_word)
+            words[longest_word_idx] = half_word
+            # Remove empty words
+            words = [w for w in words if len(w) > 0]
+            name = "-".join(words)
+            if len(name) == prev_len:
+                # Couldn't shorten the name further by halving the longest word
+                # so remove the last word
+                words.pop()
+                name = "-".join(words)
+        return name
 
 
     @classmethod
@@ -155,3 +171,13 @@ class Backfill:
         if status:
             webbrowser.open(job_url)
             time.sleep(0.5)
+
+
+def halve_str(word: str) -> str:
+    """Halve a string by keeping the first and last quarter of the string"""
+    word_len = len(word)
+    word_len_quart = max(1, word_len // 4)
+    first_quart = word[:word_len_quart]
+    from_idx = word_len - word_len_quart
+    last_quart = word[from_idx:]
+    return f"{first_quart}{last_quart}"
