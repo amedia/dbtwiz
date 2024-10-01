@@ -21,11 +21,9 @@ class Backfill:
     @classmethod
     def backfill_job_name(cls, selector: str) -> str:
         """Generate job name based on the given dbt selector"""
-        name_prefix = "dbt-bf-"
         max_len = 64
-        max_len_without_prefix = max_len - len(name_prefix)
         name = selector.replace("_", "-").replace("+", "")
-        while len(name) > max_len_without_prefix:
+        while len(name) > max_len:
             prev_len = len(name)
             words = name.split("-")
             longest_word = max(words, key=len)
@@ -40,7 +38,7 @@ class Backfill:
                 # so remove the last word
                 words.pop()
                 name = "-".join(words)
-        return f"{name_prefix}{name}"
+        return name
 
 
     @classmethod
