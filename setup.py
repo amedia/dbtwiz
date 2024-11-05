@@ -22,7 +22,7 @@ setup(
     },
     package_data={
         "dbtwiz": [
-            "templates/model_info.tpl",
+            "dbtwiz/templates/*.tpl",
         ]
     },
     include_package_data=True,
