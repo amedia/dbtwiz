@@ -20,10 +20,4 @@ setup(
             "dbtwiz=dbtwiz.main:main",
         ]
     },
-    package_data={
-        "dbtwiz": [
-            "dbtwiz/templates/*.tpl",
-        ]
-    },
-    include_package_data=True,
 )
