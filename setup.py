@@ -11,7 +11,7 @@ setup(
     install_requires=[
         "typer>=0.12.0",
         "rich>=13.7.0",
-        "dbt-core>=1.7.8,<2.0.0",
+        "dbt-core>=1.7.8",
         "iterfzf>=1.4.0",
         "google-cloud-storage>=2.14.0",
     ],
