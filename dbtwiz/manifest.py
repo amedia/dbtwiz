@@ -35,16 +35,32 @@ class Manifest:
 
 
     @classmethod
-    def update_manifests(cls):
-        """Rebuild local manifest and download latest production manifest"""
+    def update_manifest(cls):
+        """Rebuild local manifest"""
         info("Parsing development manifest")
         dbt_invoke(["parse"], quiet=True)
 
+
+    @classmethod
+    def get_prod_manifest(cls):
+        """Download latest production manifest"""
         info("Fetching production manifest")
         gcs = storage.Client(project=project_config().gcp_project)
         blob = gcs.bucket(project_config().dbt_state_bucket).blob("manifest.json")
+        # Create path if missing
+        Path(cls.PROD_MANIFEST_PATH).mkdir(parents=True, exist_ok=True)
+        # Download prod manifest to path
         blob.download_to_filename(cls.PROD_MANIFEST_PATH)
         gcs.close()
+
+
+    @classmethod
+    def update_manifests(cls, type):
+        """Rebuild local manifest and download latest production manifest"""
+        if type in ('all', 'local'):
+            cls.update_manifest()
+        if type in ('all', 'prod'):
+            cls.get_prod_manifest()
 
 
     @classmethod

@@ -169,9 +169,13 @@ def model(
 
 
 @app.command()
-def manifest():
+def manifest(
+        type: Annotated[str, typer.Option(
+        "--type", "-t",
+        help="Which manifest to get. One of ['all', 'local', 'prod']. Default 'all'.")] = "all",
+):
     """Update dev and production manifests for fast lookup"""
-    Manifest.update_manifests()
+    Manifest.update_manifests(type)
 
 
 @app.command()
