@@ -17,7 +17,7 @@ from .support import models_with_local_changes
 class Manifest:
 
     MANIFEST_PATH = Path(".", "target", "manifest.json")
-    PROD_MANIFEST_PATH = project_dbtwiz_path("prod-manifest.json")
+    PROD_MANIFEST_PATH = project_dbtwiz_path() / "prod-state" / "manifest.json"
     MODELS_CACHE_PATH = project_dbtwiz_path("models-cache.json")
     MODELS_INFO_PATH = project_dbtwiz_path("models")
 
@@ -48,7 +48,7 @@ class Manifest:
         gcs = storage.Client(project=project_config().gcp_project)
         blob = gcs.bucket(project_config().dbt_state_bucket).blob("manifest.json")
         # Create path if missing
-        Path(project_dbtwiz_path()).mkdir(parents=True, exist_ok=True)
+        cls.PROD_MANIFEST_PATH.parent.mkdir(parents=True, exist_ok=True)
         # Download prod manifest to path
         blob.download_to_filename(cls.PROD_MANIFEST_PATH)
         gcs.close()
