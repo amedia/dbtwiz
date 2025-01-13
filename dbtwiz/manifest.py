@@ -17,7 +17,7 @@ from .support import models_with_local_changes
 class Manifest:
 
     MANIFEST_PATH = Path(".", "target", "manifest.json")
-    PROD_MANIFEST_PATH = project_dbtwiz_path() / "prod-state" / "prod-manifest.json"
+    PROD_MANIFEST_PATH = project_dbtwiz_path() / "prod-state" / "manifest.json"
     MODELS_CACHE_PATH = project_dbtwiz_path("models-cache.json")
     MODELS_INFO_PATH = project_dbtwiz_path("models")
 
