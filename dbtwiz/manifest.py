@@ -35,7 +35,7 @@ class Manifest:
 
 
     @classmethod
-    def update_manifest(cls):
+    def rebuild_manifest(cls):
         """Rebuild local manifest"""
         info("Parsing development manifest")
         dbt_invoke(["parse"], quiet=True)
@@ -58,7 +58,7 @@ class Manifest:
     def update_manifests(cls, type):
         """Rebuild local manifest and download latest production manifest"""
         if type in ('all', 'local'):
-            cls.update_manifest()
+            cls.rebuild_manifest()
         if type in ('all', 'prod'):
             cls.get_prod_manifest()
 
