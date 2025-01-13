@@ -108,7 +108,6 @@ class Build():
 
     @classmethod
     def save_selected_models(cls, models):
-        Path.mkdir(project_dbtwiz_path(), exist_ok=True)
         with open(cls.LAST_SELECT_FILE, "w+") as f:
             f.write(json.dumps(models))
 

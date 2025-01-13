@@ -28,6 +28,8 @@ def project_path(target: str = "") -> Path:
 
 def project_dbtwiz_path(target: str = "") -> Path:
     """Get Path to the given target relative to the project .dbtwiz directory"""
+    dot_path = project_config().root_path() / ".dbtwiz"
+    Path.mkdir(dot_path, exist_ok=True)
     return project_config().root_path() / ".dbtwiz" / target
 
 
