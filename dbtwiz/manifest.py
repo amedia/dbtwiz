@@ -48,7 +48,7 @@ class Manifest:
         gcs = storage.Client(project=project_config().gcp_project)
         blob = gcs.bucket(project_config().dbt_state_bucket).blob("manifest.json")
         # Create path if missing
-        Path(cls.PROD_MANIFEST_PATH).mkdir(parents=True, exist_ok=True)
+        Path(project_dbtwiz_path()).mkdir(parents=True, exist_ok=True)
         # Download prod manifest to path
         blob.download_to_filename(cls.PROD_MANIFEST_PATH)
         gcs.close()
