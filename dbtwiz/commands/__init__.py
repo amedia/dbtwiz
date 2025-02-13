@@ -6,4 +6,3 @@ from .manifest import manifest
 from .model import model
 from .precommit import sqlfix
 from .test import test
-#from .example import example
