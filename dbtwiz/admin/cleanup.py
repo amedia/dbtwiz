@@ -1,6 +1,6 @@
-from .manifest import Manifest
-from .target import Target
-from .logging import info
+from dbtwiz.manifest import Manifest
+from dbtwiz.target import Target
+from dbtwiz.logging import info
 
 from pathlib import Path
 from google.cloud import bigquery
