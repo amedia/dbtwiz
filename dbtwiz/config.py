@@ -64,15 +64,6 @@ class UserConfig:
     )
 
 
-    @classmethod
-    def run(cls, setting, value) -> None:
-        if ":" in setting:
-            section, key = setting.split(":")
-        else:
-            section, key = "general", setting
-        user_config().update(section, key, value)
-
-
     def __init__(self):
         """Get the configuration, from file if it exists or create a new one with defaults"""
         self.parser = configparser.ConfigParser()
