@@ -191,16 +191,6 @@ def config(
     commands.config(setting, value)
 
 
-# @app.command()
-# def cleanup(
-#         target: Annotated[Target, typer.Option(
-#             "--target", "-t",
-#             help="Target")] = Target.dev,
-# ):
-#     """Clean up warehouse by deleting materializations not present in manifest"""
-#     cleanup_materializations(target)
-
-
 # if __name__ == "__main__":
 def main():
     try:

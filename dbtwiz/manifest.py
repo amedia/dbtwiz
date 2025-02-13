@@ -179,6 +179,7 @@ class Manifest:
                     tags=node["tags"],
                     meta=node["meta"],
                     group=node["group"],
+                    relation_name=node["relation_name"],
                     description=node["description"],
                     materialized=config["materialized"],
                     parent_models=parent_models,

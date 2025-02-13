@@ -6,16 +6,16 @@ from pathlib import Path
 from google.cloud import bigquery
 
 
-def cleanup_materializations(target: Target):
+def cleanup_materializations(target: Target, list_only: bool, force_delete: bool) -> None:
     """Delete obsolete materializations"""
 
-    if False: # target != Target.dev:
-        Manifest.update_manifests()
+    Manifest.update_manifests(target)
 
     if target == Target.dev:
         manifest = Manifest()
     else:
         manifest = Manifest(Manifest.PROD_MANIFEST_PATH)
+        force_delete = False  # Always ask before deleting in prod!
 
     manifest_models = [
         m for m in manifest.models().values()
@@ -24,21 +24,19 @@ def cleanup_materializations(target: Target):
 
     data = dict()
     for model in manifest_models:
-        project, dataset, table = model["database"], model["schema"], model["name"]
+        # project, dataset, table = model["database"], model["schema"], model["name"]
         # manifest_datasets[database] = manifest_datasets.get(database, set()).union({model["schema"]})
+        project, dataset, table = model["relation_name"].replace("`", "").split(".")
+        if dataset == "elementary":  # Skip materializations belonging to Elementary
+            continue
         data[project] = data.get(project, dict())
         data[project][dataset] = data[project].get(dataset, dict(manifest=[]))
         data[project][dataset]["manifest"].append(table)
 
     for project, datasets in data.items():
-        bq = bigquery.Client(project=project)
-        # for dataset in datasets.keys():
-        #     print(f"Looking up tables in {project=}, {dataset=}")
-        #     data[project][dataset]["bigquery"] = [
-        #         t.table_id for t in bq.list_tables(f"{project}.{dataset}")
-        #         if not "__dbt_tmp_" in t.table_id]
-        print(f"Fetching datasets and tables for project {project}")
-        result = bq.query(f"""
+        bq_client = bigquery.Client(project=project)
+        info(f"Fetching datasets and tables for project {project}")
+        result = bq_client.query(f"""
             select table_schema, array_agg(table_name) as tables
             from region-eu.INFORMATION_SCHEMA.TABLES
             where table_catalog = '{project}'
@@ -50,8 +48,31 @@ def cleanup_materializations(target: Target):
             data[project][dataset] = data[project].get(dataset, dict(manifest=[]))
             data[project][dataset]["bigquery"] = row["tables"]
 
+    obsolete = []
     for project, datasets in data.items():
         for dataset, variants in datasets.items():
             for table in variants["bigquery"]:
                 if table not in variants["manifest"] and len(variants["manifest"]) > 0:
-                    print(f"Not in manifest: {project}.{dataset}.{table}")
+                    obsolete.append(f"{project}.{dataset}.{table}")
+
+    if len(obsolete) == 0:
+        info("All materializations are in the manifest.")
+        return
+
+    info(f"Found {len(obsolete)} materializations not included in the manifest.")
+    info("")
+    bq_client = bigquery.Client()
+
+    for table_id in sorted(obsolete):
+        info(f"Not in manifest: {table_id}")
+        if list_only:
+            delete = False
+        elif force_delete:
+            assert table_id.startswith("amedia-adp-dbt-dev."), "Can't force delete unless dev!"
+            delete = True
+        else:
+            answer = input("Delete (y/N)? ")
+            delete = answer.lower() in ["y", "yes"]
+        if delete:
+            bq_client.delete_table(table_id)
+            info(f"Deleted {table_id}.")
