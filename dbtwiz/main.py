@@ -5,12 +5,8 @@ from typing_extensions import Annotated
 
 from dbtwiz import admin
 from dbtwiz import commands
-
-from dbtwiz.config import UserConfig
-from dbtwiz.logging import debug, info, error
-from dbtwiz.manifest import Manifest
+from dbtwiz.logging import error
 from dbtwiz.target import Target
-from dbtwiz.auth import ensure_auth
 
 
 class InvalidArgumentsError(ValueError):
@@ -178,21 +174,21 @@ def sqlfix():
 def manifest(
         type: Annotated[str, typer.Option(
         "--type", "-t",
-        help="Which manifest to get. One of ['all', 'local', 'prod']. Default 'all'.")] = "all",
+        help="Which manifest to update. One of ['all', 'dev', 'prod']. Default 'all'.")] = "all",
 ):
     """Update dev and production manifests for fast lookup"""
-    Manifest.update_manifests(type)
+    commands.manifest(type)
 
 
 @app.command()
 def config(
-        key: Annotated[str, typer.Argument(
+        setting: Annotated[str, typer.Argument(
             help="Configuration setting")],
         value: Annotated[str, typer.Argument(
             help="Configuration value")],
 ):
     """Update configuration setting"""
-    UserConfig.run(key, value)
+    commands.config(setting, value)
 
 
 # @app.command()

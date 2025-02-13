@@ -57,7 +57,7 @@ class Manifest:
     @classmethod
     def update_manifests(cls, type):
         """Rebuild local manifest and download latest production manifest"""
-        if type in ('all', 'local'):
+        if type in ('all', 'dev'):
             cls.rebuild_manifest()
         if type in ('all', 'prod'):
             cls.get_prod_manifest()
