@@ -15,10 +15,10 @@ def cleanup(
             help="Target")] = Target.dev,
         list_only: Annotated[bool, typer.Option(
             "--list", "-l",
-            help=("List obsolete materializations without deleting anything"))] = False,
+            help=("List orphaned materializations without deleting anything"))] = False,
         force_delete: Annotated[bool, typer.Option(
             "--force", "-f",
-            help=("Delete obsolete materializations without asking (dev target only)"))] = False,
+            help=("Delete orphaned materializations without asking (dev target only)"))] = False,
 ) -> None:
-    """List or delete obsolete materializations in the warehouse"""
+    """List or delete orphaned materializations in the data warehouse"""
     cleanup_materializations(target, list_only, force_delete)
