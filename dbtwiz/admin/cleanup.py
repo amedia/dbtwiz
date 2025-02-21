@@ -1,15 +1,45 @@
 from dbtwiz.auth import ensure_auth
 from dbtwiz.manifest import Manifest
 from dbtwiz.target import Target
-from dbtwiz.logging import info
+from dbtwiz.logging import info, error
 
 from pathlib import Path
 from google.cloud import bigquery
 
 
-def cleanup_materializations(target: Target, list_only: bool, force_delete: bool) -> None:
-    """Delete orphaned materializations"""
+def cleanup_development_dataset(force_delete: bool) -> None:
+    """Delete all materializations in the development dataset"""
+    ensure_auth()
 
+    Manifest.update_manifests("dev")
+    manifest = Manifest()
+
+    # Get project and dataset from first materialization in dev manifest
+    project, dataset = [
+        (m["database"], m["schema"])
+        for m in manifest.models().values()
+        if m["materialized"] != "ephemeral"
+    ][0]
+    bq_client = bigquery.Client(project=project)
+    tables = list(bq_client.list_tables(dataset))
+    if not tables:
+        info(f"Dataset {project}.{dataset} is already empty.")
+        return
+    info(f"There are {len(list(tables))} tables in the {project}.{dataset} dataset.")
+    if not force_delete:
+        answer = input("Delete all tables? (y/N)? ")
+        if not answer.lower() in ["y", "yes"]:
+            return
+    for table in tables:
+        try:
+            bq_client.delete_table(table)
+            info(f"Deleted table {project}.{dataset}.{table.table_id}")
+        except Exception as e:
+            error(f"Failed to delete table {project}.{dataset}.{table.table_id}: {e}")
+
+
+def cleanup_orphaned_materializations(target: Target, list_only: bool, force_delete: bool) -> None:
+    """List or delete orphaned materializations"""
     ensure_auth()
 
     Manifest.update_manifests(target)
