@@ -3,18 +3,10 @@ import datetime
 import typer
 from typing_extensions import Annotated
 
-from .build import Build
-# from .cleanup import cleanup_materializations
-from .config import UserConfig
-from .test import Test
-from .backfill import Backfill
-from .freshness import Freshness
-from .model import Model
-from .precommit import SqlFix
-from .logging import debug, info, error
-from .manifest import Manifest
-from .target import Target
-from .auth import ensure_auth
+from dbtwiz import admin
+from dbtwiz import commands
+from dbtwiz.logging import error
+from dbtwiz.target import Target
 
 
 class InvalidArgumentsError(ValueError):
@@ -25,6 +17,10 @@ app = typer.Typer(
     context_settings={"help_option_names": ["-h", "--help"]},
     #add_completion=False,
 )
+
+
+# Add admin commands as subcommands of 'admin'
+app.add_typer(admin.app, name="admin")
 
 
 @app.command()
@@ -72,7 +68,7 @@ def build(
     except ValueError:
         raise InvalidArgumentsError("Date must be on the YYYY-mm-dd format.")
     # Dispatch
-    Build.run(
+    commands.build(
         target.value, select, run_date, use_task_index, save_state,
         full_refresh, upstream, downstream, work, repeat_last
     )
@@ -100,7 +96,7 @@ def test(
     except ValueError:
         raise InvalidArgumentsError("Date must be on the YYYY-mm-dd format.")
     # Dispatch
-    Test.run(target.value, select, run_date)
+    commands.test(target.value, select, run_date)
 
 
 @app.command()
@@ -110,7 +106,7 @@ def freshness(
             help="Target")] = Target.dev,
 ) -> None:
     """Run source freshness tests"""
-    Freshness.run(target.value)
+    commands.freshness(target.value)
 
 
 @app.command()
@@ -153,7 +149,7 @@ def backfill(
         if date_last != date_first:
             raise InvalidArgumentsError("Full refresh in only supported on single day runs.")
     # Dispatch
-    Backfill.run(
+    commands.backfill(
         select, first_date, last_date, full_refresh,
         parallelism, status, verbose
     )
@@ -165,44 +161,34 @@ def model(
             help="Model name or path")],
 ):
     """Output information about a given model"""
-    Model.run(name)
+    commands.model(name)
+
+
+@app.command()
+def sqlfix():
+    """Run sqlfmt-fix and sqlfluff-fix on staged changes"""
+    commands.sqlfix()
 
 
 @app.command()
 def manifest(
         type: Annotated[str, typer.Option(
         "--type", "-t",
-        help="Which manifest to get. One of ['all', 'local', 'prod']. Default 'all'.")] = "all",
+        help="Which manifest to update. One of ['all', 'dev', 'prod']. Default 'all'.")] = "all",
 ):
     """Update dev and production manifests for fast lookup"""
-    Manifest.update_manifests(type)
-
-
-@app.command()
-def sqlfix():
-    """Run sqlfmt-fix and sqlfluff-fix on staged changes"""
-    SqlFix.run()
+    commands.manifest(type)
 
 
 @app.command()
 def config(
-        key: Annotated[str, typer.Argument(
+        setting: Annotated[str, typer.Argument(
             help="Configuration setting")],
         value: Annotated[str, typer.Argument(
             help="Configuration value")],
 ):
     """Update configuration setting"""
-    UserConfig.run(key, value)
-
-
-# @app.command()
-# def cleanup(
-#         target: Annotated[Target, typer.Option(
-#             "--target", "-t",
-#             help="Target")] = Target.dev,
-# ):
-#     """Clean up warehouse by deleting materializations not present in manifest"""
-#     cleanup_materializations(target)
+    commands.config(setting, value)
 
 
 # if __name__ == "__main__":
