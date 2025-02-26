@@ -18,7 +18,7 @@ def sqlfix() -> None:
     info("Running sqlfmt on changed SQL files.")
     subprocess.run(["sqlfmt", "--line-length=100"] + query_files)
 
-    info("Running sqlfluff fix on changes SQL files.")
+    info("Running sqlfluff fix on changed SQL files.")
     subprocess.run(["sqlfluff", "fix"] + query_files)
 
 
