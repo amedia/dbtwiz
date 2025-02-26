@@ -7,7 +7,7 @@ from pathlib import Path
 from google.cloud import bigquery
 
 
-def cleanup_development_dataset(force_delete: bool) -> None:
+def empty_development_dataset(force_delete: bool) -> None:
     """Delete all materializations in the development dataset"""
     ensure_auth()
 
@@ -25,20 +25,21 @@ def cleanup_development_dataset(force_delete: bool) -> None:
     if not tables:
         info(f"Dataset {project}.{dataset} is already empty.")
         return
-    info(f"There are {len(list(tables))} tables in the {project}.{dataset} dataset.")
+    info(f"There are {len(list(tables))} tables/views in the {project}.{dataset} dataset.")
     if not force_delete:
-        answer = input("Delete all tables? (y/N)? ")
+        answer = input("Delete all tables/views? (y/N)? ")
         if not answer.lower() in ["y", "yes"]:
             return
     for table in tables:
+        table_type = table.table_type.lower()
         try:
             bq_client.delete_table(table)
-            info(f"Deleted table {project}.{dataset}.{table.table_id}")
+            info(f"Deleted {table_type} {project}.{dataset}.{table.table_id}")
         except Exception as e:
-            error(f"Failed to delete table {project}.{dataset}.{table.table_id}: {e}")
+            error(f"Failed to delete {table_type} {project}.{dataset}.{table.table_id}: {e}")
 
 
-def cleanup_orphaned_materializations(target: Target, list_only: bool, force_delete: bool) -> None:
+def handle_orphaned_materializations(target: Target, list_only: bool, force_delete: bool) -> None:
     """List or delete orphaned materializations"""
     ensure_auth()
 
@@ -85,15 +86,15 @@ def cleanup_orphaned_materializations(target: Target, list_only: bool, force_del
     orphaned = []
     for project, datasets in data.items():
         for dataset, variants in datasets.items():
-            for table in variants["bigquery"]:
+            for table in variants.get("bigquery", []):
                 if table not in variants["manifest"] and len(variants["manifest"]) > 0:
                     orphaned.append(f"{project}.{dataset}.{table}")
 
     if len(orphaned) == 0:
-        info("All materializations are in the manifest.")
+        info("There are no orphaned materializations.")
         return
 
-    info(f"Found {len(orphaned)} materializations not included in the manifest.")
+    info(f"Found {len(orphaned)} orphaned materializations.")
     info("")
     bq_client = bigquery.Client()
 

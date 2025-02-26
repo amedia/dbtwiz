@@ -1,15 +1,21 @@
 import typer
 from typing_extensions import Annotated
 
+from dbtwiz.logging import error
 from dbtwiz.target import Target
 
 from .cleanup import (
-    cleanup_development_dataset,
-    cleanup_orphaned_materializations,
+    empty_development_dataset,
+    handle_orphaned_materializations,
 )
 
 
+class InvalidArgumentsError(ValueError):
+    pass
+
+
 app = typer.Typer()
+
 
 @app.command()
 def orphaned(
@@ -24,7 +30,10 @@ def orphaned(
             help=("Delete orphaned materializations without asking (dev target only)"))] = False,
 ) -> None:
     """List or delete orphaned materializations in the data warehouse"""
-    cleanup_orphaned_materializations(target, list_only, force_delete)
+    if list_only and force_delete:
+        error("You can't both list and force-delete at the same time.")
+    else:
+        handle_orphaned_materializations(target, list_only, force_delete)
 
 
 @app.command()
@@ -34,4 +43,4 @@ def cleandev(
             help=("Delete without asking for confirmation first"))] = False,
 ) -> None:
     """Delete all materializations in the dbt development dataset"""
-    cleanup_development_dataset(force_delete)
+    empty_development_dataset(force_delete)
