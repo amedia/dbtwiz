@@ -27,7 +27,7 @@ def empty_development_dataset(force_delete: bool) -> None:
     info(f"There are {len(list(tables))} tables/views in the {project}.{dataset} dataset.")
     if not force_delete:
         answer = input("Delete all tables/views? (y/N)? ")
-        if not answer.lower() in ["y", "yes"]:
+        if answer.lower() not in ["y", "yes"]:
             return
     for table in tables:
         table_type = table.table_type.lower()
