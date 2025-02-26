@@ -3,7 +3,6 @@ from dbtwiz.manifest import Manifest
 from dbtwiz.target import Target
 from dbtwiz.logging import info, error
 
-from pathlib import Path
 from google.cloud import bigquery
 
 
