@@ -2,7 +2,7 @@ from setuptools import find_packages, setup
 
 setup(
     name="dbtwiz",
-    version="0.2.0",
+    version="0.2.1",
     author="Amedia Produkt og Teknologi",
     url="https://github.com/amedia/dbtwiz",
     license="MIT",
@@ -14,6 +14,7 @@ setup(
         "dbt-core>=1.9.1",
         "iterfzf>=1.4.0",
         "google-cloud-storage>=2.19.0",
+        "questionary>=2.1.0",
     ],
     entry_points={
         "console_scripts": [
