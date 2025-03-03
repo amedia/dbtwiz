@@ -145,13 +145,12 @@ def create_model_files(
     }
 
     info(f"Generating config file {yml_path}")
-    yml_path = "generate.yml"  # While testing
     with open(yml_path, "w+") as f:
         yaml.dump(yml_content, f, sort_keys=False)
 
     info(f"Generating query file {sql_path}")
-    # with open(sql_path, "w+") as f:
-    #     f.write("{# SQL placeholder #}")
+    with open(sql_path, "w+") as f:
+        f.write("{# SQL placeholder #}")
     # Open SQL file in editor
     # FIXME: Make editor user configurable with 'code' as default
-    # os.system(f"code {sql_path}")
+    os.system(f"code {sql_path}")
