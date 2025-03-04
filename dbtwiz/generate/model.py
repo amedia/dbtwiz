@@ -1,11 +1,15 @@
 import os
+import re
 import yaml
+
+from pathlib import Path
 
 from dbtwiz.interact import (
     input_text,
     select_from_list,
     multiselect_from_list,
     autocomplete_from_list,
+    confirm,
 )
 
 from dbtwiz.logging import info, warn, error, fatal
@@ -39,7 +43,8 @@ def generate_model(quick: bool):
 
         while True:
             name = input_text(
-                "What is the name of your model")
+                "What is the name of your model",
+                pattern=r"^[a-z][a-z0-9_]*[a-z0-9]$")
             base_path = model_base_path(layer, domain, name)
             sql_path = base_path.with_suffix(".sql")
             yml_path = base_path.with_suffix(".yml")
@@ -49,7 +54,8 @@ def generate_model(quick: bool):
                 break
 
         description = input_text(
-            "Give a short description of your model and its purpose")
+            "Give a short description of your model and its purpose",
+            pattern=r"^\S+")
 
         if not quick:
             group = autocomplete_from_list(
@@ -88,7 +94,7 @@ def generate_model(quick: bool):
             name=name,
             description=description,
             materialization=materialization,
-            access=None,
+            access=access,
             group=group,
             teams=teams,
             service_consumers=service_consumers,
@@ -143,6 +149,13 @@ def create_model_files(
             "config": config,
         }],
     }
+
+    info(f"[=== BEGIN {yml_path.relative_to(Path.cwd())} ===]")
+    info(yaml.dump(yml_content, sort_keys=False))
+    info(f"[=== END ===]")
+    if not confirm("Do you wish to generate the model files"):
+        warn("Model generation cancelled.")
+        return
 
     info(f"Generating config file {yml_path}")
     with open(yml_path, "w+") as f:
