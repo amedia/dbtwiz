@@ -12,7 +12,7 @@ def debug(message: str):
     log_console.print(message, style="blue")
 
 def info(message: str):
-    """Log a info message"""
+    """Log an info message"""
     log_console.print(message, style="green")
 
 def warn(message: str):

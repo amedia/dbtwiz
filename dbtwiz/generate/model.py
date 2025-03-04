@@ -44,7 +44,7 @@ def generate_model(quick: bool):
 
         while True:
             name = input_text(
-                "What is the name of your model",
+                "What is the name of your model (lowercase, digits and underscores only)",
                 pattern=r"^[a-z][a-z0-9_]*[a-z0-9]$")
             base_path = model_base_path(layer, domain, name)
             sql_path = base_path.with_suffix(".sql")
@@ -68,7 +68,7 @@ def generate_model(quick: bool):
                 allow_blank=True)
 
             access = select_from_list(
-                "What is the access level for this model",
+                "What should the access level be for this model",
                 access_choices())
 
             materialization = select_from_list(
