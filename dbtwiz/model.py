@@ -37,6 +37,14 @@ def access_choices() -> Dict[str, str]:
     }
 
 
+def frequency_choices() -> Dict[str, str]:
+    """Dict of frequencies and descriptions"""
+    return {
+        "hourly": "Model needs to be updated every hour",
+        "daily": "Model needs to be updated once a day",
+    }
+
+
 class Group:
     """Project's model groups"""
 
@@ -77,6 +85,10 @@ class Project:
     def access_policies(self) -> List[str]:
         """List of access policies defined in project config"""
         return self.data.get("access-policies", {}).keys()
+
+    def data_expirations(self) -> List[str]:
+        """List of data expiration policies"""
+        return [key for key in self.data.keys() if key.endswith("-data-expiration")]
 
 
 def domains_for_layer(layer: str):

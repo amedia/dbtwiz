@@ -20,6 +20,7 @@ from dbtwiz.model import (
     layer_choices,
     materialization_choices,
     access_choices,
+    frequency_choices,
     domains_for_layer,
     model_base_path,
 )
@@ -57,6 +58,8 @@ def generate_model(quick: bool):
             "Give a short description of your model and its purpose",
             pattern=r"^\S+")
 
+        frequency = service_consumers = access_policy = None
+
         if not quick:
             group = autocomplete_from_list(
                 "Which group does your model belong to",
@@ -72,16 +75,29 @@ def generate_model(quick: bool):
                 "How should your model be materialized",
                 materialization_choices())
 
+            expiration = None
+            if materialization == "incremental":
+                expiration = select_from_list(
+                    "Select data expiration policy for your incremental model",
+                    project.data_expirations())
+
             teams = multiselect_from_list(
-                "Which team(s) should be responsible for this model",
+                "Select one or more teams to be responsible for this model",
                 project.teams())
 
-            service_consumers = access_policy = None
+            if layer != "staging":
+                choices = frequency_choices()
+                if len(set(teams) & set(["team-ai", "team-ai-analyst", "team-abo"])) > 0:
+                    choices["daily_news_cycle"] = "Model needs to be updated once a day at 03:30",
+                frequency = select_from_list(
+                    "How often should your model be updated",
+                    choices)
 
             if layer in ("marts", "bespoke"):
                 service_consumers = multiselect_from_list(
                     "Which service consumers need access to your model",
-                    project.service_consumers())
+                    project.service_consumers(),
+                    allow_none=True)
 
                 access_policy = select_from_list(
                     "What is the access policy for this model",
@@ -99,6 +115,8 @@ def generate_model(quick: bool):
             teams=teams,
             service_consumers=service_consumers,
             access_policy=access_policy,
+            frequency=frequency,
+            expiration=expiration,
         )
 
     except KeyboardInterrupt:
@@ -116,6 +134,8 @@ def create_model_files(
         teams=None,
         service_consumers=None,
         access_policy=None,
+        frequency=None,
+        expiration=None,
 ):
     """Create SQL and YAML files for model"""
     base_path = model_base_path(layer, domain, name)
@@ -128,6 +148,14 @@ def create_model_files(
 
     config = {}
     config["materialized"] = materialization
+    if materialization == "incremental":
+        config["incremental_strategy"] = "insert_overwrite"
+        config["partition_by"] = {"field": "partitiondate", "data_type": "date"}
+        if expiration:
+            config["partition_expiration_days"] = "{{ var('" + expiration + "') }}"
+        config["require_partition_filter"] = True
+        config["on_schema_change"] = "append_new_columns"
+
     if access:
         config["access"] = access
     if group:
@@ -140,6 +168,8 @@ def create_model_files(
             config["meta"]["service-consumers"] = service_consumers
         if access_policy:
             config["meta"]["access-policy"] = access_policy
+        if frequency:
+            config["meta"]["tags"] = [frequency]
 
     yml_content = {
         "version": 2,
@@ -151,7 +181,7 @@ def create_model_files(
     }
 
     info(f"[=== BEGIN {yml_path.relative_to(Path.cwd())} ===]")
-    info(yaml.dump(yml_content, sort_keys=False))
+    info(yaml.dump(yml_content, sort_keys=False).rstrip())
     info(f"[=== END ===]")
     if not confirm("Do you wish to generate the model files"):
         warn("Model generation cancelled.")

@@ -38,14 +38,21 @@ def select_from_list(question, items, allow_none=False) -> (str | None):
     return choice
 
 
-def multiselect_from_list(question, items) -> List[str]:
+def multiselect_from_list(question, items, allow_none=False) -> List[str]:
     """Select item from list"""
-    choices = questionary.checkbox(
-        f"{question}:",
-        items,
-        style=custom_style()
-    ).unsafe_ask()
-    return choices
+    choice_list = [i for i in items]
+    if allow_none:
+        choice_list.append("None")
+    while True:
+        choices = questionary.checkbox(
+            f"{question}:",
+            choice_list,
+            style=custom_style()
+        ).unsafe_ask()
+        if (choices is None or len(choices) == 0) and not allow_none:
+            error("At least one item must be selected (using SPACE)")
+            continue
+        return choices
 
 
 def autocomplete_from_list(question, items, must_exist=True, allow_blank=False) -> (str | None):
