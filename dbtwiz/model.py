@@ -8,7 +8,7 @@ from dbtwiz.logging import fatal
 from .config import project_path
 
 
-def layer_choices() -> Dict[str, str]:
+def layer_choices() -> List[Dict[str, str]]:
     """Dict of dbt layers and descriptions"""
     return [
         {"name": "staging", "description": "Initial building blocks mapping the source data"},
@@ -18,7 +18,7 @@ def layer_choices() -> Dict[str, str]:
     ]
 
 
-def materialization_choices() -> Dict[str, str]:
+def materialization_choices() -> List[Dict[str, str]]:
     """Dict of dbt materializations and descriptions"""
     return [
         {"name": "view", "description": "Default"},
@@ -28,7 +28,7 @@ def materialization_choices() -> Dict[str, str]:
     ]
 
 
-def access_choices() -> Dict[str, str]:
+def access_choices() -> List[Dict[str, str]]:
     """Dict of access levels and descriptions"""
     return [
         {"name": "private", "description": "Usable only by other models in the same group"},
@@ -37,7 +37,7 @@ def access_choices() -> Dict[str, str]:
     ]
 
 
-def frequency_choices() -> Dict[str, str]:
+def frequency_choices() -> List[Dict[str, str]]:
     """Dict of frequencies and descriptions"""
     return [
         {"name": "hourly", "description": "Model needs to be updated every hour"},

@@ -1,29 +1,30 @@
 import os
 import re
-import yaml
-
+from io import StringIO
 from pathlib import Path
 
+import yaml
 from dbtwiz.interact import (
-    input_text,
-    select_from_list,
-    multiselect_from_list,
     autocomplete_from_list,
     confirm,
+    input_text,
+    multiselect_from_list,
+    select_from_list,
 )
-
-from dbtwiz.logging import info, warn, error, fatal
-
+from dbtwiz.logging import error, fatal, info, warn
 from dbtwiz.model import (
     Group,
     Project,
+    access_choices,
+    domains_for_layer,
+    frequency_choices,
     layer_choices,
     materialization_choices,
-    access_choices,
-    frequency_choices,
-    domains_for_layer,
     model_base_path,
 )
+from ruamel.yaml import YAML
+from ruamel.yaml.comments import CommentedMap, CommentedSeq
+from ruamel.yaml.scalarstring import LiteralScalarString
 
 
 def generate_model(quick: bool):
@@ -88,7 +89,7 @@ def generate_model(quick: bool):
             if layer != "staging":
                 choices = frequency_choices()
                 if len(set(teams) & set(["team-ai", "team-ai-analyst", "team-abo"])) > 0:
-                    choices.append({{"name": "daily_news_cycle", "description": "Model needs to be updated once a day at 03:30"}})
+                    choices.append({"name": "daily_news_cycle", "description": "Model needs to be updated once a day at 03:30"})
                 frequency = select_from_list(
                     "How often should your model be updated",
                     choices)
@@ -146,42 +147,57 @@ def create_model_files(
     if sql_path.exists() or yml_path.exists():
         return fatal(f"Model files {sql_path}.(sql,yml) already exist, leaving them be.")
 
-    config = {}
+
+    # Configure yaml format
+    ruamel_yaml = YAML()
+    ruamel_yaml.preserve_quotes = True
+    ruamel_yaml.indent(mapping=2, sequence=4, offset=2)
+
+    # Define the config as a CommentedMap to maintain order
+    config = CommentedMap()
+
+
     config["materialized"] = materialization
+
     if materialization == "incremental":
         config["incremental_strategy"] = "insert_overwrite"
         config["partition_by"] = {"field": "partitiondate", "data_type": "date"}
         if expiration:
-            config["partition_expiration_days"] = "{{ var('" + expiration + "') }}"
+            config["partition_expiration_days"] = f"{{{{ var('{expiration}') }}}}"
         config["require_partition_filter"] = True
         config["on_schema_change"] = "append_new_columns"
 
+    if frequency:
+        config["tags"] = CommentedSeq([frequency])
     if access:
         config["access"] = access
     if group:
         config["group"] = group
     if teams or service_consumers or access_policy:
-        config["meta"] = {}
+        config['meta'] = CommentedMap()
         if teams:
-            config["meta"]["teams"] = teams
-        if service_consumers:
-            config["meta"]["service-consumers"] = service_consumers
+            config["meta"]["teams"] = CommentedSeq(teams)
         if access_policy:
             config["meta"]["access-policy"] = access_policy
-        if frequency:
-            config["meta"]["tags"] = [frequency]
+        if service_consumers:
+            config["meta"]["service-consumers"] = CommentedSeq(service_consumers)
 
-    yml_content = {
-        "version": 2,
-        "models": [{
-            "name": base_path.stem,
-            "description": description,
-            "config": config,
-        }],
-    }
+    yml_content = CommentedMap()
+    yml_content['version'] = 2
+    # Add a blank line between 'version' and 'models'
+    yml_content.yaml_set_comment_before_after_key('models', before='\n')
+    yml_content['models'] = [
+        {
+            'name': base_path.stem,
+            'description': LiteralScalarString(description),
+            'config': config
+        }
+    ]
 
     info(f"[=== BEGIN {yml_path.relative_to(Path.cwd())} ===]")
-    info(yaml.dump(yml_content, sort_keys=False).rstrip())
+    stream = StringIO()
+    ruamel_yaml.dump(yml_content, stream)
+    info(stream.getvalue().rstrip())
     info(f"[=== END ===]")
     if not confirm("Do you wish to generate the model files"):
         warn("Model generation cancelled.")
@@ -189,7 +205,7 @@ def create_model_files(
 
     info(f"Generating config file {yml_path}")
     with open(yml_path, "w+") as f:
-        yaml.dump(yml_content, f, sort_keys=False)
+        ruamel_yaml.dump(yml_content, f)
 
     info(f"Generating query file {sql_path}")
     with open(sql_path, "w+") as f:
