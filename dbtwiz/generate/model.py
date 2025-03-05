@@ -155,7 +155,6 @@ def create_model_files(
 ):
     """Create SQL and YAML files for model"""
     base_path = model_base_path(layer, domain, name)
-    base_path.parent.mkdir(parents=True, exist_ok=True)
 
     sql_path = base_path.with_suffix(".sql")
     yml_path = base_path.with_suffix(".yml")
@@ -217,6 +216,9 @@ def create_model_files(
     if not confirm("Do you wish to generate the model files"):
         warn("Model generation cancelled.")
         return
+
+    # Create folder structure for files
+    base_path.parent.mkdir(parents=True, exist_ok=True)
 
     info(f"Generating config file {yml_path}")
     with open(yml_path, "w+") as f:
