@@ -7,16 +7,13 @@ from dbtwiz.logging import error
 from dbtwiz.style import custom_style
 
 
-def input_text(question, allow_blank=False, pattern=None) -> str:
+def input_text(question, allow_blank=False, validate=None) -> str:
     """Ask user to input a text value"""
     while True:
-        opts = {}
-        if pattern:
-            opts["validate"] = lambda string: re.match(pattern, string) is not None
         value = questionary.text(
             f"{question}:",
             style=custom_style(),
-            **opts,
+            validate=validate
         ).unsafe_ask()
         if value or allow_blank:
             return value

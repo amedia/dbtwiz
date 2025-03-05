@@ -44,19 +44,25 @@ def generate_model(quick: bool):
 
         while True:
             name = input_text(
-                "What is the name of your model (lowercase, digits and underscores only)",
-                pattern=r"^[a-z][a-z0-9_]*[a-z0-9]$")
+                "What is the name of your model",
+                validate = lambda string: (
+                    re.match(r"^[a-z][a-z0-9_]*[a-z0-9]$", string) is not None
+                    ) or "The name can only contain lowercase, digits and underscores, must start with a character and not end with underscore"
+            )
             base_path = model_base_path(layer, domain, name)
             sql_path = base_path.with_suffix(".sql")
             yml_path = base_path.with_suffix(".yml")
             if sql_path.exists() or yml_path.exists():
-                error("A model with that name already exists, please choose another.")
+                error("A model with this name already exists, please choose another.")
             else:
                 break
 
         description = input_text(
             "Give a short description of your model and its purpose",
-            pattern=r"^\S+")
+            validate = lambda string: (
+                re.match(r"^\S+", string) is not None
+                ) or "The description must not start with a space"
+        )
 
         group = access = expiration = teams = frequency = service_consumers = access_policy = None
         materialization = "view"
