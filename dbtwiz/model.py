@@ -117,7 +117,7 @@ def get_source_tables():
                     for source in sources:
                         for table in source.get('tables', []):
                             source_tables[f"{source['name']}.{table['name']}"] = table.get("description")
-    return source_tables
+    return dict(sorted(source_tables.items()))
 
 
 def domains_for_layer(layer: str):
