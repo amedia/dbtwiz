@@ -3,7 +3,6 @@ import re
 from io import StringIO
 from pathlib import Path
 
-import yaml
 from dbtwiz.interact import (
     autocomplete_from_list,
     confirm,
