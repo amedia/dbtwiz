@@ -36,11 +36,20 @@ def generate_model(quick: bool):
             "Select model layer",
             layer_choices())
 
-        domain = autocomplete_from_list(
-            "Which domain does your model belong to",
-            domains_for_layer(layer),
-            must_exist=False,
-            allow_blank=False)
+        if domains_for_layer(layer):
+            domain = autocomplete_from_list(
+                "Which domain does your model belong to",
+                domains_for_layer(layer),
+                must_exist=False,
+                allow_blank=False)
+        else:
+            domain = input_text(
+                "Which domain does your model belong to",
+                allow_blank=False,
+                validate=lambda string: (
+                    re.match(r"^[a-z][a-z0-9_]*[a-z0-9]$", string) is not None
+                    ) or "The domain can only contain lowercase, digits and underscores, must start with a character and not end with underscore"
+            )
 
         while True:
             name = input_text(
