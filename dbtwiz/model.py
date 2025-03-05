@@ -75,33 +75,34 @@ class Project:
             data = yaml.safe_load(f)
             self.data = data.get("vars", {})
 
-    def teams(self) -> List[str]:
+    def teams(self) -> List[Dict[str,str]]:
         """List of teams defined in project config"""
         return [
             {"name": key, "description": value.get("description")}
             for key, value in self.data.get("teams", {}).items()
         ]
 
-    def service_consumers(self) -> List[str]:
+    def service_consumers(self) -> List[Dict[str,str]]:
         """List of service consumers defined in project config"""
         return [
             {"name": key, "description": value.get("description")}
             for key, value in self.data.get("service-consumers", {}).items()
         ]
 
-    def access_policies(self) -> List[str]:
+    def access_policies(self) -> List[Dict[str,str]]:
         """List of access policies defined in project config"""
         return [
             {"name": key, "description": value.get("description")}
             for key, value in self.data.get("access-policies", {}).items()
         ]
 
-    def data_expirations(self) -> List[str]:
+    def data_expirations(self) -> List[Dict[str,str]]:
         """List of data expiration policies"""
         return [
             {"name": item, "description": f"Used for {item.replace('-', ' ').replace(' expiration', '')}"}
             for item in self.data.keys() if item.endswith("-data-expiration")
         ]
+
 
 def get_source_tables():
     """List of sources in this project"""
