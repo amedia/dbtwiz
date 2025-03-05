@@ -10,39 +10,39 @@ from .config import project_path
 
 def layer_choices() -> Dict[str, str]:
     """Dict of dbt layers and descriptions"""
-    return {
-        "staging": "Initial building blocks mapping the source data",
-        "intermediate": "Logic to prepare data to be joined into products at later stages",
-        "marts": "Data products made available to several consumers",
-        "bespoke": "Data products tailored to one specific consumer",
-    }
+    return [
+        {"name": "staging", "description": "Initial building blocks mapping the source data"},
+        {"name": "intermediate", "description": "Logic to prepare data to be joined into products at later stages"},
+        {"name": "marts", "description": "Data products made available to several consumers"},
+        {"name": "bespoke", "description": "Data products tailored to one specific consumer"},
+    ]
 
 
 def materialization_choices() -> Dict[str, str]:
     """Dict of dbt materializations and descriptions"""
-    return {
-        "ephemeral": "",
-        "view": "",
-        "table": "",
-        "incremental": "",
-    }
+    return [
+        {"name": "view", "description": "Default"},
+        {"name": "table", "description": "Typically used for smaller mart models"},
+        {"name": "incremental", "description": "Used for large models"},
+        {"name": "ephemeral", "description": "Should very rarely be used, only for logically splitting up the code"},
+    ]
 
 
 def access_choices() -> Dict[str, str]:
     """Dict of access levels and descriptions"""
-    return {
-        "private": "Usable only by other models in the same group",
-        "protected": "Usable by models outside the group",
-        "public": "For marts models",
-    }
+    return [
+        {"name": "private", "description": "Usable only by other models in the same group"},
+        {"name": "protected", "description": "Usable by models outside the group"},
+        {"name": "public", "description": "For marts models"},
+    ]
 
 
 def frequency_choices() -> Dict[str, str]:
     """Dict of frequencies and descriptions"""
-    return {
-        "hourly": "Model needs to be updated every hour",
-        "daily": "Model needs to be updated once a day",
-    }
+    return [
+        {"name": "hourly", "description": "Model needs to be updated every hour"},
+        {"name": "daily", "description": "Model needs to be updated once a day"},
+    ]
 
 
 class Group:

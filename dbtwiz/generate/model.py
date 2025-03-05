@@ -88,7 +88,7 @@ def generate_model(quick: bool):
             if layer != "staging":
                 choices = frequency_choices()
                 if len(set(teams) & set(["team-ai", "team-ai-analyst", "team-abo"])) > 0:
-                    choices["daily_news_cycle"] = "Model needs to be updated once a day at 03:30",
+                    choices.append({{"name": "daily_news_cycle", "description": "Model needs to be updated once a day at 03:30"}})
                 frequency = select_from_list(
                     "How often should your model be updated",
                     choices)

@@ -29,7 +29,7 @@ def select_from_list(question, items, allow_none=False) -> (str | None):
         choices.append("None")
     choice = questionary.select(
         f"{question}:",
-        items,
+        choices=items,
         use_shortcuts=True,
         style=custom_style()
     ).unsafe_ask()
@@ -45,7 +45,7 @@ def multiselect_from_list(question, items, allow_none=False) -> List[str]:
         choice_list.append("None")
     choices = questionary.checkbox(
         f"{question}:",
-        choice_list,
+        choices=choice_list,
         validate=lambda sel: len(sel) > 0,  # Must choose at least one
         style=custom_style()
     ).unsafe_ask()
