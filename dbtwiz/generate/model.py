@@ -58,7 +58,8 @@ def generate_model(quick: bool):
             "Give a short description of your model and its purpose",
             pattern=r"^\S+")
 
-        frequency = service_consumers = access_policy = None
+        group = access = expiration = teams = frequency = service_consumers = access_policy = None
+        materialization = "view"
 
         if not quick:
             group = autocomplete_from_list(
