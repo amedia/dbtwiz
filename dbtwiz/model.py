@@ -76,19 +76,31 @@ class Project:
 
     def teams(self) -> List[str]:
         """List of teams defined in project config"""
-        return self.data.get("teams", {}).keys()
+        return [
+            {"name": key, "description": value.get("description")}
+            for key, value in self.data.get("teams", {}).items()
+        ]
 
     def service_consumers(self) -> List[str]:
         """List of service consumers defined in project config"""
-        return self.data.get("service-consumers", {}).keys()
+        return [
+            {"name": key, "description": value.get("description")}
+            for key, value in self.data.get("service-consumers", {}).items()
+        ]
 
     def access_policies(self) -> List[str]:
         """List of access policies defined in project config"""
-        return self.data.get("access-policies", {}).keys()
+        return [
+            {"name": key, "description": value.get("description")}
+            for key, value in self.data.get("access-policies", {}).items()
+        ]
 
     def data_expirations(self) -> List[str]:
         """List of data expiration policies"""
-        return [key for key in self.data.keys() if key.endswith("-data-expiration")]
+        return [
+            {"name": item, "description": f"Used for {item.replace('-', ' ').replace(' expiration', '')}"}
+            for item in self.data.keys() if item.endswith("-data-expiration")
+        ]
 
 
 def domains_for_layer(layer: str):

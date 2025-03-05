@@ -24,31 +24,44 @@ def input_text(question, allow_blank=False, pattern=None) -> str:
 
 def select_from_list(question, items, allow_none=False) -> (str | None):
     """Select item from list"""
-    choices = [i for i in items]
+    na_selection = {"name": "n/a", "description": "Not relevant for this model"}
+    default = None
     if allow_none:
-        choices.append("None")
+        items.insert(0, na_selection)
+        default = na_selection
     choice = questionary.select(
         f"{question}:",
         choices=items,
         use_shortcuts=True,
-        style=custom_style()
+        style=custom_style(),
+        default=default
     ).unsafe_ask()
-    if choice == "None":
+    if choice == "n/a":
         return None
     return choice
 
 
 def multiselect_from_list(question, items, allow_none=False) -> List[str]:
     """Select item from list"""
-    choice_list = [i for i in items]
+    validate = lambda sel: (len(sel) > 0) or "You must select at least one item"
+    na_selection = {"name": "n/a", "description": "Not relevant for this model"}
+    default = None
     if allow_none:
-        choice_list.append("None")
+        items.insert(0, na_selection)
+        default = na_selection
+        validate = lambda sel: (
+            len(sel) > 0 and
+            (not ("n/a" in sel and len(sel) > 1))
+        ) or "You must select at least one item, 'n/a' cannot be selected along with other options."
     choices = questionary.checkbox(
         f"{question}:",
-        choices=choice_list,
-        validate=lambda sel: len(sel) > 0,  # Must choose at least one
-        style=custom_style()
+        choices=items,
+        validate=validate,
+        style=custom_style(),
+        default=default
     ).unsafe_ask()
+    if choices == ["n/a"]:
+        return None
     return choices
 
 

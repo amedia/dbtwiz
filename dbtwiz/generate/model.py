@@ -63,27 +63,26 @@ def generate_model(quick: bool):
 
         if not quick:
             group = autocomplete_from_list(
-                "Which group does your model belong to",
+                "Which group should the model belong to",
                 Group().choices(),
                 must_exist=True,
                 allow_blank=True)
 
             access = select_from_list(
-                "What should the access level be for this model",
+                "What should the access level be for the model",
                 access_choices())
 
             materialization = select_from_list(
-                "How should your model be materialized",
+                "How should the model be materialized",
                 materialization_choices())
 
-            expiration = None
             if materialization == "incremental":
                 expiration = select_from_list(
-                    "Select data expiration policy for your incremental model",
+                    "Select data expiration policy for the incremental model",
                     project.data_expirations())
 
             teams = multiselect_from_list(
-                "Select one or more teams to be responsible for this model",
+                "Select team(s) to be responsible for the model",
                 project.teams())
 
             if layer != "staging":
@@ -91,17 +90,18 @@ def generate_model(quick: bool):
                 if len(set(teams) & set(["team-ai", "team-ai-analyst", "team-abo"])) > 0:
                     choices.append({"name": "daily_news_cycle", "description": "Model needs to be updated once a day at 03:30"})
                 frequency = select_from_list(
-                    "How often should your model be updated",
-                    choices)
+                    "How often should the model be updated",
+                    choices,
+                    allow_none=True)
 
             if layer in ("marts", "bespoke"):
                 service_consumers = multiselect_from_list(
-                    "Which service consumers need access to your model",
+                    "Which service consumers need access to the model",
                     project.service_consumers(),
                     allow_none=True)
 
                 access_policy = select_from_list(
-                    "What is the access policy for this model",
+                    "What is the access policy for the model",
                     project.access_policies(),
                     allow_none=True)
 
