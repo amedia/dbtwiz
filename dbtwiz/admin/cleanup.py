@@ -3,11 +3,10 @@ from dbtwiz.manifest import Manifest
 from dbtwiz.target import Target
 from dbtwiz.logging import info, error
 
-from google.cloud import bigquery
-
 
 def empty_development_dataset(force_delete: bool) -> None:
     """Delete all materializations in the development dataset"""
+    from google.cloud import bigquery # Lazy import for improved performance
     ensure_auth()
 
     Manifest.update_manifests("dev")
@@ -40,6 +39,7 @@ def empty_development_dataset(force_delete: bool) -> None:
 
 def handle_orphaned_materializations(target: Target, list_only: bool, force_delete: bool) -> None:
     """List or delete orphaned materializations"""
+    from google.cloud import bigquery # Lazy import for improved performance
     ensure_auth()
 
     Manifest.update_manifests(target)

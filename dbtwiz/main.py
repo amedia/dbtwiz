@@ -1,7 +1,7 @@
 import datetime
 
 import typer
-from typing_extensions import Annotated
+from typing import Annotated
 
 from dbtwiz import admin
 from dbtwiz import commands

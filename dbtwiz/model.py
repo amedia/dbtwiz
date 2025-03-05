@@ -1,8 +1,6 @@
-from enum import Enum
 from pathlib import Path
 from typing import Dict, List
 import os
-import yaml
 
 from dbtwiz.logging import fatal
 
@@ -52,8 +50,9 @@ class Group:
     YAML_PATH = project_path() / "models" / "model_groups.yml"
 
     def __init__(self):
+        from yaml import safe_load # Lazy import for improved performance
         with open(self.YAML_PATH, "r") as f:
-            data = yaml.safe_load(f)
+            data = safe_load(f)
         self.groups = data["groups"]
 
     def choices(self):
@@ -71,8 +70,9 @@ class Project:
     YAML_PATH = project_path() / "dbt_project.yml"
 
     def __init__(self):
+        from yaml import safe_load # Lazy import for improved performance
         with open(self.YAML_PATH, "r") as f:
-            data = yaml.safe_load(f)
+            data = safe_load(f)
             self.data = data.get("vars", {})
 
     def teams(self) -> List[Dict[str,str]]:
@@ -106,13 +106,14 @@ class Project:
 
 def get_source_tables():
     """List of sources in this project"""
+    from yaml import safe_load # Lazy import for improved performance
     source_tables = {}
     for root, _, files in os.walk(project_path() / "sources"):
         for file in files:
             if file.endswith('.yml') or file.endswith('.yaml'):
                 file_path = os.path.join(root, file)
                 with open(file_path, 'r') as f:
-                    content = yaml.safe_load(f)
+                    content = safe_load(f)
                     sources = content.get('sources', [])
                     for source in sources:
                         for table in source.get('tables', []):

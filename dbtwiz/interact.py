@@ -1,16 +1,13 @@
-import questionary
-
-import re
 from typing import List
 
 from dbtwiz.logging import error
 from dbtwiz.style import custom_style
 
-
 def input_text(question, allow_blank=False, validate=None) -> str:
     """Ask user to input a text value"""
+    from questionary import text # Lazy import for improved performance
     while True:
-        value = questionary.text(
+        value = text(
             f"{question}:",
             style=custom_style(),
             validate=validate
@@ -21,12 +18,13 @@ def input_text(question, allow_blank=False, validate=None) -> str:
 
 def select_from_list(question, items, allow_none=False) -> (str | None):
     """Select item from list"""
+    from questionary import select # Lazy import for improved performance
     na_selection = {"name": "n/a", "description": "Not relevant for this model"}
     default = None
     if allow_none:
         items.insert(0, na_selection)
         default = na_selection
-    choice = questionary.select(
+    choice = select(
         f"{question}:",
         choices=items,
         use_shortcuts=True,
@@ -40,6 +38,7 @@ def select_from_list(question, items, allow_none=False) -> (str | None):
 
 def multiselect_from_list(question, items, allow_none=False) -> List[str]:
     """Select item from list"""
+    from questionary import checkbox # Lazy import for improved performance
     validate = lambda sel: (len(sel) > 0) or "You must select at least one item"
     na_selection = {"name": "n/a", "description": "Not relevant for this model"}
     default = None
@@ -50,7 +49,7 @@ def multiselect_from_list(question, items, allow_none=False) -> List[str]:
             len(sel) > 0 and
             (not ("n/a" in sel and len(sel) > 1))
         ) or "You must select at least one item, 'n/a' cannot be selected along with other options."
-    choices = questionary.checkbox(
+    choices = checkbox(
         f"{question}:",
         choices=items,
         validate=validate,
@@ -64,11 +63,12 @@ def multiselect_from_list(question, items, allow_none=False) -> List[str]:
 
 def autocomplete_from_list(question, items, must_exist=True, allow_blank=False) -> (str | None):
     """Select item from list with autocomplete and custom input"""
+    from questionary import autocomplete # Lazy import for improved performance
     while True:
         opts = {"match_middle": True, "style": custom_style()}
         if isinstance(items, dict):
             opts["meta_information"] = items
-        choice = questionary.autocomplete(
+        choice = autocomplete(
             f"{question}: (start typing, TAB for autocomplete)", items, **opts
         ).unsafe_ask()
         if choice is None or choice == "":
@@ -86,4 +86,5 @@ def autocomplete_from_list(question, items, must_exist=True, allow_blank=False) 
 
 def confirm(question: str):
     """Ask user for confirmation"""
-    return questionary.confirm(question, style=custom_style()).ask()
+    from questionary import confirm # Lazy import for improved performance
+    return confirm(question, style=custom_style()).ask()
