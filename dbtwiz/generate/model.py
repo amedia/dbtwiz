@@ -17,6 +17,7 @@ from dbtwiz.model import (
     access_choices,
     domains_for_layer,
     frequency_choices,
+    get_source_tables,
     layer_choices,
     materialization_choices,
     model_base_path,
@@ -30,11 +31,20 @@ def generate_model(quick: bool):
     """Generate new dbt model"""
 
     project = Project()
+    source = group = access = expiration = teams = frequency = service_consumers = access_policy = None
+    materialization = "view"
 
     try:
         layer = select_from_list(
             "Select model layer",
             layer_choices())
+
+        if layer == "staging":
+            source = autocomplete_from_list(
+                "Which source should the staging model be built on top of",
+                get_source_tables(),
+                must_exist=True,
+                allow_blank=False)
 
         if domains_for_layer(layer):
             domain = autocomplete_from_list(
@@ -73,9 +83,6 @@ def generate_model(quick: bool):
                 ) or "The description must not start with a space"
         )
 
-        group = access = expiration = teams = frequency = service_consumers = access_policy = None
-        materialization = "view"
-
         if not quick:
             group = autocomplete_from_list(
                 "Which group should the model belong to",
@@ -87,9 +94,11 @@ def generate_model(quick: bool):
                 "What should the access level be for the model",
                 access_choices())
 
-            materialization = select_from_list(
-                "How should the model be materialized",
-                materialization_choices())
+            # All staging models should use the default view as materialization
+            if layer != "staging":
+                materialization = select_from_list(
+                    "How should the model be materialized",
+                    materialization_choices())
 
             if materialization == "incremental":
                 expiration = select_from_list(
@@ -122,6 +131,7 @@ def generate_model(quick: bool):
 
         create_model_files(
             layer=layer,
+            source=source,
             domain=domain,
             name=name,
             description=description,
@@ -139,8 +149,25 @@ def generate_model(quick: bool):
         warn("Cancelled by user.")
 
 
+def get_stg_sql(source):
+    """Returns the SQL definition for a staging model"""
+    source_name, table_name = source.split(".")
+    return f"""with
+    source as (select * from {{{{ source("{source_name}", "{table_name}") }}}}),
+
+    renamed as (
+        select
+            *
+        from source
+    )
+
+select *
+from renamed
+"""
+
 def create_model_files(
         layer: str,
+        source: str,
         domain: str,
         name: str,
         description: str,
@@ -225,8 +252,9 @@ def create_model_files(
         ruamel_yaml.dump(yml_content, f)
 
     info(f"Generating query file {sql_path}")
+    sql = get_stg_sql(source) if layer=="staging" else "{# SQL placeholder #}"
     with open(sql_path, "w+") as f:
-        f.write("{# SQL placeholder #}")
+        f.write(sql)
     # Open SQL file in editor
     # FIXME: Make editor user configurable with 'code' as default
     os.system(f"code {sql_path}")

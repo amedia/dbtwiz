@@ -1,6 +1,7 @@
 from enum import Enum
 from pathlib import Path
 from typing import Dict, List
+import os
 import yaml
 
 from dbtwiz.logging import fatal
@@ -101,6 +102,21 @@ class Project:
             {"name": item, "description": f"Used for {item.replace('-', ' ').replace(' expiration', '')}"}
             for item in self.data.keys() if item.endswith("-data-expiration")
         ]
+
+def get_source_tables():
+    """List of sources in this project"""
+    source_tables = {}
+    for root, _, files in os.walk(project_path() / "sources"):
+        for file in files:
+            if file.endswith('.yml') or file.endswith('.yaml'):
+                file_path = os.path.join(root, file)
+                with open(file_path, 'r') as f:
+                    content = yaml.safe_load(f)
+                    sources = content.get('sources', [])
+                    for source in sources:
+                        for table in source.get('tables', []):
+                            source_tables[f"{source['name']}.{table['name']}"] = table.get("description")
+    return source_tables
 
 
 def domains_for_layer(layer: str):
