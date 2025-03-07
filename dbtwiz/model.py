@@ -1,6 +1,5 @@
 from pathlib import Path
-from typing import Dict, List
-import os
+from typing import Dict, List, Tuple, Union
 
 from dbtwiz.logging import fatal
 
@@ -104,21 +103,42 @@ class Project:
         ]
 
 
-def get_source_tables():
-    """List of sources in this project"""
+def get_source_tables() -> Tuple[Dict[str, str], List[Dict[str, Union[str, List[str]]]]]:
+    """Read all existing sources from YAML files in the sources directory.
+    
+    Returns: A tuple containing:
+            - dict_part (Dict[str, str]): A dictionary of source tables (source_name.table_name: description).
+            - list_part (List[Dict[str, Union[str, List[str]]]]): A list of sources (source_name, database, schema, table_names, file).
+    """
     from yaml import safe_load # Lazy import for improved performance
-    source_tables = {}
-    for root, _, files in os.walk(project_path() / "sources"):
-        for file in files:
-            if file.endswith('.yml') or file.endswith('.yaml'):
-                file_path = os.path.join(root, file)
-                with open(file_path, 'r') as f:
-                    content = safe_load(f)
-                    sources = content.get('sources', [])
-                    for source in sources:
-                        for table in source.get('tables', []):
-                            source_tables[f"{source['name']}.{table['name']}"] = table.get("description")
-    return dict(sorted(source_tables.items()))
+    dbt_source_tables = {}
+    dbt_sources = []
+    for yml_file in Path("sources").iterdir():
+        if yml_file.suffix in {".yml", ".yaml"}:
+            with open(yml_file, 'r') as f:
+                content = safe_load(f)
+                sources = content.get('sources', [])
+                for source in sources:
+                    # Add all tables to dict
+                    for table in source.get('tables', []):
+                        dbt_source_tables[f"{source['name']}.{table['name']}"] = table.get("description")
+                    # All all sources to list
+                    dbt_sources.append(
+                        {
+                            "name": source["name"],
+                            "project": source["database"],
+                            "dataset": source["schema"],
+                            "tables": [
+                                table["name"] for table in source.get("tables", [])
+                            ],
+                            "file": yml_file,
+                        }
+                    )
+    
+    dbt_source_tables = dict(sorted(dbt_source_tables.items()))
+    dbt_sources = sorted(dbt_sources, key=lambda x: x["name"])
+
+    return dbt_source_tables, dbt_sources
 
 
 def domains_for_layer(layer: str):

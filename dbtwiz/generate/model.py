@@ -42,7 +42,7 @@ def generate_model(quick: bool):
         if layer == "staging":
             source = autocomplete_from_list(
                 "Which source should the staging model be built on top of",
-                get_source_tables(),
+                get_source_tables()[0],
                 must_exist=True,
                 allow_blank=False)
 

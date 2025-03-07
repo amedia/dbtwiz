@@ -2,6 +2,7 @@ import typer
 from typing_extensions import Annotated
 
 from .model import generate_model
+from .source import generate_source
 
 
 app = typer.Typer()
@@ -14,3 +15,9 @@ def model(
 ):
     """Generate new dbt model"""
     generate_model(quick)
+
+@app.command()
+def source():
+    """Generate new dbt source"""
+    generate_source()
+

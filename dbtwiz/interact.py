@@ -16,7 +16,7 @@ def input_text(question, allow_blank=False, validate=None) -> str:
             return value
 
 
-def select_from_list(question, items, allow_none=False) -> (str | None):
+def select_from_list(question, items, allow_none=False, use_shortcuts=True) -> (str | None):
     """Select item from list"""
     from questionary import select # Lazy import for improved performance
     na_selection = {"name": "n/a", "description": "Not relevant for this model"}
@@ -27,7 +27,7 @@ def select_from_list(question, items, allow_none=False) -> (str | None):
     choice = select(
         f"{question}:",
         choices=items,
-        use_shortcuts=True,
+        use_shortcuts=use_shortcuts,
         style=custom_style(),
         default=default
     ).unsafe_ask()
@@ -61,15 +61,17 @@ def multiselect_from_list(question, items, allow_none=False) -> List[str]:
     return choices
 
 
-def autocomplete_from_list(question, items, must_exist=True, allow_blank=False) -> (str | None):
+def autocomplete_from_list(question, items, must_exist=True, allow_blank=False, validate=None) -> (str | None):
     """Select item from list with autocomplete and custom input"""
     from questionary import autocomplete # Lazy import for improved performance
     while True:
         opts = {"match_middle": True, "style": custom_style()}
         if isinstance(items, dict):
             opts["meta_information"] = items
+        if validate:
+            opts["validate"] = validate
         choice = autocomplete(
-            f"{question}: (start typing, TAB for autocomplete)", items, **opts
+            f"{question}: (start typing, TAB for autocomplete)", items, **opts,
         ).unsafe_ask()
         if choice is None or choice == "":
             if allow_blank:
@@ -79,7 +81,7 @@ def autocomplete_from_list(question, items, must_exist=True, allow_blank=False) 
                 continue
         if not must_exist:
             return choice
-        if choice in items.keys():\
+        if choice in items:
            return choice
         error(f"Choice {choice} is not in the list of allowed values.")
 
