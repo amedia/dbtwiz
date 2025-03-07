@@ -188,7 +188,7 @@ def create_source_file(source, table_name, description, columns=None) -> None:
     os.system(f"code {source_file}")
 
 
-def generate_source():
+def generate_source() -> None:
     """Generate new dbt source"""
     source, manual_mode = ask_for_source()
 
