@@ -3,8 +3,6 @@ import json
 import os
 from pathlib import Path
 
-from google.cloud import storage
-
 from dbtwiz.auth import ensure_auth
 from dbtwiz.config import project_config, project_dbtwiz_path
 from dbtwiz.dbt import dbt_invoke
@@ -96,6 +94,7 @@ def build(target: str,
 
     if save_state and target != "dev":
         info("Saving state, uploading manifest to bucket.")
+        from google.cloud import storage #Only when used
         gcs = storage.Client(project=project_config().gcp_project)
         bucket = gcs.bucket(project_config().dbt_state_bucket)
         for filename in ["manifest.json", "run_results.json"]:

@@ -6,8 +6,6 @@ from jinja2 import Template
 from pathlib import Path
 from typing import List
 
-from google.cloud import storage
-
 from .config import project_config, user_config, project_dbtwiz_path
 from .logging import info, debug, error
 from .dbt import dbt_invoke
@@ -45,6 +43,7 @@ class Manifest:
     def get_prod_manifest(cls):
         """Download latest production manifest"""
         info("Fetching production manifest")
+        from google.cloud import storage #Only when used
         gcs = storage.Client(project=project_config().gcp_project)
         blob = gcs.bucket(project_config().dbt_state_bucket).blob("manifest.json")
         # Create path if missing
