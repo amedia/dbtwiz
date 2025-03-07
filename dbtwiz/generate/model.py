@@ -242,8 +242,7 @@ def create_model_files(
     info(stream.getvalue().rstrip())
     info(f"[=== END ===]")
     if not confirm("Do you wish to generate the model files"):
-        warn("Model generation cancelled.")
-        return
+        fatal("Model generation cancelled.")
 
     # Create folder structure for files
     base_path.parent.mkdir(parents=True, exist_ok=True)

@@ -1,10 +1,11 @@
 import os
 import re
+from io import StringIO
 from pathlib import Path
 
 from dbtwiz.bigquery import (check_project_exists, fetch_table_columns,
                              fetch_tables_in_dataset, list_datasets_in_project)
-from dbtwiz.interact import (autocomplete_from_list, input_text,
+from dbtwiz.interact import (autocomplete_from_list, confirm, input_text,
                              select_from_list)
 from dbtwiz.logging import error, fatal, info, warn
 from dbtwiz.model import get_source_tables
@@ -218,7 +219,6 @@ def create_source_file(source, table_name, description, columns=None):
     ruamel_yaml.indent(mapping=2, sequence=4, offset=2)
 
     source_file = source["file"]
-    source_file.parent.mkdir(parents=True, exist_ok=True)
 
     if source_file.exists():
         with open(source_file, "r", encoding="utf-8") as file:
@@ -230,7 +230,8 @@ def create_source_file(source, table_name, description, columns=None):
     source_entry = next(
         (s for s in data["sources"] if s["name"] == source["name"]), None
     )
-    if not source_entry:
+    is_new_source = not source_entry
+    if is_new_source:
         source_entry = {
             "name": source["name"],
             "project": source["project"],
@@ -250,6 +251,18 @@ def create_source_file(source, table_name, description, columns=None):
         table_entry["columns"] = columns
     source_entry["tables"].append(table_entry)
 
+    info(f"[=== BEGIN {source_file} ===]")
+    stream = StringIO()
+    if is_new_source:
+        ruamel_yaml.dump(source_entry, stream)
+    else:
+        ruamel_yaml.dump(table_entry, stream)
+    info(stream.getvalue().rstrip())
+    info(f"[=== END ===]")
+    if not confirm("Do you wish to add the source table"):
+        fatal("Source table addition cancelled.")
+
+    source_file.parent.mkdir(parents=True, exist_ok=True)
     # Write the updated YAML file
     with open(source_file, "w", encoding="utf-8") as file:
         ruamel_yaml.dump(data, file)
