@@ -103,7 +103,8 @@ def generate_model(quick: bool):
             if materialization == "incremental":
                 expiration = select_from_list(
                     "Select data expiration policy for the incremental model",
-                    project.data_expirations())
+                    project.data_expirations(),
+                    allow_none=True)
 
             teams = multiselect_from_list(
                 "Select team(s) to be responsible for the model",
