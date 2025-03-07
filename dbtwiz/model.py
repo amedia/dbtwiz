@@ -126,6 +126,7 @@ def get_source_tables() -> Tuple[Dict[str, str], List[Dict[str, Union[str, List[
                     dbt_sources.append(
                         {
                             "name": source["name"],
+                            "description": source.get("description"),
                             "project": source["database"],
                             "dataset": source["schema"],
                             "tables": [
