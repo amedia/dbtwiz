@@ -67,3 +67,13 @@ def check_project_exists(project) -> str:
         return f"Error: You do not have access to the database '{project}'."
     except Exception as e:
         return f"Error: Failed to verify project '{project}': {e}"
+
+def run_bq_query(project, query):
+    """Runs a query in bigquery"""
+    client = bigquery.Client(project=project)
+    return client.query(query)
+
+def delete_bq_table(table_id):
+    """Deletes a bq table"""
+    client = bigquery.Client()
+    client.delete_table(table_id)
