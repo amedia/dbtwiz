@@ -1,13 +1,22 @@
 import os
-import re
 from io import StringIO
 from pathlib import Path
 from typing import Dict, Tuple
 
-from dbtwiz.bigquery import (check_project_exists, fetch_table_columns,
-                             fetch_tables_in_dataset, list_datasets_in_project)
-from dbtwiz.interact import (autocomplete_from_list, confirm, input_text,
-                             select_from_list)
+from dbtwiz.bigquery import (
+    check_project_exists,
+    fetch_table_columns,
+    fetch_tables_in_dataset,
+    list_datasets_in_project,
+)
+from dbtwiz.interact import (
+    autocomplete_from_list,
+    confirm,
+    description_validator,
+    input_text,
+    name_validator,
+    select_from_list,
+)
 from dbtwiz.logging import error, fatal, info, warn
 from dbtwiz.model import get_source_tables
 from ruamel.yaml import YAML
@@ -54,6 +63,8 @@ def ask_for_source() -> Tuple[Dict, str]:
                     return ask_for_source()
                 elif action == "manual":
                     manual_mode = True
+                else:
+                    fatal("Cancelling")
 
         if project and not manual_mode:
             # Fetch datasets in the selected project
@@ -86,26 +97,19 @@ def ask_for_source() -> Tuple[Dict, str]:
             dataset = input_text(
                 "What is the dataset for the source",
                 allow_blank=False,
-                validate=lambda string: (
-                    re.match(r"^[a-z][a-z0-9_]*[a-z0-9]$", string) is not None
-                )
-                or "The dataset can only contain lowercase, digits and underscores, must start with a character and not end with underscore",
+                validate=name_validator(),
             )
 
         source_name = input_text(
             "Give a short name for the new source (project+dataset combination)",
             allow_blank=False,
-            validate=lambda string: (
-                re.match(r"^[a-z][a-z0-9_]*[a-z0-9]$", string) is not None
-            )
-            or "The source name can only contain lowercase, digits and underscores, must start with a character and not end with underscore",
+            validate=name_validator(),
         )
 
         source_description = input_text(
             "Give a short description for the new source",
             allow_blank=False,
-            validate=lambda string: (re.match(r"^\S+", string) is not None)
-            or "The description must not start with a space",
+            validate=description_validator(),
         )
 
         # Create a new source entry
@@ -137,10 +141,10 @@ def create_source_file(source, table_name, description, columns=None) -> None:
             data = ruamel_yaml.load(file) or {"version": 2, "sources": []}
     else:
         data = CommentedMap()
-        data['version'] = 2
-        data['sources'] = []
+        data["version"] = 2
+        data["sources"] = []
         # Add a blank line between 'version' and 'sources'
-        data.yaml_set_comment_before_after_key('sources', before='\n')
+        data.yaml_set_comment_before_after_key("sources", before="\n")
 
     # Find or create the source entry
     source_entry = next(
@@ -246,10 +250,7 @@ def generate_source() -> None:
             table_name = input_text(
                 "What is the name of the table",
                 allow_blank=False,
-                validate=lambda string: (
-                    re.match(r"^[a-z][a-z0-9_]*[a-z0-9]$", string) is not None
-                )
-                or "The table name can only contain lowercase, digits and underscores, must start with a character and not end with underscore",
+                validate=name_validator(),
             )
 
             # Check if the table already exists in the source
@@ -276,8 +277,7 @@ def generate_source() -> None:
     # Ask for the table description
     description = input_text(
         "Give a short description for the source table",
-        validate=lambda string: (re.match(r"^\S+", string) is not None)
-        or "The description must not start with a space",
+        validate=description_validator(),
     )
 
     # Create or update the source YAML file
