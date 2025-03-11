@@ -80,13 +80,13 @@ def check_project_exists(project) -> str:
         # Check if the project exists and is accessible
         datasets = list(client.list_datasets(project=project))
         if not datasets:
-            return f"Warning: The database '{project}' exists but contains no datasets."
+            return f"Warning: The project '{project}' exists but contains no datasets."
         else:
             return "Exists"
     except NotFound:
-        return f"Error: The database '{project}' does not exist."
+        return f"Error: The project '{project}' does not exist."
     except Forbidden:
-        return f"Error: You do not have access to the database '{project}'."
+        return f"Error: You do not have access to the project '{project}'."
     except Exception as e:
         return f"Error: Failed to verify project '{project}': {e}"
 
