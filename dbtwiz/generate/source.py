@@ -2,7 +2,7 @@ import copy
 import os
 from io import StringIO
 from pathlib import Path
-from typing import Dict, Tuple
+# from typing import Dict, Tuple
 
 from dbtwiz.bigquery import (
     check_project_exists,
@@ -27,17 +27,24 @@ from ruamel.yaml.scalarstring import PreservedScalarString
 
 def select_source(context):
     """Function for selecting source."""
-    source_choices = [{"name": "Create a new source", "value": {}}] + [
-        {
-            "name": f"{source['name']} (Project: {source['project']}, dataset: {source['dataset']})",
-            "value": source,
-        }
-        for source in context["sources"]
-    ]
-    source = select_from_list(
-        "Where is the source table located", items=source_choices, use_shortcuts=False
+    valid_sources = context["sources"]
+    has_invalid_selection = context.get("source_name") and not any(
+        item["name"] == context.get("source_name") for item in valid_sources
     )
-    context["source"] = source
+    if has_invalid_selection:
+        warn(
+            f"The provided value ({context.get('source_name')}) for source_name is invalid. Please re-select."
+        )
+    source_name = autocomplete_from_list(
+        "Where is the source table located", items={
+            **{"Create a new source": ""},
+            **{
+                source['name']: f"{source['project']}.{source['dataset']}: {' '.join(source.get('description', '').split())[:80]}"
+                for source in valid_sources
+            }
+        }
+    )
+    context["source"] = next((s for s in valid_sources if s["name"] == source_name), None)
 
 
 def select_project(context):
@@ -373,13 +380,29 @@ def create_source_file(
     os.system(f"code {source_file}")
 
 
-def generate_source() -> None:
+def generate_source(
+        source_name: str,
+        source_description: str,
+        project_name: str,
+        dataset_name: str,
+        table_name: str,
+        table_description: str,
+) -> None:
     """Function for generating a new source."""
-    initial_context = {"manual_mode": False}
-    _, initial_context["sources"] = get_source_tables()
-    initial_context["projects"] = sorted(
-        list(set(source["project"] for source in initial_context["sources"]))
-    )
+    _, existing_sources = get_source_tables()
+    initial_context = {
+        "manual_mode": False,
+        "source_name": source_name,
+        "source_description": source_description,
+        "project_name": project_name,
+        "dataset_name": dataset_name,
+        "table_name": table_name,
+        "table_description": table_description,
+        "sources": existing_sources,
+        "projects": sorted(
+            list(set(source["project"] for source in existing_sources))
+        )
+    }
     while True:
         context = copy.deepcopy(initial_context)
         select_source(context)

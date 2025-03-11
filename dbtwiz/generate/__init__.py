@@ -79,7 +79,7 @@ def model(
     service_consumers: Annotated[
         List[str],
         typer.Option(
-            "--service_consumers",
+            "--service-consumers",
             "-sc",
             help="Which service consumers that need access to the model",
         ),
@@ -87,7 +87,7 @@ def model(
     access_policy: Annotated[
         str,
         typer.Option(
-            "--access_policy",
+            "--access-policy",
             "-ap",
             help="What the access policy should be for the model",
         ),
@@ -113,6 +113,37 @@ def model(
 
 
 @app.command()
-def source():
+def source(
+    source_name: Annotated[
+        str,
+        typer.Option("--source_name", "-s", help="Where the source is located (alias used for project+dataset combination)"),
+    ] = None,
+    source_description: Annotated[
+        str,
+        typer.Option("--source-description", "-sd", help="A short description for the project+dataset combination (if this combination is new)"),
+    ] = None,
+    project_name: Annotated[
+        str, typer.Option("--project-name", "-p", help="In which project the table is located")
+    ] = None,
+    dataset_name: Annotated[
+        str,
+        typer.Option("--dataset-name", "-d", help="In which dataset the table is located"),
+    ] = None,
+    table_name: Annotated[
+        str,
+        typer.Option("--table-name", "-t", help="Which the name of the table is"),
+    ] = None,
+    table_description: Annotated[
+        str,
+        typer.Option("--table-description", "-td", help="A short description for the table"),
+    ] = None,
+):
     """Generate new dbt source"""
-    generate_source()
+    generate_source(
+        source_name,
+        source_description,
+        project_name,
+        dataset_name,
+        table_name,
+        table_description,
+    )
