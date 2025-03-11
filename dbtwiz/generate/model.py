@@ -28,133 +28,312 @@ from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from ruamel.yaml.scalarstring import LiteralScalarString
 
 
-def generate_model(quick: bool):
-    """Generate new dbt model"""
+def select_layer(context):
+    """Function for selecting layer."""
+    valid_layers = layer_choices()
+    has_invalid_selection = context.get("layer") and not any(
+        item["name"] == context.get("layer") for item in valid_layers
+    )
+    if has_invalid_selection:
+        warn(
+            f"The provided value ({context.get('layer')}) for layer is invalid. Please re-select."
+        )
+    if not context.get("layer") or has_invalid_selection:
+        context["layer"] = select_from_list("Select model layer", valid_layers)
 
-    project = Project()
-    source = group = access = expiration = teams = frequency = service_consumers = (
-        access_policy
-    ) = None
-    materialization = "view"
 
-    try:
-        layer = select_from_list("Select model layer", layer_choices())
-
-        if layer == "staging":
-            source = autocomplete_from_list(
+def select_source(context):
+    """Function for selecting source."""
+    if context["layer"] == "staging":
+        valid_sources = get_source_tables()[0]
+        has_invalid_selection = context.get("source") and not any(
+            item == context.get("source") for item in valid_sources
+        )
+        if has_invalid_selection:
+            warn(
+                f"The provided value ({context.get('source')}) for source is invalid. Please re-select."
+            )
+        if not context.get("source") or has_invalid_selection:
+            context["source"] = autocomplete_from_list(
                 "Which source should the staging model be built on top of",
-                get_source_tables()[0],
+                valid_sources,
                 must_exist=True,
                 allow_blank=False,
             )
 
-        if domains_for_layer(layer):
-            domain = autocomplete_from_list(
+
+def select_domain(context):
+    """Function for selecting domain."""
+    if domains_for_layer(context["layer"]):
+        valid_domains = domains_for_layer(context["layer"])
+        has_invalid_selection = context.get("domain") and not any(
+            item == context.get("domain") for item in valid_domains
+        )
+        if has_invalid_selection:
+            warn(
+                f"The provided value ({context.get('domain')}) for domain is invalid. Please re-select."
+            )
+        if not context.get("domain") or has_invalid_selection:
+            context["domain"] = autocomplete_from_list(
                 "Which domain does your model belong to",
-                domains_for_layer(layer),
+                valid_domains,
                 must_exist=False,
                 allow_blank=False,
             )
-        else:
-            domain = input_text(
-                "Which domain does your model belong to",
-                allow_blank=False,
-                validate=name_validator(),
-            )
+    else:
+        context["domain"] = input_text(
+            "Which domain does your model belong to",
+            allow_blank=False,
+            validate=name_validator(),
+        )
 
-        while True:
+
+def select_name(context):
+    """Function for selecting model name."""
+    while True:
+        if context.get("name"):
+            name = context.get("name")
+        else:
             name = input_text(
                 "What is the name of your model", validate=name_validator()
             )
-            base_path = model_base_path(layer, domain, name)
-            sql_path = base_path.with_suffix(".sql")
-            yml_path = base_path.with_suffix(".yml")
-            if sql_path.exists() or yml_path.exists():
-                error("A model with this name already exists, please choose another.")
-            else:
-                break
+        base_path = model_base_path(context["layer"], context["domain"], name)
+        sql_path = base_path.with_suffix(".sql")
+        yml_path = base_path.with_suffix(".yml")
+        if sql_path.exists() or yml_path.exists():
+            error(
+                f"A model with the name {name} already exists, please choose another."
+            )
+            if context.get("name"):
+                del context["name"]
+            continue
+        else:
+            context["name"] = name
+            context["sql_path"] = sql_path
+            context["yml_path"] = yml_path
+            break
 
-        description = input_text(
+
+def select_description(context):
+    """Function for selecting model description."""
+    if not context.get("description"):
+        context["description"] = input_text(
             "Give a short description of your model and its purpose",
             validate=description_validator(),
         )
 
-        if not quick:
-            group = autocomplete_from_list(
-                "Which group should the model belong to",
-                Group().choices(),
-                must_exist=True,
-                allow_blank=True,
-            )
 
-            access = select_from_list(
-                "What should the access level be for the model", access_choices()
-            )
-
-            # All staging models should use the default view as materialization
-            if layer != "staging":
-                materialization = select_from_list(
-                    "How should the model be materialized", materialization_choices()
-                )
-
-            if materialization == "incremental":
-                expiration = select_from_list(
-                    "Select data expiration policy for the incremental model",
-                    project.data_expirations(),
-                    allow_none=True,
-                )
-
-            teams = multiselect_from_list(
-                "Select team(s) to be responsible for the model", project.teams()
-            )
-
-            if layer != "staging":
-                choices = frequency_choices()
-                if (
-                    len(set(teams) & set(["team-ai", "team-ai-analyst", "team-abo"]))
-                    > 0
-                ):
-                    choices.append(
-                        {
-                            "name": "daily_news_cycle",
-                            "description": "Model needs to be updated once a day at 03:30",
-                        }
-                    )
-                frequency = select_from_list(
-                    "How often should the model be updated", choices, allow_none=True
-                )
-
-            if layer in ("marts", "bespoke"):
-                service_consumers = multiselect_from_list(
-                    "Which service consumers need access to the model",
-                    project.service_consumers(),
-                    allow_none=True,
-                )
-
-                access_policy = select_from_list(
-                    "What is the access policy for the model",
-                    project.access_policies(),
-                    allow_none=True,
-                )
-
-        create_model_files(
-            layer=layer,
-            source=source,
-            domain=domain,
-            name=name,
-            description=description,
-            materialization=materialization,
-            access=access,
-            group=group,
-            teams=teams,
-            service_consumers=service_consumers,
-            access_policy=access_policy,
-            frequency=frequency,
-            expiration=expiration,
+def select_group(context):
+    """Function for selecting group."""
+    if context["quick"] and not context.get("group"):
+        return
+    valid_groups = Group().choices()
+    has_invalid_selection = context.get("group") and not any(
+        item == context.get("group") for item in valid_groups.keys()
+    )
+    if has_invalid_selection:
+        warn(
+            f"The provided value ({context.get('group')}) for group is invalid. Please re-select."
+        )
+    if has_invalid_selection or not context.get("group"):
+        context["group"] = autocomplete_from_list(
+            "Which group should the model belong to",
+            valid_groups,
+            must_exist=True,
+            allow_blank=True,
         )
 
-    except KeyboardInterrupt:
-        warn("Cancelled by user.")
+
+def select_access(context):
+    """Function for selecting access."""
+    if context["quick"] and not context.get("access"):
+        return
+    valid_accesses = access_choices()
+    has_invalid_selection = context.get("access") and not any(
+        item["name"] == context.get("access") for item in valid_accesses
+    )
+    if has_invalid_selection:
+        warn(
+            f"The provided value ({context.get('access')}) for access is invalid. Please re-select."
+        )
+    if has_invalid_selection or not context.get("access"):
+        context["access"] = select_from_list(
+            "What should the access level be for the model", access_choices()
+        )
+
+
+def select_materialization(context):
+    """Function for selecting materialization."""
+    if context["quick"] and not context.get("materialization"):
+        return
+    valid_materializations = materialization_choices()
+    has_invalid_selection = context.get("materialization") and not any(
+        item["name"] == context.get("materialization")
+        for item in valid_materializations
+    )
+    if (
+        context.get("materialization")
+        and context["layer"] == "staging"
+        and context.get("materialization") != "view"
+    ):
+        info(
+            f"Changing materialization to view, which is required for all staging models."
+        )
+        context["materialization"] = "view"
+        return
+    elif has_invalid_selection:
+        warn(
+            f"The provided value ({context.get('materialization')}) for materialization is invalid. Please re-select."
+        )
+    if has_invalid_selection or (
+        not context.get("materialization") and context["layer"] != "staging"
+    ):
+        context["materialization"] = select_from_list(
+            "How should the model be materialized", valid_materializations
+        )
+
+
+def select_expiration(context):
+    """Function for selecting expiration."""
+    if context["quick"] and not context.get("expiration"):
+        return
+    valid_expirations = context["project"].data_expirations()
+    has_invalid_selection = context.get("expiration") and not any(
+        item["name"] == context.get("expiration") for item in valid_expirations
+    )
+    if context.get("expiration") and context["materialization"] != "incremental":
+        info("Ignoring expiration since the model isn't materialized as incremental.")
+        del context["expiration"]
+        return
+    elif has_invalid_selection:
+        warn(
+            f"The provided value ({context.get('expiration')}) for expiration is invalid. Please re-select."
+        )
+    if has_invalid_selection or (
+        not context.get("expiration") and context["materialization"] == "incremental"
+    ):
+        context["expiration"] = select_from_list(
+            "Select data expiration policy for the incremental model",
+            valid_expirations,
+            allow_none=True,
+        )
+
+
+def select_team(context):
+    """Function for selecting teams."""
+    if context["quick"] and not context.get("team"):
+        return
+    valid_teams = context["project"].teams()
+    has_invalid_selection = context.get("team") and not any(
+        item["name"] == context.get("team") for item in valid_teams
+    )
+    if has_invalid_selection:
+        warn(
+            f"The provided value ({context.get('team')}) for team is invalid. Please re-select."
+        )
+    if has_invalid_selection or not context.get("team"):
+        context["team"] = [
+            select_from_list(
+                "Select the team with main responsibility for the model",
+                context["project"].teams(),
+            )
+        ]
+    else:
+        context["team"] = [context["team"]]
+
+
+def select_frequency(context):
+    """Function for selecting frequency."""
+    if context["quick"] and not context.get("frequency"):
+        return
+    elif context.get("frequency") and context["layer"] == "staging":
+        info(
+            "Ignoring defined frequency since frequency is not allowed for staging models."
+        )
+        del context["frequency"]
+    if context["layer"] != "staging":
+        valid_frequencies = frequency_choices()
+        if (
+            len(set(context["team"]) & set(["team-ai", "team-ai-analyst", "team-abo"]))
+            > 0
+        ):
+            valid_frequencies.append(
+                {
+                    "name": "daily_news_cycle",
+                    "description": "Model needs to be updated once a day at 03:30",
+                }
+            )
+        has_invalid_selection = context.get("frequency") and not any(
+            item["name"] == context.get("frequency") for item in valid_frequencies
+        )
+        if has_invalid_selection:
+            warn(
+                f"The provided value ({context.get('frequency')}) for frequency is invalid. Please re-select."
+            )
+        if has_invalid_selection or not context.get("frequency"):
+            context["frequency"] = select_from_list(
+                "How often should the model be updated",
+                valid_frequencies,
+                allow_none=True,
+            )
+
+
+def select_service_consumers(context):
+    """Function for selecting service consumers."""
+    if context["quick"] and not context.get("service_consumers"):
+        return
+    elif context.get("service_consumers") and context["layer"] not in (
+        "marts",
+        "bespoke",
+    ):
+        info(
+            "Ignoring defined service_consumers since service_consumers are only allowed for marts or bespoke models."
+        )
+        del context["service_consumers"]
+    valid_service_consumers = context["project"].service_consumers()
+    has_invalid_selection = False
+    if context.get("service_consumers"):
+        invalid_service_consumers = [
+            item
+            for item in context.get("service_consumers")
+            if item not in {item["name"] for item in valid_service_consumers}
+        ]
+        if invalid_service_consumers:
+            has_invalid_selection = True
+            warn(
+                f"The provided value(s) ({','.join(invalid_service_consumers)}) for service_consumers is invalid. Please re-select."
+            )
+    if has_invalid_selection or not context.get("service_consumers"):
+        context["service_consumers"] = multiselect_from_list(
+            "Which service consumers need access to the model",
+            context["project"].service_consumers(),
+            allow_none=True,
+        )
+
+
+def select_access_policy(context):
+    """Function for selecting acces policy."""
+    if context["quick"] and not context.get("access_policy"):
+        return
+    elif context.get("access_policy") and context["layer"] not in ("marts", "bespoke"):
+        info(
+            "Ignoring defined access_policy since access_policy is only allowed for marts or bespoke models."
+        )
+        del context["access_policy"]
+    valid_access_policies = context["project"].access_policies()
+    has_invalid_selection = context.get("access_policy") and not any(
+        item["name"] == context.get("access_policy") for item in valid_access_policies
+    )
+    if has_invalid_selection:
+        warn(
+            f"The provided value ({context.get('access_policy')}) for access_policy is invalid. Please re-select."
+        )
+    if has_invalid_selection or not context.get("access_policy"):
+        context["access_policy"] = select_from_list(
+            "What is the access policy for the model",
+            context["project"].access_policies(),
+            allow_none=True,
+        )
 
 
 def get_stg_sql(source):
@@ -189,7 +368,7 @@ def create_model_files(
     frequency=None,
     expiration=None,
 ):
-    """Create SQL and YAML files for model"""
+    """Function that creates SQL and YAML files for model."""
     base_path = model_base_path(layer, domain, name)
 
     sql_path = base_path.with_suffix(".sql")
@@ -266,3 +445,72 @@ def create_model_files(
     # Open SQL file in editor
     # FIXME: Make editor user configurable with 'code' as default
     os.system(f"code {sql_path}")
+
+
+def generate_model(
+    quick: bool,
+    layer: str,
+    source: str,
+    domain: str,
+    name: str,
+    description: str,
+    group: str,
+    access: str,
+    materialization: str,
+    expiration: str,
+    team: str,
+    frequency: str,
+    service_consumers,
+    access_policy: str,
+):
+    """Function that generates a new dbt model"""
+    context = {
+        "quick": quick,
+        "project": Project(),
+        "layer": layer,
+        "source": source,
+        "domain": domain,
+        "name": name,
+        "description": description,
+        "group": group,
+        "access": access,
+        "materialization": materialization or "view",
+        "expiration": expiration,
+        "team": team,
+        "frequency": frequency,
+        "service_consumers": service_consumers,
+        "access_policy": access_policy,
+    }
+
+    for func in [
+        select_layer,
+        select_source,
+        select_domain,
+        select_name,
+        select_description,
+        select_group,
+        select_access,
+        select_materialization,
+        select_expiration,
+        select_team,
+        select_frequency,
+        select_service_consumers,
+        select_access_policy,
+    ]:
+        func(context)
+
+    create_model_files(
+        layer=context.get("layer"),
+        source=context.get("source"),
+        domain=context.get("domain"),
+        name=context.get("name"),
+        description=context.get("description"),
+        materialization=context.get("materialization"),
+        access=context.get("access"),
+        group=context.get("group"),
+        teams=context.get("team"),
+        service_consumers=context.get("service_consumers"),
+        access_policy=context.get("access_policy"),
+        frequency=context.get("frequency"),
+        expiration=context.get("expiration"),
+    )
