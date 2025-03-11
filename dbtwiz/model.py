@@ -98,8 +98,8 @@ class Project:
     def data_expirations(self) -> List[Dict[str,str]]:
         """List of data expiration policies"""
         return [
-            {"name": item, "description": f"Used for {item.replace('-', ' ').replace(' expiration', '')}"}
-            for item in self.data.keys() if item.endswith("-data-expiration")
+            {"name": key, "description": f"Used for {key.replace('-', ' ').replace(' expiration', '')} ({value} days)"}
+            for key, value in self.data.items() if key.endswith("-data-expiration")
         ]
 
 
