@@ -60,6 +60,10 @@ def select_source(context):
                 must_exist=True,
                 allow_blank=False,
             )
+    elif context["layer"] != "staging" and context.get("source"):
+        info("Ignoring source since the model isn't in the staging layer.")
+        del context["source"]
+        return
 
 
 def select_domain(context):
