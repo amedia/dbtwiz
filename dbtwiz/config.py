@@ -22,6 +22,10 @@ def user_config_path(target: str = "") -> Path:
     """Get Path to the given target within the user configuration directory"""
     return user_config().CONFIG_PATH / target
 
+def dark_mode() -> bool:
+    """Are we using a dark theme?"""
+    return user_config().get("general", "theme") == "dark"
+
 def project_path(target: str = "") -> Path:
     """Get Path to the given target relative to the project root directory"""
     return project_config().root_path() / target
