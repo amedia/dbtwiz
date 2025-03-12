@@ -410,7 +410,6 @@ def generate_source(
         select_tables,
         select_table_description,
     ]:
-        print({func.__name__})
         func(context)
 
     write_source_file(
