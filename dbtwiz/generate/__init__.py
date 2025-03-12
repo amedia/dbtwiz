@@ -116,26 +116,45 @@ def model(
 def source(
     source_name: Annotated[
         str,
-        typer.Option("--source_name", "-s", help="Where the source is located (existing alias used for project+dataset combination)"),
+        typer.Option(
+            "--source_name",
+            "-s",
+            help="Where the source is located (existing alias used for project+dataset combination)",
+        ),
     ] = None,
     source_description: Annotated[
         str,
-        typer.Option("--source-description", "-sd", help="A short description for the project+dataset combination (if this combination is new)"),
+        typer.Option(
+            "--source-description",
+            "-sd",
+            help="A short description for the project+dataset combination (if this combination is new)",
+        ),
     ] = None,
     project_name: Annotated[
-        str, typer.Option("--project-name", "-p", help="In which project the table is located")
+        str,
+        typer.Option(
+            "--project-name", "-p", help="In which project the table is located"
+        ),
     ] = None,
     dataset_name: Annotated[
         str,
-        typer.Option("--dataset-name", "-d", help="In which dataset the table is located"),
+        typer.Option(
+            "--dataset-name", "-d", help="In which dataset the table is located"
+        ),
     ] = None,
-    table_name: Annotated[
-        str,
-        typer.Option("--table-name", "-t", help="Which the name of the table is"),
+    table_names: Annotated[
+        List[str],
+        typer.Option(
+            "--table-name", "-t", help="Name(s) of table(s) to be added as source(s)"
+        ),
     ] = None,
     table_description: Annotated[
         str,
-        typer.Option("--table-description", "-td", help="A short description for the table"),
+        typer.Option(
+            "--table-description",
+            "-td",
+            help="A short description for the table, if only one is provided",
+        ),
     ] = None,
 ):
     """Generate new dbt source"""
@@ -144,6 +163,6 @@ def source(
         source_description,
         project_name,
         dataset_name,
-        table_name,
+        table_names,
         table_description,
     )

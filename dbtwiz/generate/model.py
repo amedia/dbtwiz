@@ -181,7 +181,7 @@ def select_materialization(context):
         and context.get("materialization") != "view"
     ):
         info(
-            f"Changing materialization to view, which is required for all staging models."
+            "Changing materialization to view, which is required for all staging models."
         )
         context["materialization"] = "view"
         return
@@ -431,7 +431,7 @@ def create_model_files(
     stream = StringIO()
     ruamel_yaml.dump(yml_content, stream)
     info(stream.getvalue().rstrip())
-    info(f"[=== END ===]")
+    info("[=== END ===]")
     if not confirm("Do you wish to generate the model files"):
         fatal("Model generation cancelled.")
 
