@@ -247,7 +247,7 @@ def select_tables(context):
             else:
                 invalid_table_names = [
                     item
-                    for item in context.get("table_names")
+                    for item in context.get("table_names") or []
                     if item not in available_tables
                 ]
                 has_invalid_selection = (
@@ -410,6 +410,7 @@ def generate_source(
         select_tables,
         select_table_description,
     ]:
+        print({func.__name__})
         func(context)
 
     write_source_file(
