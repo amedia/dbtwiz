@@ -344,6 +344,7 @@ def write_source_file(
         }
         data["sources"].append(source_entry)
 
+    new_table_entries = []
     for table_name in tables:
         columns, _ = fetch_table_columns(project_name, dataset_name, table_name)
 
@@ -356,6 +357,7 @@ def write_source_file(
         }
         if columns:  # Only add columns if they exist (not in manual mode)
             table_entry["columns"] = columns
+        new_table_entries.append(table_entry)
         source_entry["tables"].append(table_entry)
 
     info(f"[=== BEGIN {source_file} ===]")
@@ -363,7 +365,7 @@ def write_source_file(
     if is_new_source:
         ruamel_yaml.dump(source_entry, stream)
     else:
-        ruamel_yaml.dump(table_entry, stream)
+        ruamel_yaml.dump(new_table_entries, stream)
     info(stream.getvalue().rstrip())
     info("[=== END ===]")
     if not confirm("Do you wish to add the source table"):
