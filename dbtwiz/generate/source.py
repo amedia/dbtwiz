@@ -53,7 +53,7 @@ def select_source(context):
         warn(
             f"The provided value ({context.get('source_name')}) for source_name is invalid."
         )
-    if has_invalid_selection and context.get("project_name") and context.get("dataset_name"):
+    if has_invalid_selection or (not context.get("source_name") and context.get("project_name") and context.get("dataset_name")):
         existing_source = get_existing_source(
             context,
             project_name=context.get("project_name"),
@@ -69,6 +69,8 @@ def select_source(context):
             warn(
             f"Couldn't find an existing source alias for project ({context.get('project_name')}) and dataset ({context.get('dataset_name')})."
         )
+        if not existing_source and not context.get("source_name") and context.get("project_name") and context.get("dataset_name"):
+            return
 
     if not context.get("source_name") or has_invalid_selection:
         source_name = autocomplete_from_list(
