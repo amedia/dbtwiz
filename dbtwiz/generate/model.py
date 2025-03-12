@@ -11,7 +11,7 @@ from dbtwiz.interact import (
     name_validator,
     select_from_list,
 )
-from dbtwiz.logging import error, fatal, info, warn
+from dbtwiz.logging import fatal, info, warn
 from dbtwiz.model import (
     Group,
     Project,
