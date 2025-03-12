@@ -20,9 +20,6 @@ from dbtwiz.interact import (
 )
 from dbtwiz.logging import fatal, info, warn
 from dbtwiz.model import get_source_tables
-from ruamel.yaml import YAML
-from ruamel.yaml.comments import CommentedMap
-from ruamel.yaml.scalarstring import PreservedScalarString
 
 
 def get_existing_source(
@@ -316,7 +313,10 @@ def write_source_file(
     table_description: str,
 ) -> None:
     """Create or update the source YAML file with the new table."""
-    # Configure yaml format
+    # Import (for performance) and configure yaml format
+    from ruamel.yaml import YAML
+    from ruamel.yaml.comments import CommentedMap
+    from ruamel.yaml.scalarstring import PreservedScalarString
     ruamel_yaml = YAML()
     ruamel_yaml.preserve_quotes = True
     ruamel_yaml.indent(mapping=2, sequence=4, offset=2)

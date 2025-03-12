@@ -23,9 +23,6 @@ from dbtwiz.model import (
     materialization_choices,
     model_base_path,
 )
-from ruamel.yaml import YAML
-from ruamel.yaml.comments import CommentedMap, CommentedSeq
-from ruamel.yaml.scalarstring import LiteralScalarString
 
 
 def select_layer(context):
@@ -380,7 +377,10 @@ def create_model_files(
             f"Model files {sql_path}.(sql,yml) already exist, leaving them be."
         )
 
-    # Configure yaml format
+    # Import (for performance) and configure yaml format
+    from ruamel.yaml import YAML
+    from ruamel.yaml.comments import CommentedMap, CommentedSeq
+    from ruamel.yaml.scalarstring import LiteralScalarString
     ruamel_yaml = YAML()
     ruamel_yaml.preserve_quotes = True
     ruamel_yaml.indent(mapping=2, sequence=4, offset=2)
