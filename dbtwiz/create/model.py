@@ -439,17 +439,17 @@ def create_model_files(
     ruamel_yaml.dump(yml_content, stream)
     info(stream.getvalue().rstrip())
     info("[=== END ===]")
-    if not confirm("Do you wish to generate the model files"):
-        fatal("Model generation cancelled.")
+    if not confirm("Do you wish to create the model files"):
+        fatal("Model creatopm cancelled.")
 
     # Create folder structure for files
     base_path.parent.mkdir(parents=True, exist_ok=True)
 
-    info(f"Generating config file {yml_path}")
+    info(f"Creating config file {yml_path}")
     with open(yml_path, "w+") as f:
         ruamel_yaml.dump(yml_content, f)
 
-    info(f"Generating query file {sql_path}")
+    info(f"Creating query file {sql_path}")
     sql = get_stg_sql(source) if layer == "staging" else "{# SQL placeholder #}"
     with open(sql_path, "w+") as f:
         f.write(sql)
@@ -459,7 +459,7 @@ def create_model_files(
     os.system(f"code {sql_path}")
 
 
-def generate_model(
+def create_model(
     quick: bool,
     layer: str,
     source: str,

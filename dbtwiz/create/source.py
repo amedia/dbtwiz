@@ -381,7 +381,7 @@ def write_source_file(
     os.system(f"code {source_file}")
 
 
-def generate_source(
+def create_source(
     source_name: str,
     source_description: str,
     project_name: str,
@@ -389,7 +389,7 @@ def generate_source(
     table_names: List[str],
     table_description: str,
 ) -> None:
-    """Function for generating a new source."""
+    """Function for creating a new source."""
     _, existing_sources = get_source_tables()
     context = {
         "manual_mode": False,

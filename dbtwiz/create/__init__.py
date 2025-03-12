@@ -2,8 +2,8 @@ from typing import Annotated, List
 
 import typer
 
-from .model import generate_model
-from .source import generate_source
+from .model import create_model
+from .source import create_source
 
 app = typer.Typer()
 
@@ -94,7 +94,7 @@ def model(
     ] = None,
 ):
     """Create new dbt model"""
-    generate_model(
+    create_model(
         quick,
         layer,
         source,
@@ -158,7 +158,7 @@ def source(
     ] = None,
 ):
     """Create new dbt source"""
-    generate_source(
+    create_source(
         source_name,
         source_description,
         project_name,

@@ -5,7 +5,7 @@ from typing import Annotated
 
 from dbtwiz import admin
 from dbtwiz import commands
-from dbtwiz import generate
+from dbtwiz import create
 from dbtwiz.logging import error
 from dbtwiz.target import Target
 
@@ -23,8 +23,8 @@ app = typer.Typer(
 # Add admin commands as subcommands of 'admin'
 app.add_typer(admin.app, name="admin", help="Administrative commands")
 
-# Add generator commands as subcommands of 'generate'
-app.add_typer(generate.app, name="generate", help="Commands for creating new dbt models and sources")
+# Add creation commands as subcommands of 'create'
+app.add_typer(create.app, name="create", help="Commands for creating new dbt models and sources")
 
 
 @app.command()
