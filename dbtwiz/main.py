@@ -24,7 +24,7 @@ app = typer.Typer(
 app.add_typer(admin.app, name="admin", help="Administrative commands")
 
 # Add generator commands as subcommands of 'generate'
-app.add_typer(generate.app, name="generate", help="Generator commands")
+app.add_typer(generate.app, name="generate", help="Commands for creating new dbt models and sources")
 
 
 @app.command()

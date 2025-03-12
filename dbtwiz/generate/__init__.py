@@ -93,7 +93,7 @@ def model(
         ),
     ] = None,
 ):
-    """Generate new dbt model"""
+    """Create new dbt model"""
     generate_model(
         quick,
         layer,
@@ -157,7 +157,7 @@ def source(
         ),
     ] = None,
 ):
-    """Generate new dbt source"""
+    """Create new dbt source"""
     generate_source(
         source_name,
         source_description,
