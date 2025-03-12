@@ -94,28 +94,26 @@ def select_domain(context):
 
 def select_name(context):
     """Function for selecting model name."""
-    while True:
-        if context.get("name"):
-            name = context.get("name")
-        else:
-            name = input_text(
-                "What is the name of your model", validate=name_validator()
+    if context.get("name"):
+        name = context.get("name")
+    else:
+        name = input_text(
+            "What is the name of your model",
+            validate=lambda text: (
+                all(
+                    [
+                        name_validator()(text) is True,
+                        not model_base_path(context["layer"], context["domain"], text).with_suffix(".sql").exists(),
+                        not model_base_path(context["layer"], context["domain"], text).with_suffix(".yml").exists(),
+                    ]
+                )
+                or "Invalid name format or a model with given name already exists"
             )
-        base_path = model_base_path(context["layer"], context["domain"], name)
-        sql_path = base_path.with_suffix(".sql")
-        yml_path = base_path.with_suffix(".yml")
-        if sql_path.exists() or yml_path.exists():
-            error(
-                f"A model with the name {name} already exists, please choose another."
-            )
-            if context.get("name"):
-                del context["name"]
-            continue
-        else:
-            context["name"] = name
-            context["sql_path"] = sql_path
-            context["yml_path"] = yml_path
-            break
+        )
+
+        context["name"] = name
+        context["sql_path"] = model_base_path(context["layer"], context["domain"], name).with_suffix(".sql")
+        context["yml_path"] = model_base_path(context["layer"], context["domain"], name).with_suffix(".yml")
 
 
 def select_description(context):
@@ -448,6 +446,7 @@ def create_model_files(
         f.write(sql)
     # Open SQL file in editor
     # FIXME: Make editor user configurable with 'code' as default
+    os.system(f"code {yml_path}")
     os.system(f"code {sql_path}")
 
 
