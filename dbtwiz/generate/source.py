@@ -25,6 +25,24 @@ from ruamel.yaml.comments import CommentedMap
 from ruamel.yaml.scalarstring import PreservedScalarString
 
 
+def get_existing_source(context, source_name=None, project_name=None, dataset_name=None):
+    """Function for getting an existing source, should it exist."""
+    return next(
+        (
+            source
+            for source in context.get("sources")
+            if (
+                (
+                    source.get("project") == project_name
+                    and source.get("dataset") == dataset_name
+                )
+                or source.get("name") == source_name
+            )
+        ),
+        None,
+    )
+
+
 def select_source(context):
     """Function for selecting source."""
     valid_sources = context["sources"]
@@ -33,36 +51,66 @@ def select_source(context):
     )
     if has_invalid_selection:
         warn(
-            f"The provided value ({context.get('source_name')}) for source_name is invalid. Please re-select."
+            f"The provided value ({context.get('source_name')}) for source_name is invalid."
         )
-    source_name = autocomplete_from_list(
-        "Where is the source table located", items={
-            **{"Create a new source": ""},
-            **{
-                source['name']: f"{source['project']}.{source['dataset']}: {' '.join(source.get('description', '').split())[:80]}"
-                for source in valid_sources
+    if has_invalid_selection and context.get("project_name") and context.get("dataset_name"):
+        existing_source = get_existing_source(
+            context,
+            project_name=context.get("project_name"),
+            dataset_name=context.get("dataset_name")
+        )
+        if existing_source:
+            info(
+                f"Using existing source alias '{existing_source['name']}' for project '{context.get('project_name')}' and dataset '{context.get('dataset_name')}'."
+            )
+            context["source"] = existing_source
+            has_invalid_selection = False
+        else:
+            warn(
+            f"Couldn't find an existing source alias for project ({context.get('project_name')}) and dataset ({context.get('dataset_name')})."
+        )
+
+    if not context.get("source_name") or has_invalid_selection:
+        source_name = autocomplete_from_list(
+            "Select source project + dataset", items={
+                **{"Add new project + dataset": ""},
+                **{
+                    source['name']: f"{source['project']}.{source['dataset']}: {' '.join(source.get('description', '').split())[:80]}"
+                    for source in valid_sources
+                }
             }
-        }
-    )
-    context["source"] = next((s for s in valid_sources if s["name"] == source_name), None)
+        )
+        context["source"] = get_existing_source(context, source_name=source_name)
+    elif context.get("source_name"):
+        context["source"] = get_existing_source(context, source_name=context.get("source_name"))
+    if context["source"] and context.get("project_name"):
+        info("Ignoring provided project name since existing source is used.")
+        del context["project_name"]
+    if context["source"] and context.get("dataset_name"):
+        info("Ignoring provided dataset name since existing source is used.")
+        del context["dataset_name"]
 
 
 def select_project(context):
     """Function for selecting project."""
-    if context["source"]:
+    if context.get("source"):
         return
     while True:
-        project = autocomplete_from_list(
-            "What is the project for the source",
-            items=context["projects"],
-            must_exist=False,
-        )
+        project = context.get("project_name")
+        if not project:
+            project = autocomplete_from_list(
+                "What is the project for the source",
+                items=context["projects"],
+                must_exist=False,
+            )
         exists_check = check_project_exists(project)
         if exists_check == "Exists":
-            context["project"] = project
+            context["project_name"] = project
             break
         else:
-            error(exists_check)
+            warn(exists_check)
+            if context.get("project_name"):
+                del context["project_name"]
             action = select_from_list(
                 "What would you like to do",
                 items=[
@@ -73,7 +121,7 @@ def select_project(context):
             )
             if action == "manual":
                 context["manual_mode"] = True
-                context["project"] = project
+                context["project_name"] = project
                 break
             elif action == "retry":
                 continue
@@ -81,124 +129,60 @@ def select_project(context):
                 fatal("Cancelling")
 
 
-def get_existing_source(context, source_name, project_name, dataset_name):
-    """Function for getting the existing source, should it exist."""
-    return next(
-        (
-            source
-            for source in context["sources"]
-            if (
-                (
-                    source["project"] == project_name
-                    and source["dataset"] == dataset_name
-                )
-                or source["name"] == source_name
-            )
-        ),
-        None,
-    )
-
-
 def select_dataset(context):
     """Function for selecting dataset."""
-    if context["source"]:
+    # If an existing source is used, dataset selection is skipped
+    if context.get("source"):
         return
     if context["manual_mode"]:
-        context["dataset"] = input_text(
-            "What is the dataset for the source",
-            allow_blank=False,
-            validate=name_validator(),
-        )
+        if not context.get("dataset_name"):
+            context["dataset_name"] = input_text(
+                "What is the dataset for the source",
+                allow_blank=False,
+                validate=name_validator(),
+            )
     else:
-        project = context["project"]
-        datasets, error_message = list_datasets_in_project(project)
+        project_name = context["project_name"]
+        valid_datasets, error_message = list_datasets_in_project(project_name)
         if error_message:
             fatal(error_message)
-        elif not datasets:
-            fatal(f"No datasets found in the project '{project}'.")
+        elif not valid_datasets:
+            fatal(f"No datasets found in the project '{project_name}'.")
 
-        dataset = autocomplete_from_list(
-            "What is the dataset for the source", items=datasets
+        has_invalid_selection = context.get("dataset_name") and not any(
+            item == context.get("dataset_name") for item in valid_datasets
         )
-        context["dataset"] = dataset
+
+        if has_invalid_selection:
+            warn(
+                f"The provided value ({context.get('dataset_name')}) for dataset name is invalid. Please re-select."
+            )
+        if not context.get("dataset_name") or has_invalid_selection:
+            context["dataset_name"] = autocomplete_from_list(
+                "What is the dataset for the source", items=valid_datasets
+            )
 
         # Check if the project+dataset combination already exists as a source
-        existing_source = get_existing_source(context, None, project, dataset)
+        existing_source = get_existing_source(context, project_name=project_name, dataset_name=context["dataset_name"])
         if existing_source:
             info(
-                f"Using existing source '{existing_source['name']}' for project '{project}' and dataset '{dataset}'."
+                f"Using existing source '{existing_source['name']}' for project '{project_name}' and dataset '{context['dataset_name']}'."
             )
             context["source"] = existing_source
 
 
-def select_table(context):
-    """Function for selecting table."""
-    while True:
-        table_name = input_text(
-            "What is the name of the table",
-            allow_blank=False,
-            validate=name_validator(),
-        )
-
-        # Check if the table already exists in the source
-        if table_name in context["source"]["tables"]:
-            warn(f"Error: The table '{table_name}' already exists in this source.")
-            action = select_from_list(
-                "What would you like to do",
-                items=[
-                    {
-                        "name": "Provide a different table name",
-                        "value": "retry",
-                    },
-                    {"name": "Cancel", "value": "cancel"},
-                ],
-            )
-
-            if action == "retry":
-                continue  # Retry table name input
-        else:
-            context["table_name"] = table_name
-            break  # Valid table name, proceed
-
-
-def select_source_name(context):
-    """Function for selecting source name."""
-    if not context["source"]:
-        while True:
-            source_name = input_text(
-                "Give a short name for the new source (project+dataset combination)",
-                allow_blank=False,
-                validate=name_validator(),
-            )
-            existing_source = get_existing_source(
-                context, source_name, context["project"], context["dataset"]
-            )
-            if not existing_source:
-                context["source_name"] = source_name
-                break  # Valid table name, proceed
-            if existing_source:
-                warn(f"Error: The source name '{source_name}' already exists.")
-                action = select_from_list(
-                    "What would you like to do",
-                    items=[
-                        {
-                            "name": "Provide a different source name",
-                            "value": "retry",
-                        },
-                        {"name": "Cancel", "value": "cancel"},
-                    ],
-                )
-                if action == "retry":
-                    continue  # Retry table name input'
-                else:
-                    fatal("Cancelling")
+def set_source_name(context):
+    """Function for setting source name."""
+    if not context.get("source"):
+        context["source_name"] = f"{context['project_name']}__{context['dataset_name']}".replace("-", "_")
+        info(f"Adding alias {context['source_name']} for project '{context['project_name']}' and dataset '{context['dataset_name']}'")
 
 
 def select_source_description(context):
     """Function for selecting source description."""
-    if not context["source"]:
+    if not context.get("source"):
         context["source_description"] = input_text(
-            "Give a short description for the new source",
+            f"Describe the type of data that reside in '{context['source_name']}'",
             allow_blank=False,
             validate=description_validator(),
         )
@@ -206,17 +190,17 @@ def select_source_description(context):
 
 def configure_missing_source(context):
     """Function for defining a source dict, should it not exist."""
-    if not context["source"]:
+    if not context.get("source"):
         context["source"] = {
             "name": context["source_name"],
             "description": context["source_description"],
-            "project": context["project"],
-            "dataset": context["dataset"],
+            "project": context["project_name"],
+            "dataset": context["dataset_name"],
             "tables": [],
             "file": Path("sources") / f"{context['source_name']}.yml",
         }
 
-
+# TODO: Add *
 def select_table(context):
     """Function for selecting table."""
     if not context["manual_mode"]:
@@ -224,82 +208,62 @@ def select_table(context):
         tables_in_dataset, error_message = fetch_tables_in_dataset(
             context["source"]["project"], context["source"]["dataset"]
         )
-        if not tables_in_dataset:
+        if tables_in_dataset:
+            # Filter out tables that already exist as sources
+            available_tables = [
+                table
+                for table in tables_in_dataset
+                if table not in context["source"]["tables"]
+            ]
+            if not available_tables:
+                fatal(
+                    "All tables in the specified project and dataset already have sources."
+                )
+            else:
+                has_invalid_selection = context.get("table_name") and not any(
+                    item == context.get("table_name") for item in available_tables
+                )
+                if has_invalid_selection:
+                    warn(f"The provided table name ({context.get('table_name')}) either doesn't exist or a source is already created. Please re-select.")
+                if not context.get("table_name") or has_invalid_selection:
+                    context["table_name"] = autocomplete_from_list(
+                        "Select table",
+                        items=available_tables,
+                        # Ensure the table exists in the dataset and is not already a source
+                        validate=lambda x: x in available_tables,
+                    )
+                # Fetch column details for the selected table
+                context["columns"], error_message = fetch_table_columns(
+                    context["source"]["project"],
+                    context["source"]["dataset"],
+                    context["table_name"],
+                )
+        elif error_message:
             warn(error_message)
             action = select_from_list(
                 "What would you like to do",
                 items=[
-                    {"name": "Try a different source", "value": "retry"},
                     {"name": "Add values manually", "value": "manual"},
                     {"name": "Cancel", "value": "cancel"},
                 ],
             )
-
-            if action == "retry":
-                return True
-            elif action == "manual":
-                context["manual_mode"] = True  # Enter manual mode
-
-    if not context["manual_mode"]:
-        # Filter out tables that already exist as sources
-        available_tables = [
-            table
-            for table in tables_in_dataset
-            if table not in context["source"]["tables"]
-        ]
-
-        if not available_tables:
-            fatal(
-                "All tables in the specified project and dataset already have sources."
-            )
-
-        # Ask for the table name
-        context["table_name"] = autocomplete_from_list(
-            "Select table",
-            items=available_tables,
-            # Ensure the table exists in the dataset and is not already a source
-            validate=lambda x: x in available_tables,
-        )
-
-        # Fetch column details for the selected table
-        context["columns"], error_message = fetch_table_columns(
-            context["source"]["project"],
-            context["source"]["dataset"],
-            context["table_name"],
-        )
-        if not context["columns"]:
-            fatal(error_message)
+            if action == "manual":
+                context["manual_mode"] = True
+            else:
+                fatal("Cancelling")
 
     if context["manual_mode"]:
-        while True:
-            table_name = input_text(
-                "What is the name of the table",
-                allow_blank=False,
-                validate=name_validator(),
+        context["table_name"] = input_text(
+            "What is the name of the table",
+            allow_blank=False,
+            validate=lambda text: (
+                all([
+                    name_validator()(text) is True,
+                    text not in context["source"]["tables"]
+                ]) or "Invalid name format or source already exists for given table name"
             )
-
-            # Check if the table already exists in the source
-            if table_name in context["source"]["tables"]:
-                warn(f"Error: The table '{table_name}' already exists in this source.")
-                action = select_from_list(
-                    "What would you like to do",
-                    items=[
-                        {
-                            "name": "Provide a different table name",
-                            "value": "retry",
-                        },
-                        {"name": "Cancel", "value": "cancel"},
-                    ],
-                )
-
-                if action == "retry":
-                    continue  # Retry table name input
-            else:
-                context["table_name"] = table_name
-                break  # Valid table name, proceed
-
+        )
         context["columns"] = []
-    return False
 
 
 def select_table_description(context):
@@ -390,7 +354,7 @@ def generate_source(
 ) -> None:
     """Function for generating a new source."""
     _, existing_sources = get_source_tables()
-    initial_context = {
+    context = {
         "manual_mode": False,
         "source_name": source_name,
         "source_description": source_description,
@@ -403,20 +367,18 @@ def generate_source(
             list(set(source["project"] for source in existing_sources))
         )
     }
-    while True:
-        context = copy.deepcopy(initial_context)
-        select_source(context)
-        select_project(context)
-        select_dataset(context)
-        select_source_name(context)
-        select_source_description(context)
-        configure_missing_source(context)
-        if not select_table(context):
-            break
-        else:
-            # If no valid table - retry source selection
-            continue
-    select_table_description(context)
+
+    for func in [
+        select_source,
+        select_project,
+        select_dataset,
+        set_source_name,
+        select_source_description,
+        configure_missing_source,
+        select_table,
+        select_table_description,
+    ]:
+        func(context)
 
     create_source_file(
         source_file=context["source"]["file"],

@@ -116,7 +116,7 @@ def model(
 def source(
     source_name: Annotated[
         str,
-        typer.Option("--source_name", "-s", help="Where the source is located (alias used for project+dataset combination)"),
+        typer.Option("--source_name", "-s", help="Where the source is located (existing alias used for project+dataset combination)"),
     ] = None,
     source_description: Annotated[
         str,
