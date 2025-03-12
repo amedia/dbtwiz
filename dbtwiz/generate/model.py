@@ -100,17 +100,25 @@ def select_name(context):
                 all(
                     [
                         name_validator()(text) is True,
-                        not model_base_path(context["layer"], context["domain"], text).with_suffix(".sql").exists(),
-                        not model_base_path(context["layer"], context["domain"], text).with_suffix(".yml").exists(),
+                        not model_base_path(context["layer"], context["domain"], text)
+                        .with_suffix(".sql")
+                        .exists(),
+                        not model_base_path(context["layer"], context["domain"], text)
+                        .with_suffix(".yml")
+                        .exists(),
                     ]
                 )
                 or "Invalid name format or a model with given name already exists"
-            )
+            ),
         )
 
         context["name"] = name
-        context["sql_path"] = model_base_path(context["layer"], context["domain"], name).with_suffix(".sql")
-        context["yml_path"] = model_base_path(context["layer"], context["domain"], name).with_suffix(".yml")
+        context["sql_path"] = model_base_path(
+            context["layer"], context["domain"], name
+        ).with_suffix(".sql")
+        context["yml_path"] = model_base_path(
+            context["layer"], context["domain"], name
+        ).with_suffix(".yml")
 
 
 def select_description(context):
@@ -381,6 +389,7 @@ def create_model_files(
     from ruamel.yaml import YAML
     from ruamel.yaml.comments import CommentedMap, CommentedSeq
     from ruamel.yaml.scalarstring import LiteralScalarString
+
     ruamel_yaml = YAML()
     ruamel_yaml.preserve_quotes = True
     ruamel_yaml.indent(mapping=2, sequence=4, offset=2)

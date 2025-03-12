@@ -317,6 +317,7 @@ def write_source_file(
     from ruamel.yaml import YAML
     from ruamel.yaml.comments import CommentedMap
     from ruamel.yaml.scalarstring import PreservedScalarString
+
     ruamel_yaml = YAML()
     ruamel_yaml.preserve_quotes = True
     ruamel_yaml.indent(mapping=2, sequence=4, offset=2)
