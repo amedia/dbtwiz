@@ -3,6 +3,7 @@ from typing import Annotated, List
 import typer
 
 from .create import create_model
+from .inspect import inspect_model
 
 app = typer.Typer()
 
@@ -109,3 +110,16 @@ def create(
         service_consumers,
         access_policy,
     )
+
+
+@app.command()
+def inspect(
+    name: Annotated[
+        str,
+        typer.Option(
+            "--name", "-n", help="Model name or path"
+        ),
+    ],
+):
+    """Output information about a given model"""
+    inspect_model(name)

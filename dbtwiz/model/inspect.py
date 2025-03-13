@@ -7,7 +7,7 @@ from dbtwiz.manifest import Manifest
 from dbtwiz.logging import error
 
 
-def model(name: str) -> None:
+def inspect_model(name: str) -> None:
 
     models = Manifest.models_cached()
     if name not in models.keys():

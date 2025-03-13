@@ -164,15 +164,6 @@ def backfill(
 
 
 @app.command()
-def model(
-        name: Annotated[str, typer.Argument(
-            help="Model name or path")],
-):
-    """Output information about a given model"""
-    commands.model(name)
-
-
-@app.command()
 def sqlfix():
     """Run sqlfmt-fix and sqlfluff-fix on staged changes"""
     commands.sqlfix()
