@@ -14,6 +14,7 @@ from dbtwiz.interact import (
 from dbtwiz.logging import fatal, info, warn
 from dbtwiz.project import (
     Group,
+    ModelBasePath,
     Project,
     access_choices,
     domains_for_layer,
@@ -21,7 +22,6 @@ from dbtwiz.project import (
     get_source_tables,
     layer_choices,
     materialization_choices,
-    model_base_path,
 )
 
 
@@ -94,31 +94,29 @@ def select_name(context):
     if context.get("name"):
         name = context.get("name")
     else:
-        name = input_text(
-            "What is the name of your model",
+        name = input_text(            
+            f"Name your new model (it will be prefixed by {ModelBasePath(context.get('layer')).get_prefix(context.get('domain'))})",
             validate=lambda text: (
                 all(
                     [
                         name_validator()(text) is True,
-                        not model_base_path(context["layer"], context["domain"], text)
+                        not ModelBasePath(context["layer"]).get_path(context["domain"], text)
                         .with_suffix(".sql")
                         .exists(),
-                        not model_base_path(context["layer"], context["domain"], text)
+                        not ModelBasePath(context["layer"]).get_path(context["domain"], text)
                         .with_suffix(".yml")
                         .exists(),
+                        not text.startswith(ModelBasePath(context["layer"]).get_prefix(context["domain"]))
                     ]
                 )
-                or "Invalid name format or a model with given name already exists"
+                or "Invalid name format, a model with given name already exists or you've added the model prefix"
             ),
         )
 
         context["name"] = name
-        context["sql_path"] = model_base_path(
-            context["layer"], context["domain"], name
-        ).with_suffix(".sql")
-        context["yml_path"] = model_base_path(
-            context["layer"], context["domain"], name
-        ).with_suffix(".yml")
+        model_base_path = ModelBasePath(context["layer"]).get_path(context["domain"], name)
+        context["sql_path"] = model_base_path.with_suffix(".sql")
+        context["yml_path"] = model_base_path.with_suffix(".sql")
 
 
 def select_description(context):
@@ -386,7 +384,7 @@ def create_model_files(
     expiration=None,
 ):
     """Function that creates SQL and YAML files for model."""
-    base_path = model_base_path(layer, domain, name)
+    base_path = ModelBasePath(layer).get_path(domain, name)
 
     sql_path = base_path.with_suffix(".sql")
     yml_path = base_path.with_suffix(".yml")
