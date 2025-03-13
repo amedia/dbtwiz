@@ -3,13 +3,13 @@ import datetime
 import typer
 from typing import Annotated
 
-from .backfill import backfill
-from .build import build
-from .config import config
-from .freshness import freshness
-from .manifest import manifest
-from .precommit import sqlfix
-from .test import test
+from .backfill import backfill as command_backfill
+from .build import build as command_build
+from .config import config as command_config
+from .freshness import freshness as command_freshness
+from .manifest import manifest as command_manifest
+from .precommit import sqlfix as command_sqlfix
+from .test import test as command_test
 from dbtwiz.target import Target
 
 app = typer.Typer()
@@ -91,7 +91,7 @@ def build(
     except ValueError:
         raise InvalidArgumentsError("Date must be on the YYYY-mm-dd format.")
     # Dispatch
-    build(
+    command_build(
         target.value,
         select,
         run_date,
@@ -127,13 +127,13 @@ def test(
     except ValueError:
         raise InvalidArgumentsError("Date must be on the YYYY-mm-dd format.")
     # Dispatch
-    test(target.value, select, run_date)
+    command_test(target.value, select, run_date)
 
 
 @app.command()
 def sqlfix():
     """Run sqlfmt-fix and sqlfluff-fix on staged changes"""
-    sqlfix()
+    command_sqlfix()
 
 
 @app.command()
@@ -148,7 +148,7 @@ def manifest(
     ] = "all",
 ):
     """Update dev and production manifests for fast lookup"""
-    manifest(type)
+    command_manifest(type)
 
 
 @app.command()
@@ -216,7 +216,7 @@ def backfill(
                 "Full refresh in only supported on single day runs."
             )
     # Dispatch
-    backfill(select, first_date, last_date, full_refresh, parallelism, status, verbose)
+    command_backfill(select, first_date, last_date, full_refresh, parallelism, status, verbose)
 
 
 @app.command()
@@ -231,7 +231,7 @@ def freshness(
     ] = Target.dev,
 ) -> None:
     """Run source freshness tests"""
-    freshness(target.value)
+    command_freshness(target.value)
 
 
 @app.command()
@@ -240,4 +240,4 @@ def config(
     value: Annotated[str, typer.Argument(help="Configuration value")],
 ):
     """Update configuration setting"""
-    config(setting, value)
+    command_config(setting, value)
