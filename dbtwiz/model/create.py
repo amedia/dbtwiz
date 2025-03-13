@@ -12,7 +12,7 @@ from dbtwiz.interact import (
     select_from_list,
 )
 from dbtwiz.logging import fatal, info, warn
-from dbtwiz.model import (
+from dbtwiz.project import (
     Group,
     Project,
     access_choices,
@@ -188,10 +188,7 @@ def select_materialization(context):
         )
         context["materialization"] = "view"
         return
-    elif (
-        not context.get("materialization")
-        and context["layer"] == "staging"
-    ):
+    elif not context.get("materialization") and context["layer"] == "staging":
         info(
             "Setting materialization to view, which is required for all staging models."
         )
@@ -269,19 +266,14 @@ def select_frequency(context):
         del context["frequency"]
         return
     elif context.get("frequency") and context.get("materialization") == "view":
-        info(
-            "Ignoring defined frequency since frequency is not applicable for views."
-        )
+        info("Ignoring defined frequency since frequency is not applicable for views.")
         del context["frequency"]
         return
     elif context.get("materialization") == "view" or context.get("layer") == "staging":
         return
 
     valid_frequencies = frequency_choices()
-    if (
-        len(set(context["team"]) & set(["team-ai", "team-ai-analyst", "team-abo"]))
-        > 0
-    ):
+    if len(set(context["team"]) & set(["team-ai", "team-ai-analyst", "team-abo"])) > 0:
         valid_frequencies.append(
             {
                 "name": "daily_news_cycle",

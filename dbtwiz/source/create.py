@@ -19,7 +19,7 @@ from dbtwiz.interact import (
     select_from_list,
 )
 from dbtwiz.logging import fatal, info, warn
-from dbtwiz.model import get_source_tables
+from dbtwiz.project import get_source_tables
 
 
 def get_existing_source(
