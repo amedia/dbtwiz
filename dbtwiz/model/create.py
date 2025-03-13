@@ -12,8 +12,9 @@ from dbtwiz.interact import (
     select_from_list,
 )
 from dbtwiz.logging import fatal, info, warn
-from dbtwiz.model import (
+from dbtwiz.project import (
     Group,
+    ModelBasePath,
     Project,
     access_choices,
     domains_for_layer,
@@ -21,7 +22,6 @@ from dbtwiz.model import (
     get_source_tables,
     layer_choices,
     materialization_choices,
-    model_base_path,
 )
 
 
@@ -94,31 +94,29 @@ def select_name(context):
     if context.get("name"):
         name = context.get("name")
     else:
-        name = input_text(
-            "What is the name of your model",
+        name = input_text(            
+            f"Name your new model (it will be prefixed by {ModelBasePath(context.get('layer')).get_prefix(context.get('domain'))})",
             validate=lambda text: (
                 all(
                     [
                         name_validator()(text) is True,
-                        not model_base_path(context["layer"], context["domain"], text)
+                        not ModelBasePath(context["layer"]).get_path(context["domain"], text)
                         .with_suffix(".sql")
                         .exists(),
-                        not model_base_path(context["layer"], context["domain"], text)
+                        not ModelBasePath(context["layer"]).get_path(context["domain"], text)
                         .with_suffix(".yml")
                         .exists(),
+                        not text.startswith(ModelBasePath(context["layer"]).get_prefix(context["domain"]))
                     ]
                 )
-                or "Invalid name format or a model with given name already exists"
+                or "Invalid name format, a model with given name already exists or you've added the model prefix"
             ),
         )
 
         context["name"] = name
-        context["sql_path"] = model_base_path(
-            context["layer"], context["domain"], name
-        ).with_suffix(".sql")
-        context["yml_path"] = model_base_path(
-            context["layer"], context["domain"], name
-        ).with_suffix(".yml")
+        model_base_path = ModelBasePath(context["layer"]).get_path(context["domain"], name)
+        context["sql_path"] = model_base_path.with_suffix(".sql")
+        context["yml_path"] = model_base_path.with_suffix(".sql")
 
 
 def select_description(context):
@@ -188,6 +186,12 @@ def select_materialization(context):
         )
         context["materialization"] = "view"
         return
+    elif not context.get("materialization") and context["layer"] == "staging":
+        info(
+            "Setting materialization to view, which is required for all staging models."
+        )
+        context["materialization"] = "view"
+        return
     elif has_invalid_selection:
         warn(
             f"The provided value ({context.get('materialization')}) for materialization is invalid. Please re-select."
@@ -204,15 +208,15 @@ def select_expiration(context):
     """Function for selecting expiration."""
     if context["quick"] and not context.get("expiration"):
         return
-    valid_expirations = context["project"].data_expirations()
-    has_invalid_selection = context.get("expiration") and not any(
-        item["name"] == context.get("expiration") for item in valid_expirations
-    )
     if context.get("expiration") and context["materialization"] != "incremental":
         info("Ignoring expiration since the model isn't materialized as incremental.")
         del context["expiration"]
         return
-    elif has_invalid_selection:
+    valid_expirations = context["project"].data_expirations()
+    has_invalid_selection = context.get("expiration") and not any(
+        item["name"] == context.get("expiration") for item in valid_expirations
+    )
+    if has_invalid_selection:
         warn(
             f"The provided value ({context.get('expiration')}) for expiration is invalid. Please re-select."
         )
@@ -258,31 +262,35 @@ def select_frequency(context):
             "Ignoring defined frequency since frequency is not allowed for staging models."
         )
         del context["frequency"]
-    if context["layer"] != "staging":
-        valid_frequencies = frequency_choices()
-        if (
-            len(set(context["team"]) & set(["team-ai", "team-ai-analyst", "team-abo"]))
-            > 0
-        ):
-            valid_frequencies.append(
-                {
-                    "name": "daily_news_cycle",
-                    "description": "Model needs to be updated once a day at 03:30",
-                }
-            )
-        has_invalid_selection = context.get("frequency") and not any(
-            item["name"] == context.get("frequency") for item in valid_frequencies
+        return
+    elif context.get("frequency") and context.get("materialization") == "view":
+        info("Ignoring defined frequency since frequency is not applicable for views.")
+        del context["frequency"]
+        return
+    elif context.get("materialization") == "view" or context.get("layer") == "staging":
+        return
+
+    valid_frequencies = frequency_choices()
+    if len(set(context["team"]) & set(["team-ai", "team-ai-analyst", "team-abo"])) > 0:
+        valid_frequencies.append(
+            {
+                "name": "daily_news_cycle",
+                "description": "Model needs to be updated once a day at 03:30",
+            }
         )
-        if has_invalid_selection:
-            warn(
-                f"The provided value ({context.get('frequency')}) for frequency is invalid. Please re-select."
-            )
-        if has_invalid_selection or not context.get("frequency"):
-            context["frequency"] = select_from_list(
-                "How often should the model be updated",
-                valid_frequencies,
-                allow_none=True,
-            )
+    has_invalid_selection = context.get("frequency") and not any(
+        item["name"] == context.get("frequency") for item in valid_frequencies
+    )
+    if has_invalid_selection:
+        warn(
+            f"The provided value ({context.get('frequency')}) for frequency is invalid. Please re-select."
+        )
+    if has_invalid_selection or not context.get("frequency"):
+        context["frequency"] = select_from_list(
+            "How often should the model be updated",
+            valid_frequencies,
+            allow_none=True,
+        )
 
 
 def select_service_consumers(context):
@@ -376,7 +384,7 @@ def create_model_files(
     expiration=None,
 ):
     """Function that creates SQL and YAML files for model."""
-    base_path = model_base_path(layer, domain, name)
+    base_path = ModelBasePath(layer).get_path(domain, name)
 
     sql_path = base_path.with_suffix(".sql")
     yml_path = base_path.with_suffix(".yml")
@@ -440,7 +448,7 @@ def create_model_files(
     info(stream.getvalue().rstrip())
     info("[=== END ===]")
     if not confirm("Do you wish to create the model files"):
-        fatal("Model creatopm cancelled.")
+        fatal("Model creation cancelled.")
 
     # Create folder structure for files
     base_path.parent.mkdir(parents=True, exist_ok=True)
@@ -486,7 +494,7 @@ def create_model(
         "description": description,
         "group": group,
         "access": access,
-        "materialization": materialization or "view",
+        "materialization": materialization,
         "expiration": expiration,
         "team": team,
         "frequency": frequency,
@@ -500,10 +508,10 @@ def create_model(
         select_domain,
         select_name,
         select_description,
-        select_group,
-        select_access,
         select_materialization,
         select_expiration,
+        select_group,
+        select_access,
         select_team,
         select_frequency,
         select_service_consumers,
