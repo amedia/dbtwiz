@@ -297,14 +297,13 @@ def select_service_consumers(context):
     """Function for selecting service consumers."""
     if context["quick"] and not context.get("service_consumers"):
         return
-    elif context.get("service_consumers") and context["layer"] not in (
-        "marts",
-        "bespoke",
-    ):
-        info(
-            "Ignoring defined service_consumers since service_consumers are only allowed for marts or bespoke models."
-        )
-        del context["service_consumers"]
+    elif context["layer"] not in ("marts", "bespoke"):
+        if context.get("service_consumers"):
+            info(
+                "Ignoring defined service_consumers since service_consumers are only allowed for marts or bespoke models."
+            )
+            del context["service_consumers"]
+        return
     valid_service_consumers = context["project"].service_consumers()
     has_invalid_selection = False
     if context.get("service_consumers"):
@@ -330,11 +329,13 @@ def select_access_policy(context):
     """Function for selecting acces policy."""
     if context["quick"] and not context.get("access_policy"):
         return
-    elif context.get("access_policy") and context["layer"] not in ("marts", "bespoke"):
-        info(
-            "Ignoring defined access_policy since access_policy is only allowed for marts or bespoke models."
-        )
-        del context["access_policy"]
+    elif context["layer"] not in ("marts", "bespoke"):
+        if context.get("access_policy"):
+            info(
+                "Ignoring defined access_policy since access_policy is only allowed for marts or bespoke models."
+            )
+            del context["access_policy"]
+        return
     valid_access_policies = context["project"].access_policies()
     has_invalid_selection = context.get("access_policy") and not any(
         item["name"] == context.get("access_policy") for item in valid_access_policies
