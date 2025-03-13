@@ -72,6 +72,33 @@ class Project:
         ]
 
 
+class ModelBasePath:
+    """Path to model files (without suffix)"""
+
+    def __init__(self, layer: str):
+        self.layer = layer
+        self.layer_folder, self.layer_abbreviation = self.get_layer_details(layer)
+
+    def get_layer_details(self, layer: str):
+        layer_details = {
+            "staging": ("1_staging", "stg"),
+            "intermediate": ("2_intermediate", "int"),
+            "marts": ("3_marts", "mrt"),
+            "bespoke": ("4_bespoke", "bsp")
+        }
+        if layer not in layer_details:
+            raise ValueError(f"Invalid layer: {layer}")
+        return layer_details[layer]
+
+    def get_path(self, domain: str, name: str) -> Path:
+        path = project_path() / "models" / self.layer_folder / domain / f"{self.layer_abbreviation}_{domain}__{name}"
+        return path
+
+    def get_prefix(self, domain: str) -> str:
+        prefix = f"{self.layer_abbreviation}_{domain}__"
+        return prefix
+
+
 def layer_choices() -> List[Dict[str, str]]:
     """Dict of dbt layers and descriptions"""
     return [
@@ -175,19 +202,3 @@ def domains_for_layer(layer: str):
     """List of domains in the given layer for this project"""
     domains = [f.name for f in (project_path() / "models").glob(f"*_{layer}/*")]
     return sorted(domains)
-
-
-def model_base_path(layer: str, domain: str, name: str) -> Path:
-    """Path to model files (without suffix)"""
-    path = project_path() / "models"
-    if layer == "staging":
-        path = path / "1_staging" / domain / f"stg_{domain}__{name}"
-    elif layer == "intermediate":
-        path = path / "2_intermediate" / domain / f"int_{domain}__{name}"
-    elif layer == "marts":
-        path = path / "3_marts" / domain / f"mrt_{domain}__{name}"
-    elif layer == "bespoke":
-        path = path / "4_bespoke" / domain / f"bsp_{domain}__{name}"
-    else:
-        fatal(f"Invalid layer: [red]{layer}[/]")
-    return path
