@@ -1,7 +1,7 @@
-import os
+# import os
 
 from textwrap import dedent
-from rich.console import Console
+# from rich.console import Console
 
 from dbtwiz.manifest import Manifest
 from dbtwiz.logging import error
