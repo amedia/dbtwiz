@@ -188,6 +188,15 @@ def select_materialization(context):
         )
         context["materialization"] = "view"
         return
+    elif (
+        not context.get("materialization")
+        and context["layer"] == "staging"
+    ):
+        info(
+            "Setting materialization to view, which is required for all staging models."
+        )
+        context["materialization"] = "view"
+        return
     elif has_invalid_selection:
         warn(
             f"The provided value ({context.get('materialization')}) for materialization is invalid. Please re-select."
@@ -204,15 +213,15 @@ def select_expiration(context):
     """Function for selecting expiration."""
     if context["quick"] and not context.get("expiration"):
         return
-    valid_expirations = context["project"].data_expirations()
-    has_invalid_selection = context.get("expiration") and not any(
-        item["name"] == context.get("expiration") for item in valid_expirations
-    )
     if context.get("expiration") and context["materialization"] != "incremental":
         info("Ignoring expiration since the model isn't materialized as incremental.")
         del context["expiration"]
         return
-    elif has_invalid_selection:
+    valid_expirations = context["project"].data_expirations()
+    has_invalid_selection = context.get("expiration") and not any(
+        item["name"] == context.get("expiration") for item in valid_expirations
+    )
+    if has_invalid_selection:
         warn(
             f"The provided value ({context.get('expiration')}) for expiration is invalid. Please re-select."
         )
@@ -258,31 +267,40 @@ def select_frequency(context):
             "Ignoring defined frequency since frequency is not allowed for staging models."
         )
         del context["frequency"]
-    if context["layer"] != "staging":
-        valid_frequencies = frequency_choices()
-        if (
-            len(set(context["team"]) & set(["team-ai", "team-ai-analyst", "team-abo"]))
-            > 0
-        ):
-            valid_frequencies.append(
-                {
-                    "name": "daily_news_cycle",
-                    "description": "Model needs to be updated once a day at 03:30",
-                }
-            )
-        has_invalid_selection = context.get("frequency") and not any(
-            item["name"] == context.get("frequency") for item in valid_frequencies
+        return
+    elif context.get("frequency") and context.get("materialization") == "view":
+        info(
+            "Ignoring defined frequency since frequency is not applicable for views."
         )
-        if has_invalid_selection:
-            warn(
-                f"The provided value ({context.get('frequency')}) for frequency is invalid. Please re-select."
-            )
-        if has_invalid_selection or not context.get("frequency"):
-            context["frequency"] = select_from_list(
-                "How often should the model be updated",
-                valid_frequencies,
-                allow_none=True,
-            )
+        del context["frequency"]
+        return
+    elif context.get("materialization") == "view" or context.get("layer") == "staging":
+        return
+
+    valid_frequencies = frequency_choices()
+    if (
+        len(set(context["team"]) & set(["team-ai", "team-ai-analyst", "team-abo"]))
+        > 0
+    ):
+        valid_frequencies.append(
+            {
+                "name": "daily_news_cycle",
+                "description": "Model needs to be updated once a day at 03:30",
+            }
+        )
+    has_invalid_selection = context.get("frequency") and not any(
+        item["name"] == context.get("frequency") for item in valid_frequencies
+    )
+    if has_invalid_selection:
+        warn(
+            f"The provided value ({context.get('frequency')}) for frequency is invalid. Please re-select."
+        )
+    if has_invalid_selection or not context.get("frequency"):
+        context["frequency"] = select_from_list(
+            "How often should the model be updated",
+            valid_frequencies,
+            allow_none=True,
+        )
 
 
 def select_service_consumers(context):
@@ -440,7 +458,7 @@ def create_model_files(
     info(stream.getvalue().rstrip())
     info("[=== END ===]")
     if not confirm("Do you wish to create the model files"):
-        fatal("Model creatopm cancelled.")
+        fatal("Model creation cancelled.")
 
     # Create folder structure for files
     base_path.parent.mkdir(parents=True, exist_ok=True)
@@ -486,7 +504,7 @@ def create_model(
         "description": description,
         "group": group,
         "access": access,
-        "materialization": materialization or "view",
+        "materialization": materialization,
         "expiration": expiration,
         "team": team,
         "frequency": frequency,
@@ -500,10 +518,10 @@ def create_model(
         select_domain,
         select_name,
         select_description,
-        select_group,
-        select_access,
         select_materialization,
         select_expiration,
+        select_group,
+        select_access,
         select_team,
         select_frequency,
         select_service_consumers,
