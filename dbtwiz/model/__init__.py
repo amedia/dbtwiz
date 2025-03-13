@@ -116,9 +116,7 @@ def create(
 def inspect(
     name: Annotated[
         str,
-        typer.Option(
-            "--name", "-n", help="Model name or path"
-        ),
+        typer.Option("--name", "-n", help="Model name or path"),
     ],
 ):
     """Output information about a given model"""
