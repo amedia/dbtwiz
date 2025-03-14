@@ -198,8 +198,8 @@ def set_source_name(context):
     """Function for setting source name."""
     if not context.get("source"):
         context["source_name"] = (
-            f"{context['project_name']}__{context['dataset_name']}".replace("-", "_")
-        )
+            f"{context['project_name']}__{context['dataset_name']}"
+        ).replace("-", "_").replace("`", "").lower()
         info(
             f"Adding alias {context['source_name']} for project '{context['project_name']}' and dataset '{context['dataset_name']}'"
         )
@@ -283,7 +283,7 @@ def select_tables(context):
                 fatal("Cancelling")
 
     if context["manual_mode"]:
-        context["table_name"] = input_text(
+        context["tables"] = [input_text(
             "What is the name of the table",
             allow_blank=False,
             validate=lambda text: (
@@ -295,13 +295,13 @@ def select_tables(context):
                 )
                 or "Invalid name format or source already exists for given table name"
             ),
-        )
+        )]
         context["columns"] = []
 
 
 def select_table_description(context):
     """Function for selecting table description. Skipped if multiple tables selected."""
-    if len(context.get("tables")) == 1:
+    if context.get("tables") and len(context.get("tables")) == 1:
         context["table_description"] = input_text(
             "Give a short description for the source table",
             validate=description_validator(),
@@ -426,6 +426,6 @@ def create_source(
         source_description=context["source"]["description"],
         project_name=context["source"]["project"],
         dataset_name=context["source"]["dataset"],
-        tables=context["tables"],
+        tables=context.get("tables"),
         table_description=context.get("table_description"),
     )
