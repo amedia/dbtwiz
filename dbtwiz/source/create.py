@@ -12,11 +12,12 @@ from dbtwiz.bigquery import (
 from dbtwiz.interact import (
     autocomplete_from_list,
     confirm,
+    dataset_name_validator,
     description_validator,
     input_text,
     multiselect_from_list,
-    name_validator,
     select_from_list,
+    table_name_validator,
 )
 from dbtwiz.logging import fatal, info, warn
 from dbtwiz.project import get_source_tables
@@ -160,7 +161,7 @@ def select_dataset(context):
             context["dataset_name"] = input_text(
                 "What is the dataset for the source",
                 allow_blank=False,
-                validate=name_validator(),
+                validate=dataset_name_validator(),
             )
     else:
         project_name = context["project_name"]
@@ -289,7 +290,7 @@ def select_tables(context):
             validate=lambda text: (
                 all(
                     [
-                        name_validator()(text) is True,
+                        table_name_validator(context.get("dataset_name"))(text) is True,
                         text not in context["source"]["tables"],
                     ]
                 )
