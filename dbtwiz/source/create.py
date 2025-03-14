@@ -82,9 +82,7 @@ def select_source(context):
             return
 
     if not context.get("source_name") or has_invalid_selection:
-        source_name = autocomplete_from_list(
-            "Select source project + dataset",
-            items={
+        options = {
                 **{"Add new project + dataset": ""},
                 **{
                     source[
@@ -92,7 +90,14 @@ def select_source(context):
                     ]: f"{source['project']}.{source['dataset']}: {' '.join(source.get('description', '').split())[:80]}"
                     for source in valid_sources
                 },
-            },
+            }
+        source_name = autocomplete_from_list(
+            "Select source project + dataset",
+            items=options,
+            must_exist=True,
+            validate=lambda text: (
+                text in options.keys() 
+            ) or "You must select an option from the list"
         )
         context["source"] = get_existing_source(context, source_name=source_name)
     elif context.get("source_name"):
@@ -296,7 +301,7 @@ def select_tables(context):
 
 def select_table_description(context):
     """Function for selecting table description. Skipped if multiple tables selected."""
-    if len(context["tables"]) == 1:
+    if len(context.get("tables")) == 1:
         context["table_description"] = input_text(
             "Give a short description for the source table",
             validate=description_validator(),
