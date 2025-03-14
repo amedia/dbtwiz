@@ -8,8 +8,8 @@ from dbtwiz.style import custom_style
 def name_validator():
     """Returns the default validator for names."""
     return (
-        lambda string: (re.match(r"^[a-z][a-z0-9_]*[a-z0-9]$", string) is not None)
-        or "The value can only contain lowercase, digits and underscores, must start with a character and not end with underscore"
+        lambda string: (re.match(r"^[a-zA-Z][a-zA-Z0-9_]*[a-zA-Z0-9]$", string) is not None)
+        or "The value can only contain digits and underscores, must start with a character and not end with underscore"
     )
 
 
