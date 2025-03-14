@@ -365,7 +365,10 @@ def write_source_file(
         if columns:  # Only add columns if they exist (not in manual mode)
             table_entry["columns"] = columns
         new_table_entries.append(table_entry)
-        source_entry["tables"].append(table_entry)
+        if "tables" in source_entry:
+            source_entry["tables"].append(table_entry)
+        else:
+            source_entry["tables"] = [table_entry]
 
     info(f"[=== BEGIN {source_file} ===]")
     stream = StringIO()
