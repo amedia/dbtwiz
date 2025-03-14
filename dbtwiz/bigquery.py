@@ -50,6 +50,27 @@ def fetch_tables_in_dataset(project, dataset) -> Tuple[List[str], str]:
         return [], f"Error: Failed to fetch tables from BigQuery: {e}"
 
 
+def parse_schema(fields, prefix=""):
+    """
+    Parses the schema for a table and returns all the columns.
+    If a column is a struct then it recursively adds all nested columns.
+    """
+    schema_details = []
+
+    for field in fields:
+        if field.field_type == "RECORD":
+            # Recursively unnest fields within the struct
+            nested_fields = parse_schema(field.fields, prefix=f"{prefix}{field.name}.")
+            schema_details.extend(nested_fields)
+        else:
+            column = {"name": f"{prefix}{field.name}"}
+            if field.description:
+                column["description"] = PreservedScalarString(field.description)
+            schema_details.append(column)
+
+    return schema_details
+
+
 def fetch_table_columns(project, dataset, table_name) -> Tuple[List[str], str]:
     """Fetch column names and descriptions from BigQuery."""
     bigquery, Forbidden, NotFound = import_common_modules()
@@ -57,12 +78,7 @@ def fetch_table_columns(project, dataset, table_name) -> Tuple[List[str], str]:
     table_ref = f"{project}.{dataset}.{table_name}"
     try:
         table = client.get_table(table_ref)
-        columns = []
-        for field in table.schema:
-            column = {"name": field.name}
-            if field.description:  # Only add description if it exists
-                column["description"] = PreservedScalarString(field.description)
-            columns.append(column)
+        columns = parse_schema(table.schema)
         return columns, ""
     except NotFound:
         return None, f"Error: The table '{table_name}' does not exist in BigQuery."
