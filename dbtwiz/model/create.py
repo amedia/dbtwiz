@@ -21,6 +21,7 @@ from dbtwiz.project import (
     frequency_choices,
     get_source_tables,
     layer_choices,
+    list_domain_models,
     materialization_choices,
 )
 
@@ -94,27 +95,24 @@ def select_name(context):
     if context.get("name"):
         name = context.get("name")
     else:
-        name = input_text(            
-            f"Name your new model (it will be prefixed by {ModelBasePath(context.get('layer')).get_prefix(context.get('domain'))})",
+        model_base_path = ModelBasePath(context.get('layer'))
+        existing_models = list_domain_models(model_base_path, context.get('domain'))
+        name = input_text(
+            f"Name your new model (it will be prefixed by {model_base_path.get_prefix(context.get('domain'))})",
             validate=lambda text: (
                 all(
                     [
                         name_validator()(text) is True,
-                        not ModelBasePath(context["layer"]).get_path(context["domain"], text)
-                        .with_suffix(".sql")
-                        .exists(),
-                        not ModelBasePath(context["layer"]).get_path(context["domain"], text)
-                        .with_suffix(".yml")
-                        .exists(),
-                        not text.startswith(ModelBasePath(context["layer"]).get_prefix(context["domain"]))
+                        not model_base_path.get_prefix(context.get('domain')) + text in existing_models,
+                        not text.startswith(model_base_path.get_prefix(context["domain"]))
                     ]
                 )
-                or "Invalid name format, a model with given name already exists or you've added the model prefix"
+                or "Invalid name format, a model with given name already exists or you've added the model prefix to the name"
             ),
         )
 
         context["name"] = name
-        model_base_path = ModelBasePath(context["layer"]).get_path(context["domain"], name)
+        model_base_path = model_base_path.get_path(context["domain"], name)
         context["sql_path"] = model_base_path.with_suffix(".sql")
         context["yml_path"] = model_base_path.with_suffix(".sql")
 
@@ -389,9 +387,10 @@ def create_model_files(
 
     sql_path = base_path.with_suffix(".sql")
     yml_path = base_path.with_suffix(".yml")
-    if sql_path.exists() or yml_path.exists():
+
+    if yml_path.exists():
         return fatal(
-            f"Model files {sql_path}.(sql,yml) already exist, leaving them be."
+            f"Model yml file {yml_path} already exist, cancelling file creation."
         )
 
     # Import (for performance) and configure yaml format
@@ -454,14 +453,17 @@ def create_model_files(
     # Create folder structure for files
     base_path.parent.mkdir(parents=True, exist_ok=True)
 
-    info(f"Creating config file {yml_path}")
+    info("Creating model yml file")
     with open(yml_path, "w+") as f:
         ruamel_yaml.dump(yml_content, f)
 
-    info(f"Creating query file {sql_path}")
-    sql = get_stg_sql(source) if layer == "staging" else "{# SQL placeholder #}"
-    with open(sql_path, "w+") as f:
-        f.write(sql)
+    if not sql_path.exists():
+        info("Creating model sql file")
+        sql = get_stg_sql(source) if layer == "staging" else "{# SQL placeholder #}"
+        with open(sql_path, "w+") as f:
+            f.write(sql)
+    else:
+        info(f"Skippig sql file creation since it already exists")
     # Open SQL file in editor
     # FIXME: Make editor user configurable with 'code' as default
     os.system(f"code {yml_path}")
