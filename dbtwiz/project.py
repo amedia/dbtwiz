@@ -1,8 +1,6 @@
 from pathlib import Path
 from typing import Dict, List, Tuple, Union
 
-from dbtwiz.logging import fatal
-
 from .config import project_path
 
 
@@ -90,13 +88,17 @@ class ModelBasePath:
             raise ValueError(f"Invalid layer: {layer}")
         return layer_details[layer]
 
-    def get_path(self, domain: str, name: str) -> Path:
-        path = project_path() / "models" / self.layer_folder / domain / f"{self.layer_abbreviation}_{domain}__{name}"
-        return path
-
     def get_prefix(self, domain: str) -> str:
         prefix = f"{self.layer_abbreviation}_{domain}__"
         return prefix
+
+    def get_domain_path(self, domain: str) -> Path:
+        path = project_path() / "models" / self.layer_folder / domain
+        return path
+
+    def get_path(self, domain: str, name: str) -> Path:
+        path = self.get_domain_path(domain) / f"{self.get_prefix(domain)}{name}"
+        return path
 
 
 def layer_choices() -> List[Dict[str, str]]:
@@ -202,3 +204,12 @@ def domains_for_layer(layer: str):
     """List of domains in the given layer for this project"""
     domains = [f.name for f in (project_path() / "models").glob(f"*_{layer}/*")]
     return sorted(domains)
+
+
+def list_domain_models(base_path: ModelBasePath, domain: str):
+    """List of existing models in the given layer/domain for this project"""
+    yml_files = []
+    for path in base_path.get_domain_path(domain).rglob("*.yml"):
+        yml_files.append(str(path.stem))
+
+    return yml_files
