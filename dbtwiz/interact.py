@@ -13,6 +13,29 @@ def name_validator():
     )
 
 
+def dataset_name_validator():
+    """Returns the validator for dataset names."""
+    return (
+        lambda string:
+        "The value can only contain lowercase, digits, and underscores, and must start with a letter. INFORMATION_SCHEMA is allowed."
+        if string != "INFORMATION_SCHEMA" and not re.match(r"^[a-z][a-z0-9_]*[a-z0-9]$", string)
+        else True
+)
+
+def table_name_validator(dataset_name):
+    """Returns the validator for table names."""
+    if dataset_name == "INFORMATION_SCHEMA":
+        return (
+            lambda string: re.match(r"^[A-Z][A-Z0-9_]*[A-Z0-9]$", string) is not None
+            or "The table can only contain uppercase, digits and underscores, must start with a character and not end with underscore."
+        )
+    else:
+        return (
+            lambda string: re.match(r"^[a-z][a-z0-9_]*[a-z0-9]$", string) is not None
+            or "The value can only contain lowercase letters, digits, and underscores, starting with a lowercase letter and not ending with an underscore."
+        )
+
+
 def description_validator():
     """Returns the default validator for descriptions."""
     return (

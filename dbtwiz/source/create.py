@@ -12,11 +12,12 @@ from dbtwiz.bigquery import (
 from dbtwiz.interact import (
     autocomplete_from_list,
     confirm,
+    dataset_name_validator,
     description_validator,
     input_text,
     multiselect_from_list,
-    name_validator,
     select_from_list,
+    table_name_validator,
 )
 from dbtwiz.logging import fatal, info, warn
 from dbtwiz.project import get_source_tables
@@ -82,9 +83,7 @@ def select_source(context):
             return
 
     if not context.get("source_name") or has_invalid_selection:
-        source_name = autocomplete_from_list(
-            "Select source project + dataset",
-            items={
+        options = {
                 **{"Add new project + dataset": ""},
                 **{
                     source[
@@ -92,7 +91,14 @@ def select_source(context):
                     ]: f"{source['project']}.{source['dataset']}: {' '.join(source.get('description', '').split())[:80]}"
                     for source in valid_sources
                 },
-            },
+            }
+        source_name = autocomplete_from_list(
+            "Select source project + dataset",
+            items=options,
+            must_exist=True,
+            validate=lambda text: (
+                text in options.keys() 
+            ) or "You must select an option from the list"
         )
         context["source"] = get_existing_source(context, source_name=source_name)
     elif context.get("source_name"):
@@ -155,7 +161,7 @@ def select_dataset(context):
             context["dataset_name"] = input_text(
                 "What is the dataset for the source",
                 allow_blank=False,
-                validate=name_validator(),
+                validate=dataset_name_validator(),
             )
     else:
         project_name = context["project_name"]
@@ -193,8 +199,8 @@ def set_source_name(context):
     """Function for setting source name."""
     if not context.get("source"):
         context["source_name"] = (
-            f"{context['project_name']}__{context['dataset_name']}".replace("-", "_")
-        )
+            f"{context['project_name']}__{context['dataset_name']}"
+        ).replace("-", "_").replace("`", "").lower()
         info(
             f"Adding alias {context['source_name']} for project '{context['project_name']}' and dataset '{context['dataset_name']}'"
         )
@@ -278,25 +284,25 @@ def select_tables(context):
                 fatal("Cancelling")
 
     if context["manual_mode"]:
-        context["table_name"] = input_text(
+        context["tables"] = [input_text(
             "What is the name of the table",
             allow_blank=False,
             validate=lambda text: (
                 all(
                     [
-                        name_validator()(text) is True,
+                        table_name_validator(context.get("dataset_name"))(text) is True,
                         text not in context["source"]["tables"],
                     ]
                 )
                 or "Invalid name format or source already exists for given table name"
             ),
-        )
+        )]
         context["columns"] = []
 
 
 def select_table_description(context):
     """Function for selecting table description. Skipped if multiple tables selected."""
-    if len(context["tables"]) == 1:
+    if context.get("tables") and len(context.get("tables")) == 1:
         context["table_description"] = input_text(
             "Give a short description for the source table",
             validate=description_validator(),
@@ -359,7 +365,10 @@ def write_source_file(
         if columns:  # Only add columns if they exist (not in manual mode)
             table_entry["columns"] = columns
         new_table_entries.append(table_entry)
-        source_entry["tables"].append(table_entry)
+        if "tables" in source_entry:
+            source_entry["tables"].append(table_entry)
+        else:
+            source_entry["tables"] = [table_entry]
 
     info(f"[=== BEGIN {source_file} ===]")
     stream = StringIO()
@@ -421,6 +430,6 @@ def create_source(
         source_description=context["source"]["description"],
         project_name=context["source"]["project"],
         dataset_name=context["source"]["dataset"],
-        tables=context["tables"],
+        tables=context.get("tables"),
         table_description=context.get("table_description"),
     )
