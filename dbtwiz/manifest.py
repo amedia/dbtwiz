@@ -19,6 +19,15 @@ class Manifest:
     MODELS_INFO_PATH = project_dbtwiz_path("models")
 
 
+    def __init__(self, path: Path = MANIFEST_PATH):
+        # TODO: Check that the manifest file exists, and build it if not
+        with open(path, "r") as f:
+            manifest = json.load(f)
+            self.nodes = manifest["nodes"]
+            self.parent_map = manifest["parent_map"]
+            self.child_map = manifest["child_map"]
+
+
     @classmethod
     def models_cached(cls):
         """Get dictionary of models in local manifest, with JSON file for caching"""
@@ -62,9 +71,9 @@ class Manifest:
 
 
     @classmethod
-    def get_manifest(cls, type = 'dev'):
-        """Returns either local manifest or production manifest."""
-        manifest_path = Path(cls.PROD_MANIFEST_PATH if type == "prod" else cls.MANIFEST_PATH)
+    def get_manifest(cls, manifest_path):
+        """Reads and returns the manifest at the given path."""
+        manifest_path = Path(manifest_path)
     
         if not manifest_path.is_file():
             raise FileNotFoundError(f"The file at path '{manifest_path}' does not exist.")
@@ -108,15 +117,6 @@ class Manifest:
             # select contains special characters
             re.search(r"[:+*, ]", select) is not None
         )
-
-
-    def __init__(self, path: Path = MANIFEST_PATH):
-        # TODO: Check that the manifest file exists, and build it if not
-        with open(path, "r") as f:
-            manifest = json.load(f)
-            self.nodes = manifest["nodes"]
-            self.parent_map = manifest["parent_map"]
-            self.child_map = manifest["child_map"]
 
 
     def update_models_cache(self):
