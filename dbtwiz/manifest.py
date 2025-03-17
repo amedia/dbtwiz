@@ -1,6 +1,5 @@
 import functools
 import json
-import os
 import re
 from jinja2 import Template
 from pathlib import Path
@@ -40,7 +39,7 @@ class Manifest:
 
 
     @classmethod
-    def get_prod_manifest(cls):
+    def download_prod_manifest(cls):
         """Download latest production manifest"""
         info("Fetching production manifest")
         from google.cloud import storage #Only when used
@@ -59,7 +58,18 @@ class Manifest:
         if type in ('all', 'dev'):
             cls.rebuild_manifest()
         if type in ('all', 'prod'):
-            cls.get_prod_manifest()
+            cls.download_prod_manifest()
+
+
+    @classmethod
+    def get_manifest(cls, type = 'dev'):
+        """Returns either local manifest or production manifest."""
+        manifest_path = Path(cls.PROD_MANIFEST_PATH if type == "prod" else cls.MANIFEST_PATH)
+    
+        if not manifest_path.is_file():
+            raise FileNotFoundError(f"The file at path '{manifest_path}' does not exist.")
+        with manifest_path.open("r", encoding="utf-8") as f:
+            return json.load(f)
 
 
     @classmethod
