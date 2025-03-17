@@ -47,7 +47,7 @@ def partition_expiry(
         model_names: Annotated[
         List[str],
         typer.Option(
-            "--model-name", "-m", help="Name(s) of model(s) to be checked for partition expiry"
+            "--model-name", "-m", help="Name of model to be checked for partition expiry"
         ),
     ] = None,
 ) -> None:
