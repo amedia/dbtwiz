@@ -3,12 +3,7 @@ from io import StringIO
 from pathlib import Path
 from typing import List
 
-from dbtwiz.bigquery import (
-    check_project_exists,
-    fetch_table_columns,
-    fetch_tables_in_dataset,
-    list_datasets_in_project,
-)
+from dbtwiz.bigquery import BigQueryClient
 from dbtwiz.interact import (
     autocomplete_from_list,
     confirm,
@@ -125,7 +120,7 @@ def select_project(context):
                 items=context["projects"],
                 must_exist=False,
             )
-        exists_check = check_project_exists(project)
+        exists_check = context["client"].check_project_exists(project)
         if exists_check == "Exists":
             context["project_name"] = project
             break
@@ -165,7 +160,7 @@ def select_dataset(context):
             )
     else:
         project_name = context["project_name"]
-        valid_datasets, error_message = list_datasets_in_project(project_name)
+        valid_datasets, error_message = context["client"].list_datasets_in_project(project_name)
         if error_message:
             fatal(error_message)
         elif not valid_datasets:
@@ -233,7 +228,7 @@ def select_tables(context):
     """Function for selecting table(s)."""
     if not context["manual_mode"]:
         # Fetch all tables in the given project and dataset
-        tables_in_dataset, error_message = fetch_tables_in_dataset(
+        tables_in_dataset, error_message = context["client"].fetch_tables_in_dataset(
             context["source"]["project"], context["source"]["dataset"]
         )
         if tables_in_dataset:
@@ -310,6 +305,7 @@ def select_table_description(context):
 
 
 def write_source_file(
+    client: BigQueryClient,
     source_file: str,
     source_name: str,
     source_description: str,
@@ -353,7 +349,7 @@ def write_source_file(
 
     new_table_entries = []
     for table_name in tables:
-        columns, _ = fetch_table_columns(project_name, dataset_name, table_name)
+        columns, _ = client.fetch_table_columns(project_name, dataset_name, table_name)
 
         # Add the new table
         table_entry = {
@@ -400,7 +396,9 @@ def create_source(
 ) -> None:
     """Function for creating a new source."""
     _, existing_sources = get_source_tables()
+    client = BigQueryClient()
     context = {
+        "client": client,
         "manual_mode": False,
         "source_name": source_name,
         "source_description": source_description,
@@ -425,6 +423,7 @@ def create_source(
         func(context)
 
     write_source_file(
+        client=client,
         source_file=context["source"]["file"],
         source_name=context["source"]["name"],
         source_description=context["source"]["description"],

@@ -1,9 +1,5 @@
 from dbtwiz.auth import ensure_auth
-from dbtwiz.bigquery import (
-    delete_bq_table,
-    fetch_tables_in_dataset,
-    run_bq_query
-)
+from dbtwiz.bigquery import BigQueryClient
 from dbtwiz.manifest import Manifest
 from dbtwiz.target import Target
 from dbtwiz.logging import info, error
@@ -22,7 +18,9 @@ def empty_development_dataset(force_delete: bool) -> None:
         for m in manifest.models().values()
         if m["materialized"] != "ephemeral"
     ][0]
-    tables, _ = fetch_tables_in_dataset(project, dataset)
+
+    client = BigQueryClient()
+    tables, _ = client.fetch_tables_in_dataset(project, dataset)
     if not tables:
         info(f"Dataset {project}.{dataset} is already empty.")
         return
@@ -34,7 +32,7 @@ def empty_development_dataset(force_delete: bool) -> None:
     for table in tables:
         table_type = table.table_type.lower()
         try:
-            delete_bq_table(table)
+            client.delete_bq_table(table)
             info(f"Deleted {table_type} {project}.{dataset}.{table.table_id}")
         except Exception as e:
             error(f"Failed to delete {table_type} {project}.{dataset}.{table.table_id}: {e}")
@@ -67,10 +65,12 @@ def handle_orphaned_materializations(target: Target, list_only: bool, force_dele
         data[project][dataset] = data[project].get(dataset, dict(manifest=[]))
         data[project][dataset]["manifest"].append(table)
 
+    client = BigQueryClient()
+
     # Add existing materializations in DWH by querying information schema
     for project, datasets in data.items():
         info(f"Fetching datasets and tables for project {project}")
-        result = run_bq_query(project, f"""
+        result = client.run_bq_query(project, f"""
             select table_schema, array_agg(table_name) as tables
             from region-eu.INFORMATION_SCHEMA.TABLES
             where table_catalog = '{project}'
@@ -108,5 +108,5 @@ def handle_orphaned_materializations(target: Target, list_only: bool, force_dele
             answer = input("Delete (y/N)? ")
             delete = answer.lower() in ["y", "yes"]
         if delete:
-            delete_bq_table(table_id)
+            client.delete_bq_table(table_id)
             info(f"Deleted {table_id}.")
