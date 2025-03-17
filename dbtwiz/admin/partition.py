@@ -41,7 +41,6 @@ def find_mismatched_models(models: list, client: BigQueryClient) -> List[Dict[st
     """Find models where the defined expiration does not match the BigQuery expiration."""
     mismatched_models = []
     for model in models:
-        # print(f"Checking partition expiration for table: {model['table_id']}...")
         current_expiration = client.get_bigquery_partition_expiration(model["table_id"])
         if current_expiration != model["defined_expiration"]:
             table_id = model["table_id"]
@@ -55,6 +54,7 @@ def find_mismatched_models(models: list, client: BigQueryClient) -> List[Dict[st
                 # Attributes used by questionary
                 "name": f"{table_id:<95} {current:>5} → {defined:>5} ({difference:>+1})",
                 "value": table_id,
+                "description": f"Current expiration: {current} days, defined expiration: {defined} days",
                 # Additional attribute used when updating selected tables
                 "defined_expiration": defined
             })
