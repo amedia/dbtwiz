@@ -40,3 +40,10 @@ def cleandev(
     """Delete all materializations in the dbt development dataset"""
     from .cleanup import empty_development_dataset
     empty_development_dataset(force_delete)
+
+
+@app.command()
+def partition_expiry() -> None:
+    """Checks for mismatched partition expiry and allows updating to correct."""
+    from .partition import update_partition_expirations
+    update_partition_expirations()
