@@ -1,5 +1,6 @@
 from typing import List, Tuple
 
+from dbtwiz.logging import info
 from ruamel.yaml.scalarstring import PreservedScalarString
 
 
@@ -11,12 +12,20 @@ class BigQueryClient:
         from google.api_core.exceptions import Forbidden, NotFound
         self.Forbidden = Forbidden
         self.NotFound = NotFound
+        self._bigquery = None
         self._client = None
+
+    def get_bigquery(self):
+        """Get or import the BigQuery package."""
+        if self._bigquery is None:
+            from google.cloud import bigquery
+            self._bigquery = bigquery
+        return self._bigquery
 
     def get_client(self):
         """Get or set the BigQuery client."""
         if self._client is None:
-            from google.cloud import bigquery
+            bigquery = self.get_bigquery()
             self._client = bigquery.Client()
         return self._client
 
@@ -119,8 +128,15 @@ class BigQueryClient:
         """Update the partition expiration for a table in BigQuery."""
         table = self.get_client().get_table(table_id)
         if table.time_partitioning:
-            table.time_partitioning.expiration_ms = expiration_days * 24 * 60 * 60 * 1000  # Convert days to ms
-            self.get_client().update_table(table, ["time_partitioning.expiration_ms"])
-            print(f"Updated partition expiration for {table_id} to {expiration_days} days")
+            # Create a new TimePartitioning object with the updated expiration
+            updated_partitioning = self.get_bigquery().TimePartitioning(
+                type_=table.time_partitioning.type_,
+                field=table.time_partitioning.field,
+                expiration_ms=expiration_days * 24 * 60 * 60 * 1000  # Convert days to ms
+            )
+            # Update the table with the new TimePartitioning configuration
+            table.time_partitioning = updated_partitioning
+            info(f"Updating partition expiration for {table_id} to {expiration_days} days")
+            self.get_client().update_table(table, ["time_partitioning"])
         else:
-            print(f"Table {table_id} is not partitioned. Skipping update.")
+            info(f"Table {table_id} is not partitioned. Skipping update.")
