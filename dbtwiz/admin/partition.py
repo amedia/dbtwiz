@@ -17,12 +17,18 @@ def identify_models_with_partition_expiration(manifest: dict) -> list:
     """Identify models with partition_expiration_days defined in the manifest."""
     models = []
     for _, node in manifest["nodes"].items():
-        if node["resource_type"] == "model" and "config" in node and "partition_expiration_days" in node["config"]:
-            models.append({
-                "model_name": node["name"],
-                "table_id": f"{node['database']}.{node['schema']}.{node['alias']}",
-                "defined_expiration": node["config"]["partition_expiration_days"]
-            })
+        if (
+            node["resource_type"] == "model"
+            and "config" in node
+            and "partition_expiration_days" in node["config"]
+        ):
+            models.append(
+                {
+                    "model_name": node["name"],
+                    "table_id": f"{node['database']}.{node['schema']}.{node['alias']}",
+                    "defined_expiration": node["config"]["partition_expiration_days"],
+                }
+            )
     return models
 
 
@@ -30,14 +36,18 @@ def identify_models_with_partition_expiration(manifest: dict) -> list:
 def resolve_partition_expiration(models: list, partition_vars: dict) -> list:
     """Resolve partition expiration values using variables from the manifest."""
     for model in models:
-        if isinstance(model["defined_expiration"], str) and model["defined_expiration"].startswith("{{ var("):
+        if isinstance(model["defined_expiration"], str) and model[
+            "defined_expiration"
+        ].startswith("{{ var("):
             var_name = model["defined_expiration"].split("'")[1]
             model["defined_expiration"] = partition_vars.get(var_name, 0)
     return models
 
 
 # Compare defined expiration with BigQuery expiration
-def find_mismatched_models(models: list, client: BigQueryClient) -> List[Dict[str, str]]:
+def find_mismatched_models(
+    models: list, client: BigQueryClient
+) -> List[Dict[str, str]]:
     """Find models where the defined expiration does not match the BigQuery expiration."""
     mismatched_models = []
     for model in models:
@@ -50,20 +60,22 @@ def find_mismatched_models(models: list, client: BigQueryClient) -> List[Dict[st
                 difference = model["defined_expiration"]
             else:
                 difference = model["defined_expiration"] - current_expiration
-            mismatched_models.append({
-                # Attributes used by questionary
-                "name": f"{table_id:<95} {current:>5} → {defined:>5} ({difference:>+1})",
-                "value": table_id,
-                "description": f"Current expiration is {current} days, defined expiration is {defined} days",
-                # Additional attribute used when updating selected tables
-                "defined_expiration": defined
-            })
+            mismatched_models.append(
+                {
+                    # Attributes used by questionary
+                    "name": f"{table_id:<95} {current:>5} → {defined:>5} ({difference:>+1})",
+                    "value": table_id,
+                    "description": f"Current expiration is {current} days, defined expiration is {defined} days",
+                    # Additional attribute used when updating selected tables
+                    "defined_expiration": defined,
+                }
+            )
 
     return mismatched_models
 
 
 def update_partition_expirations(
-        model_names: List[str] = None,
+    model_names: List[str] = None,
 ):
     """Main function to compare and update partition expiration in BigQuery."""
     # Update and read the prod manifest
@@ -81,7 +93,7 @@ def update_partition_expirations(
 
     # Filter models if model_names provided
     if model_names:
-        models = [item for item in models if item['model_name'] in model_names]
+        models = [item for item in models if item["model_name"] in model_names]
 
     # Find mismatched models
     client = BigQueryClient()
@@ -98,7 +110,11 @@ def update_partition_expirations(
 
         # Update selected tables
         for table_id in selected_tables:
-            model = next(model for model in mismatched_models if model.get("value") == table_id)
-            client.update_bigquery_partition_expiration(table_id, model["defined_expiration"])
+            model = next(
+                model for model in mismatched_models if model.get("value") == table_id
+            )
+            client.update_bigquery_partition_expiration(
+                table_id, model["defined_expiration"]
+            )
     else:
         print("No mismatched models found.")

@@ -10,6 +10,7 @@ class BigQueryClient:
     def __init__(self):
         """Initializes the class."""
         from google.api_core.exceptions import Forbidden, NotFound
+
         self.Forbidden = Forbidden
         self.NotFound = NotFound
         self._bigquery = None
@@ -19,6 +20,7 @@ class BigQueryClient:
         """Get or import the BigQuery package."""
         if self._bigquery is None:
             from google.cloud import bigquery
+
             self._bigquery = bigquery
         return self._bigquery
 
@@ -29,7 +31,6 @@ class BigQueryClient:
             self._client = bigquery.Client()
         return self._client
 
-
     def list_datasets_in_project(self, project) -> Tuple[List[str], str]:
         """Fetch all datasets in the given project from BigQuery."""
         try:
@@ -37,7 +38,6 @@ class BigQueryClient:
             return sorted([dataset.dataset_id for dataset in datasets]), ""
         except Exception as e:
             return [], f"Error: Failed to fetch datasets from BigQuery: {e}"
-
 
     def fetch_tables_in_dataset(self, project, dataset) -> Tuple[List[str], str]:
         """Fetch all tables in the given project and dataset from BigQuery."""
@@ -52,7 +52,6 @@ class BigQueryClient:
         except Exception as e:
             return [], f"Error: Failed to fetch tables from BigQuery: {e}"
 
-
     def parse_schema(self, fields, prefix=""):
         """
         Parses the schema for a table and returns all the columns.
@@ -63,7 +62,9 @@ class BigQueryClient:
         for field in fields:
             if field.field_type == "RECORD":
                 # Recursively unnest fields within the struct
-                nested_fields = self.parse_schema(field.fields, prefix=f"{prefix}{field.name}.")
+                nested_fields = self.parse_schema(
+                    field.fields, prefix=f"{prefix}{field.name}."
+                )
                 schema_details.extend(nested_fields)
             else:
                 column = {"name": f"{prefix}{field.name}"}
@@ -73,8 +74,9 @@ class BigQueryClient:
 
         return schema_details
 
-
-    def fetch_table_columns(self, project, dataset, table_name) -> Tuple[List[str], str]:
+    def fetch_table_columns(
+        self, project, dataset, table_name
+    ) -> Tuple[List[str], str]:
         """Fetch column names and descriptions from BigQuery."""
         table_ref = f"{project}.{dataset}.{table_name}"
         try:
@@ -88,14 +90,15 @@ class BigQueryClient:
         except Exception as e:
             return None, f"Error: Failed to fetch table details from BigQuery: {e}"
 
-
     def check_project_exists(self, project) -> str:
         """Checks whether the given project exists in BigQuery"""
         try:
             # Check if the project exists and is accessible
             datasets = list(self.get_client().list_datasets(project=project))
             if not datasets:
-                return f"Warning: The project '{project}' exists but contains no datasets."
+                return (
+                    f"Warning: The project '{project}' exists but contains no datasets."
+                )
             else:
                 return "Exists"
         except self.NotFound:
@@ -105,24 +108,25 @@ class BigQueryClient:
         except Exception as e:
             return f"Error: Failed to verify project '{project}': {e}"
 
-
     def run_bq_query(self, project, query):
         """Runs a query in bigquery"""
         return self.get_client().query(query, project=project)
-
 
     def delete_bq_table(self, table_id):
         """Deletes a bq table"""
         self.get_client().delete_table(table_id)
 
-
     def get_bigquery_partition_expiration(self, table_id: str) -> int:
         """Get the current partition expiration for a table in BigQuery."""
         table = self.get_client().get_table(table_id)
-        if table.time_partitioning and table.time_partitioning.expiration_ms is not None:
-            return table.time_partitioning.expiration_ms // (1000 * 60 * 60 * 24)  # Convert ms to days
+        if (
+            table.time_partitioning
+            and table.time_partitioning.expiration_ms is not None
+        ):
+            return table.time_partitioning.expiration_ms // (
+                1000 * 60 * 60 * 24
+            )  # Convert ms to days
         return -1  # Return -1 if no expiration is set
-
 
     def update_bigquery_partition_expiration(self, table_id: str, expiration_days: int):
         """Update the partition expiration for a table in BigQuery."""
@@ -132,11 +136,17 @@ class BigQueryClient:
             updated_partitioning = self.get_bigquery().TimePartitioning(
                 type_=table.time_partitioning.type_,
                 field=table.time_partitioning.field,
-                expiration_ms=expiration_days * 24 * 60 * 60 * 1000  # Convert days to ms
+                expiration_ms=expiration_days
+                * 24
+                * 60
+                * 60
+                * 1000,  # Convert days to ms
             )
             # Update the table with the new TimePartitioning configuration
             table.time_partitioning = updated_partitioning
-            info(f"Updating partition expiration for {table_id} to {expiration_days} days")
+            info(
+                f"Updating partition expiration for {table_id} to {expiration_days} days"
+            )
             self.get_client().update_table(table, ["time_partitioning"])
         else:
             info(f"Table {table_id} is not partitioned. Skipping update.")
