@@ -34,7 +34,7 @@ def empty_development_dataset(force_delete: bool) -> None:
     for table in tables:
         table_type = table.table_type.lower()
         try:
-            client.delete_bq_table(table, project)
+            client.delete_table(table, project)
             info(f"Deleted {table_type} {project}.{dataset}.{table.table_id}")
         except Exception as e:
             error(
@@ -77,7 +77,7 @@ def handle_orphaned_materializations(
     # Add existing materializations in DWH by querying information schema
     for project, datasets in data.items():
         info(f"Fetching datasets and tables for project {project}")
-        result = client.run_bq_query(
+        result = client.run_query(
             project,
             f"""
             select table_schema, array_agg(table_name) as tables
@@ -120,5 +120,5 @@ def handle_orphaned_materializations(
             answer = input("Delete (y/N)? ")
             delete = answer.lower() in ["y", "yes"]
         if delete:
-            client.delete_bq_table(table_id)
+            client.delete_table(table_id)
             info(f"Deleted {table_id}.")

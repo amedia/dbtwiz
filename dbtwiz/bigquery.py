@@ -108,16 +108,13 @@ class BigQueryClient:
         except Exception as e:
             return f"Error: Failed to verify project '{project}': {e}"
 
-    def run_bq_query(self, project, query):
+    def run_query(self, project, query):
         """Runs a query in bigquery"""
         return self.get_client().query(query, project=project)
 
-    def delete_bq_table(self, table_id, project=None):
-        """Deletes a bq table"""
-        if project:
-            self.get_client().delete_table(table_id, project=project)
-        else:
-            self.get_client().delete_table(table_id)
+    def delete_table(self, table_id, project=None):
+        """Deletes a table from bigquery"""
+        self.get_client().delete_table(table_id, project=project)
 
     def get_bigquery_partition_expiration(self, table_id: str) -> int:
         """Get the current partition expiration for a table in BigQuery."""
