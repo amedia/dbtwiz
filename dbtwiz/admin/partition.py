@@ -54,7 +54,7 @@ def find_mismatched_models(models: list, client: BigQueryClient) -> List[Dict[st
                 # Attributes used by questionary
                 "name": f"{table_id:<95} {current:>5} → {defined:>5} ({difference:>+1})",
                 "value": table_id,
-                "description": f"Current expiration is {current} days, while defined expiration is {defined} days",
+                "description": f"Current expiration is {current} days, defined expiration is {defined} days",
                 # Additional attribute used when updating selected tables
                 "defined_expiration": defined
             })
