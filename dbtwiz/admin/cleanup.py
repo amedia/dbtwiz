@@ -34,7 +34,7 @@ def empty_development_dataset(force_delete: bool) -> None:
     for table in tables:
         table_type = table.table_type.lower()
         try:
-            client.delete_bq_table(table)
+            client.delete_bq_table(table, project)
             info(f"Deleted {table_type} {project}.{dataset}.{table.table_id}")
         except Exception as e:
             error(
