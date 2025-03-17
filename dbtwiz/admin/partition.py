@@ -1,4 +1,3 @@
-import typer
 from typing import Dict, List
 
 from dbtwiz.bigquery import BigQueryClient
@@ -6,20 +5,18 @@ from dbtwiz.interact import multiselect_from_list
 from dbtwiz.logging import info
 from dbtwiz.manifest import Manifest
 
-# Initialize Typer CLI
-app = typer.Typer()
-
 
 # Extract partition expiration variables from the manifest
 def extract_partition_vars(manifest: dict) -> dict:
     """Extract partition expiration variables from the manifest."""
     return manifest.get("metadata", {}).get("vars", {})
 
+
 # Identify models with partition expiration defined
 def identify_models_with_partition_expiration(manifest: dict) -> list:
     """Identify models with partition_expiration_days defined in the manifest."""
     models = []
-    for node_id, node in manifest["nodes"].items():
+    for _, node in manifest["nodes"].items():
         if node["resource_type"] == "model" and "config" in node and "partition_expiration_days" in node["config"]:
             models.append({
                 "model_name": node["name"],
@@ -27,6 +24,7 @@ def identify_models_with_partition_expiration(manifest: dict) -> list:
                 "defined_expiration": node["config"]["partition_expiration_days"]
             })
     return models
+
 
 # Convert defined expiration to actual values using partition_vars
 def resolve_partition_expiration(models: list, partition_vars: dict) -> list:
@@ -36,6 +34,7 @@ def resolve_partition_expiration(models: list, partition_vars: dict) -> list:
             var_name = model["defined_expiration"].split("'")[1]
             model["defined_expiration"] = partition_vars.get(var_name, 0)
     return models
+
 
 # Compare defined expiration with BigQuery expiration
 def find_mismatched_models(models: list, client: BigQueryClient) -> List[Dict[str, str]]:
@@ -48,7 +47,10 @@ def find_mismatched_models(models: list, client: BigQueryClient) -> List[Dict[st
             table_id = model["table_id"]
             defined = model["defined_expiration"]
             current = current_expiration
-            difference = model["defined_expiration"] - current_expiration
+            if current_expiration == -1:
+                difference = model["defined_expiration"]
+            else:
+                difference = model["defined_expiration"] - current_expiration
             mismatched_models.append({
                 # Attributes used by questionary
                 "name": f"{table_id:<95} {current:>5} → {defined:>5} ({difference:>+1})",
@@ -60,7 +62,6 @@ def find_mismatched_models(models: list, client: BigQueryClient) -> List[Dict[st
     return mismatched_models
 
 
-@app.command()
 def update_partition_expirations():
     """Main function to compare and update partition expiration in BigQuery."""
     # Update and get the prod manifest
@@ -85,7 +86,7 @@ def update_partition_expirations():
         # Prompt user to select tables to update
         selected_tables = multiselect_from_list(
             "Select mismatched tables to update",
-            items=mismatched_models,
+            items=sorted(mismatched_models, key=lambda x: x["name"]),
             allow_none=True,
         )
 
@@ -96,7 +97,3 @@ def update_partition_expirations():
             # client.update_bigquery_partition_expiration(table_id, model["defined_expiration"])
     else:
         print("No mismatched models found.")
-
-# Run the CLI
-if __name__ == "__main__":
-    app()
