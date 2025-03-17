@@ -3,6 +3,7 @@ from typing import Dict, List
 
 from dbtwiz.bigquery import BigQueryClient
 from dbtwiz.interact import multiselect_from_list
+from dbtwiz.logging import info
 from dbtwiz.manifest import Manifest
 
 # Initialize Typer CLI
@@ -62,11 +63,11 @@ def find_mismatched_models(models: list, client: BigQueryClient) -> List[Dict[st
 @app.command()
 def update_partition_expirations():
     """Main function to compare and update partition expiration in BigQuery."""
-    print("Checking for mismatched partition expirations...")
-
     # Update and get the prod manifest
     Manifest.update_manifests("prod")
     prod_manifest = Manifest.get_manifest(Manifest.PROD_MANIFEST_PATH)
+
+    info("Identifying mismatched partition expirations...")
 
     # Extract partition expiration variables from the prod manifest
     partition_vars = extract_partition_vars(prod_manifest)
@@ -89,12 +90,10 @@ def update_partition_expirations():
         )
 
         # Update selected tables
-        # if selected_tables and "skip" not in selected_tables:
-        #     for table_id in selected_tables:
-        #         model = next(model for model in mismatched_models if model["value"] == table_id)
-        #         update_bigquery_partition_expiration(client, table_id, model["defined_expiration"])
-        # else:
-        #     print("Operation canceled.")
+        for table_id in selected_tables:
+            model = next(model for model in mismatched_models if model.get("value") == table_id)
+            print(f"Updating model {model}")
+            # client.update_bigquery_partition_expiration(table_id, model["defined_expiration"])
     else:
         print("No mismatched models found.")
 
