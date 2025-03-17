@@ -119,3 +119,26 @@ def delete_bq_table(table_id):
     bigquery = import_module_once("google.cloud", "bigquery")
     client = bigquery.Client()
     client.delete_table(table_id)
+
+# Get the current partition expiration from BigQuery
+def get_bigquery_partition_expiration(table_id: str) -> int:
+    """Get the current partition expiration for a table in BigQuery."""
+    bigquery = import_module_once("google.cloud", "bigquery")
+    client = bigquery.Client()
+    table = client.get_table(table_id)
+    if table.time_partitioning and table.time_partitioning.expiration_ms is not None:
+        return table.time_partitioning.expiration_ms // (1000 * 60 * 60 * 24)  # Convert ms to days
+    return 0  # Return 0 if no expiration is set
+
+# Update partition expiration in BigQuery
+def update_bigquery_partition_expiration(table_id: str, expiration_days: int):
+    """Update the partition expiration for a table in BigQuery."""
+    bigquery = import_module_once("google.cloud", "bigquery")
+    client = bigquery.Client()
+    table = client.get_table(table_id)
+    if table.time_partitioning:
+        table.time_partitioning.expiration_ms = expiration_days * 24 * 60 * 60 * 1000  # Convert days to ms
+        client.update_table(table, ["time_partitioning.expiration_ms"])
+        print(f"Updated partition expiration for {table_id} to {expiration_days} days")
+    else:
+        print(f"Table {table_id} is not partitioned. Skipping update.")
