@@ -1,8 +1,8 @@
 from dbtwiz.auth import ensure_auth
 from dbtwiz.bigquery import BigQueryClient
+from dbtwiz.logging import error, info
 from dbtwiz.manifest import Manifest
 from dbtwiz.target import Target
-from dbtwiz.logging import info, error
 
 
 def empty_development_dataset(force_delete: bool) -> None:
@@ -24,7 +24,9 @@ def empty_development_dataset(force_delete: bool) -> None:
     if not tables:
         info(f"Dataset {project}.{dataset} is already empty.")
         return
-    info(f"There are {len(list(tables))} tables/views in the {project}.{dataset} dataset.")
+    info(
+        f"There are {len(list(tables))} tables/views in the {project}.{dataset} dataset."
+    )
     if not force_delete:
         answer = input("Delete all tables/views? (y/N)? ")
         if answer.lower() not in ["y", "yes"]:
@@ -35,10 +37,14 @@ def empty_development_dataset(force_delete: bool) -> None:
             client.delete_bq_table(table)
             info(f"Deleted {table_type} {project}.{dataset}.{table.table_id}")
         except Exception as e:
-            error(f"Failed to delete {table_type} {project}.{dataset}.{table.table_id}: {e}")
+            error(
+                f"Failed to delete {table_type} {project}.{dataset}.{table.table_id}: {e}"
+            )
 
 
-def handle_orphaned_materializations(target: Target, list_only: bool, force_delete: bool) -> None:
+def handle_orphaned_materializations(
+    target: Target, list_only: bool, force_delete: bool
+) -> None:
     """List or delete orphaned materializations"""
     ensure_auth()
 
@@ -51,7 +57,8 @@ def handle_orphaned_materializations(target: Target, list_only: bool, force_dele
         force_delete = False  # Always ask before deleting in prod!
 
     manifest_models = [
-        m for m in manifest.models().values()
+        m
+        for m in manifest.models().values()
         if m["materialized"] in ["view", "table", "incremental"]
     ]
 
@@ -70,13 +77,16 @@ def handle_orphaned_materializations(target: Target, list_only: bool, force_dele
     # Add existing materializations in DWH by querying information schema
     for project, datasets in data.items():
         info(f"Fetching datasets and tables for project {project}")
-        result = client.run_bq_query(project, f"""
+        result = client.run_bq_query(
+            project,
+            f"""
             select table_schema, array_agg(table_name) as tables
             from region-eu.INFORMATION_SCHEMA.TABLES
             where table_catalog = '{project}'
                 and table_name not like '%__dbt_tmp_%'
             group by table_schema
-        """).result()
+        """,
+        ).result()
         for row in result:
             dataset = row["table_schema"]
             data[project][dataset] = data[project].get(dataset, dict(manifest=[]))
@@ -102,7 +112,9 @@ def handle_orphaned_materializations(target: Target, list_only: bool, force_dele
         if list_only:
             delete = False
         elif force_delete:
-            assert table_id.startswith("amedia-adp-dbt-dev."), "Can't force delete unless dev!"
+            assert table_id.startswith("amedia-adp-dbt-dev."), (
+                "Can't force delete unless dev!"
+            )
             delete = True
         else:
             answer = input("Delete (y/N)? ")
