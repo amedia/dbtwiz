@@ -1,4 +1,5 @@
 import typer
+from typing import Dict, List
 
 from dbtwiz.bigquery import BigQueryClient
 from dbtwiz.interact import multiselect_from_list
@@ -36,38 +37,27 @@ def resolve_partition_expiration(models: list, partition_vars: dict) -> list:
     return models
 
 # Compare defined expiration with BigQuery expiration
-def find_mismatched_models(models: list, client: BigQueryClient) -> list:
+def find_mismatched_models(models: list, client: BigQueryClient) -> List[Dict[str, str]]:
     """Find models where the defined expiration does not match the BigQuery expiration."""
     mismatched_models = []
     for model in models:
         # print(f"Checking partition expiration for table: {model['table_id']}...")
         current_expiration = client.get_bigquery_partition_expiration(model["table_id"])
         if current_expiration != model["defined_expiration"]:
+            table_id = model["table_id"]
+            defined = model["defined_expiration"]
+            current = current_expiration
+            difference = model["defined_expiration"] - current_expiration
             mismatched_models.append({
-                "table_id": model["table_id"],
-                "current_expiration": current_expiration,
-                "defined_expiration": model["defined_expiration"],
-                "difference": model["defined_expiration"] - current_expiration
+                # Attributes used by questionary
+                "name": f"{table_id:<95} {current:>5} → {defined:>5} ({difference:>+1})",
+                "value": table_id,
+                # Additional attribute used when updating selected tables
+                "defined_expiration": defined
             })
+
     return mismatched_models
 
-# Format mismatched models for display
-def format_mismatched_models(mismatched_models: list) -> list:
-    """Format mismatched models for display in a clean tabular format."""
-    formatted_choices = []
-    for model in mismatched_models:
-        table_id = model["table_id"]
-        current = model["current_expiration"]
-        defined = model["defined_expiration"]
-        difference = model["difference"]
-        # Align the numbers and arrows
-        formatted_choices.append(
-            {
-                "name": f"{table_id:<95} {current:>5} → {defined:>5} ({difference:>+1})",
-                "value": model["table_id"]
-            }
-        )
-    return formatted_choices
 
 @app.command()
 def update_partition_expirations():
@@ -91,22 +81,17 @@ def update_partition_expirations():
 
     # Present mismatched models to the user
     if mismatched_models:
-        # Format the choices for questionary.checkbox
-        choices = format_mismatched_models(mismatched_models)
-        # Add "Skip update" option
-        choices.insert(0, {"name": "*** Skip update ***", "value": "skip"})
-
         # Prompt user to select tables to update
         selected_tables = multiselect_from_list(
             "Select mismatched tables to update",
-            items=choices,
-            allow_none=False,
+            items=mismatched_models,
+            allow_none=True,
         )
 
         # Update selected tables
         # if selected_tables and "skip" not in selected_tables:
         #     for table_id in selected_tables:
-        #         model = next(model for model in mismatched_models if model["table_id"] == table_id)
+        #         model = next(model for model in mismatched_models if model["value"] == table_id)
         #         update_bigquery_partition_expiration(client, table_id, model["defined_expiration"])
         # else:
         #     print("Operation canceled.")
