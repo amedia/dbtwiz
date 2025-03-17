@@ -64,7 +64,7 @@ def find_mismatched_models(models: list, client: BigQueryClient) -> List[Dict[st
 
 def update_partition_expirations():
     """Main function to compare and update partition expiration in BigQuery."""
-    # Update and get the prod manifest
+    # Update and read the prod manifest
     Manifest.update_manifests("prod")
     prod_manifest = Manifest.get_manifest(Manifest.PROD_MANIFEST_PATH)
 
@@ -93,7 +93,6 @@ def update_partition_expirations():
         # Update selected tables
         for table_id in selected_tables:
             model = next(model for model in mismatched_models if model.get("value") == table_id)
-            print(f"Updating model {model}")
-            # client.update_bigquery_partition_expiration(table_id, model["defined_expiration"])
+            client.update_bigquery_partition_expiration(table_id, model["defined_expiration"])
     else:
         print("No mismatched models found.")
