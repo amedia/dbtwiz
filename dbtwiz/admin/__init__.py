@@ -1,5 +1,5 @@
 import typer
-from typing_extensions import Annotated
+from typing import Annotated, List
 
 from dbtwiz.logging import error
 from dbtwiz.target import Target
@@ -43,7 +43,14 @@ def cleandev(
 
 
 @app.command()
-def partition_expiry() -> None:
+def partition_expiry(
+        model_names: Annotated[
+        List[str],
+        typer.Option(
+            "--model-name", "-m", help="Name(s) of model(s) to be checked for partition expiry"
+        ),
+    ] = None,
+) -> None:
     """Checks for mismatched partition expiry and allows updating to correct."""
     from .partition import update_partition_expirations
-    update_partition_expirations()
+    update_partition_expirations(model_names)
