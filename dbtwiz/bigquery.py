@@ -4,6 +4,9 @@ from dbtwiz.logging import info
 from ruamel.yaml.scalarstring import PreservedScalarString
 
 
+MILLISECONDS_PER_DAY = 1000 * 60 * 60 * 24
+
+
 class BigQueryClient:
     """Class for BigQuery client"""
 
@@ -123,8 +126,8 @@ class BigQueryClient:
             table.time_partitioning
             and table.time_partitioning.expiration_ms is not None
         ):
-            return table.time_partitioning.expiration_ms // (
-                1000 * 60 * 60 * 24
+            return (
+                table.time_partitioning.expiration_ms // MILLISECONDS_PER_DAY
             )  # Convert ms to days
         return -1  # Return -1 if no expiration is set
 
@@ -137,10 +140,7 @@ class BigQueryClient:
                 type_=table.time_partitioning.type_,
                 field=table.time_partitioning.field,
                 expiration_ms=expiration_days
-                * 24
-                * 60
-                * 60
-                * 1000,  # Convert days to ms
+                * MILLISECONDS_PER_DAY,  # Convert days to ms
             )
             # Update the table with the new TimePartitioning configuration
             table.time_partitioning = updated_partitioning
