@@ -62,7 +62,7 @@ def select_from_list(
     """Select item from list"""
     from questionary import select  # Lazy import for improved performance
 
-    na_selection = {"name": "n/a", "description": "Not relevant for this model"}
+    na_selection = {"name": "n/a", "description": "Not relevant"}
     default = None
     if allow_none:
         items.insert(0, na_selection)
@@ -84,7 +84,7 @@ def multiselect_from_list(question, items, allow_none=False) -> List[str]:
     from questionary import checkbox  # Lazy import for improved performance
 
     validate = lambda sel: (len(sel) > 0) or "You must select at least one item"
-    na_selection = {"name": "n/a", "description": "Not relevant for this model"}
+    na_selection = {"name": "n/a", "description": "Not relevant"}
     default = None
     if allow_none:
         items.insert(0, na_selection)

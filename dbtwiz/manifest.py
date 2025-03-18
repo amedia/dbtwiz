@@ -1,6 +1,5 @@
 import functools
 import json
-import os
 import re
 from jinja2 import Template
 from pathlib import Path
@@ -18,6 +17,15 @@ class Manifest:
     PROD_MANIFEST_PATH = project_dbtwiz_path() / "prod-state" / "manifest.json"
     MODELS_CACHE_PATH = project_dbtwiz_path("models-cache.json")
     MODELS_INFO_PATH = project_dbtwiz_path("models")
+
+
+    def __init__(self, path: Path = MANIFEST_PATH):
+        # TODO: Check that the manifest file exists, and build it if not
+        with open(path, "r") as f:
+            manifest = json.load(f)
+            self.nodes = manifest["nodes"]
+            self.parent_map = manifest["parent_map"]
+            self.child_map = manifest["child_map"]
 
 
     @classmethod
@@ -40,7 +48,7 @@ class Manifest:
 
 
     @classmethod
-    def get_prod_manifest(cls):
+    def download_prod_manifest(cls):
         """Download latest production manifest"""
         info("Fetching production manifest")
         from google.cloud import storage #Only when used
@@ -59,7 +67,18 @@ class Manifest:
         if type in ('all', 'dev'):
             cls.rebuild_manifest()
         if type in ('all', 'prod'):
-            cls.get_prod_manifest()
+            cls.download_prod_manifest()
+
+
+    @classmethod
+    def get_manifest(cls, manifest_path):
+        """Reads and returns the manifest at the given path."""
+        manifest_path = Path(manifest_path)
+    
+        if not manifest_path.is_file():
+            raise FileNotFoundError(f"The file at path '{manifest_path}' does not exist.")
+        with manifest_path.open("r", encoding="utf-8") as f:
+            return json.load(f)
 
 
     @classmethod
@@ -98,15 +117,6 @@ class Manifest:
             # select contains special characters
             re.search(r"[:+*, ]", select) is not None
         )
-
-
-    def __init__(self, path: Path = MANIFEST_PATH):
-        # TODO: Check that the manifest file exists, and build it if not
-        with open(path, "r") as f:
-            manifest = json.load(f)
-            self.nodes = manifest["nodes"]
-            self.parent_map = manifest["parent_map"]
-            self.child_map = manifest["child_map"]
 
 
     def update_models_cache(self):
