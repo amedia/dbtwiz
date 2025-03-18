@@ -95,16 +95,19 @@ def select_name(context):
     if context.get("name"):
         name = context.get("name")
     else:
-        model_base_path = ModelBasePath(context.get('layer'))
-        existing_models = list_domain_models(model_base_path, context.get('domain'))
+        model_base_path = ModelBasePath(context.get("layer"))
+        existing_models = list_domain_models(model_base_path, context.get("domain"))
         name = input_text(
             f"Name your new model (it will be prefixed by {model_base_path.get_prefix(context.get('domain'))})",
             validate=lambda text: (
                 all(
                     [
                         name_validator()(text) is True,
-                        not model_base_path.get_prefix(context.get('domain')) + text in existing_models,
-                        not text.startswith(model_base_path.get_prefix(context["domain"]))
+                        model_base_path.get_prefix(context.get("domain")) + text
+                        not in existing_models,
+                        not text.startswith(
+                            model_base_path.get_prefix(context["domain"])
+                        ),
                     ]
                 )
                 or "Invalid name format, a model with given name already exists or you've added the model prefix to the name"
@@ -463,7 +466,7 @@ def create_model_files(
         with open(sql_path, "w+") as f:
             f.write(sql)
     else:
-        info(f"Skippig sql file creation since it already exists")
+        info("Skippig sql file creation since it already exists")
     # Open SQL file in editor
     # FIXME: Make editor user configurable with 'code' as default
     os.system(f"code {yml_path}")

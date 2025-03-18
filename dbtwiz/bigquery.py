@@ -1,8 +1,8 @@
 from typing import List, Tuple
 
-from dbtwiz.logging import info
 from ruamel.yaml.scalarstring import PreservedScalarString
 
+from dbtwiz.logging import info
 
 MILLISECONDS_PER_DAY = 1000 * 60 * 60 * 24
 

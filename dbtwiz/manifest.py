@@ -12,12 +12,10 @@ from .support import models_with_local_changes
 
 
 class Manifest:
-
     MANIFEST_PATH = Path(".", "target", "manifest.json")
     PROD_MANIFEST_PATH = project_dbtwiz_path() / "prod-state" / "manifest.json"
     MODELS_CACHE_PATH = project_dbtwiz_path("models-cache.json")
     MODELS_INFO_PATH = project_dbtwiz_path("models")
-
 
     def __init__(self, path: Path = MANIFEST_PATH):
         # TODO: Check that the manifest file exists, and build it if not
@@ -27,18 +25,16 @@ class Manifest:
             self.parent_map = manifest["parent_map"]
             self.child_map = manifest["child_map"]
 
-
     @classmethod
     def models_cached(cls):
         """Get dictionary of models in local manifest, with JSON file for caching"""
         if not cls.MODELS_CACHE_PATH.exists() or (
-                cls.MODELS_CACHE_PATH.stat().st_mtime < cls.MANIFEST_PATH.stat().st_mtime
+            cls.MODELS_CACHE_PATH.stat().st_mtime < cls.MANIFEST_PATH.stat().st_mtime
         ):
             debug("Updating models cache")
             Manifest().update_models_cache()
         with open(cls.MODELS_CACHE_PATH, "r") as f:
             return json.load(f)
-
 
     @classmethod
     def rebuild_manifest(cls):
@@ -46,12 +42,12 @@ class Manifest:
         info("Parsing development manifest")
         dbt_invoke(["parse"], quiet=True)
 
-
     @classmethod
     def download_prod_manifest(cls):
         """Download latest production manifest"""
         info("Fetching production manifest")
-        from google.cloud import storage #Only when used
+        from google.cloud import storage  # Only when used
+
         gcs = storage.Client(project=project_config().gcp_project)
         blob = gcs.bucket(project_config().dbt_state_bucket).blob("manifest.json")
         # Create path if missing
@@ -60,31 +56,33 @@ class Manifest:
         blob.download_to_filename(cls.PROD_MANIFEST_PATH)
         gcs.close()
 
-
     @classmethod
     def update_manifests(cls, type):
         """Rebuild local manifest and download latest production manifest"""
-        if type in ('all', 'dev'):
+        if type in ("all", "dev"):
             cls.rebuild_manifest()
-        if type in ('all', 'prod'):
+        if type in ("all", "prod"):
             cls.download_prod_manifest()
-
 
     @classmethod
     def get_manifest(cls, manifest_path):
         """Reads and returns the manifest at the given path."""
         manifest_path = Path(manifest_path)
-    
+
         if not manifest_path.is_file():
-            raise FileNotFoundError(f"The file at path '{manifest_path}' does not exist.")
+            raise FileNotFoundError(
+                f"The file at path '{manifest_path}' does not exist."
+            )
         with manifest_path.open("r", encoding="utf-8") as f:
             return json.load(f)
 
-
     @classmethod
-    def choose_models(cls, select: str, multi: bool = True, work: bool = False) -> List[str]:
+    def choose_models(
+        cls, select: str, multi: bool = True, work: bool = False
+    ) -> List[str]:
         """Let user interactively select one or more models using fuzzy search"""
         import iterfzf  # Only when used
+
         model_info_path = cls.MODELS_INFO_PATH / "{}.txt"
         models = cls.models_cached()
         if work:
@@ -107,23 +105,21 @@ class Manifest:
         )
         return chosen_models
 
-
     @classmethod
     def can_select_directly(cls, select: str) -> bool:
         """The given select string should be passed on to dbt without interaction"""
         return (
             # select matches name of an existing model exactly
-            select in cls.models_cached().keys() or
+            select in cls.models_cached().keys()
+            or
             # select contains special characters
             re.search(r"[:+*, ]", select) is not None
         )
-
 
     def update_models_cache(self):
         Path.mkdir(self.MODELS_CACHE_PATH.parent, exist_ok=True)
         with open(self.MODELS_CACHE_PATH, "w+") as f:
             json.dump(self.models(), f)
-
 
     def update_models_info(self):
         Path.mkdir(self.MODELS_INFO_PATH, exist_ok=True)
@@ -139,7 +135,6 @@ class Manifest:
                 # painful handling of it in template
                 f.write(re.sub(r"\n\n+", "\n\n", model_info))
 
-
     def model_info_up_to_date(self, model, info_file) -> bool:
         """Is rendered model info up to date?"""
         if not info_file.exists():
@@ -151,7 +146,6 @@ class Manifest:
                 return False
         return True
 
-
     @functools.cache
     def model_info_template(self, clear=False) -> Template:
         with open(Path(__file__).parent / "templates" / "model_info.tpl", "r+") as f:
@@ -161,13 +155,12 @@ class Manifest:
         template = template.replace("[b]", "\033[1m")
         template = template.replace("[/]", "\033[0m")
         # template = re.sub(r"\[c(\d+)\]", r"\033[38;5;\1m", template)
-        template = re.sub(r"\[(\w+)\]",
-                          lambda m: f"\033[38;5;{user_config().color(m[1])}m",
-                          template)
+        template = re.sub(
+            r"\[(\w+)\]", lambda m: f"\033[38;5;{user_config().color(m[1])}m", template
+        )
         template_object = Template(template)
         template_object.globals["model_style"] = model_style
         return template_object
-
 
     @functools.cache
     def models(self):
@@ -175,8 +168,7 @@ class Manifest:
         for key, node in self.nodes.items():
             if node["resource_type"] == "model":
                 config = node["config"]
-                folder = Path("models", node["path"].replace(
-                    node["name"] + ".sql", ""))
+                folder = Path("models", node["path"].replace(node["name"] + ".sql", ""))
                 parent_models = self.parent_models(key)
                 child_models = self.child_models(key)
                 models[node["name"]] = dict(
@@ -197,13 +189,11 @@ class Manifest:
                 )
         return models
 
-
     def model_by_name(self, name):
         for model in self.models().values():
             if model["name"] == name:
                 return model
         return None
-
 
     def parent_models(self, key):
         parents = [
@@ -213,7 +203,6 @@ class Manifest:
         ]
         return sorted(parents, key=self.model_ordering)
 
-
     def child_models(self, key):
         children = [
             self.nodes[nk]["name"]
@@ -221,7 +210,6 @@ class Manifest:
             if nk in self.nodes and self.nodes[nk]["resource_type"] == "model"
         ]
         return sorted(children, key=self.model_ordering)
-
 
     def model_ordering(self, name):
         if name.startswith("stg_"):
@@ -231,34 +219,32 @@ class Manifest:
         else:
             return f"2_{name}"
 
-
     @functools.cache
     def model_dependencies_upstream(self, model_name):
-        parent_models = list(filter(
-            lambda node: node.startswith("model."),
-            self.parent_map[model_name]))
+        parent_models = list(
+            filter(lambda node: node.startswith("model."), self.parent_map[model_name])
+        )
         dependencies = set()
         for parent in parent_models:
             if parent not in dependencies:
                 node_config = self.nodes[parent]["config"]
                 materialized = node_config.get("materialized", None)
-                #if materialized in (["table", "incremental"]):
+                # if materialized in (["table", "incremental"]):
                 dependencies.add((parent, materialized))
                 dependencies.update(self.model_dependencies_upstream(parent))
         return dependencies
 
-
     @functools.cache
     def model_dependencies_downstream(self, model_name):
-        children = list(filter(
-            lambda node: node.startswith("model."),
-            self.child_map[model_name]))
+        children = list(
+            filter(lambda node: node.startswith("model."), self.child_map[model_name])
+        )
         dependencies = set()
         for child in children:
             if child not in dependencies:
                 node_config = self.nodes[child]["config"]
                 materialized = node_config.get("materialized", None)
-                #if materialized in (["table", "incremental"]):
+                # if materialized in (["table", "incremental"]):
                 dependencies.add((child, materialized))
                 dependencies.update(self.model_dependencies_downstream(child))
         return dependencies

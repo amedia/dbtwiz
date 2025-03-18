@@ -216,7 +216,9 @@ def backfill(
                 "Full refresh in only supported on single day runs."
             )
     # Dispatch
-    command_backfill(select, first_date, last_date, full_refresh, parallelism, status, verbose)
+    command_backfill(
+        select, first_date, last_date, full_refresh, parallelism, status, verbose
+    )
 
 
 @app.command()

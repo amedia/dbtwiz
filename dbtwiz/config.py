@@ -13,22 +13,27 @@ def user_config():
     """Read and cache settings from user configuration"""
     return UserConfig()
 
+
 @functools.cache
 def project_config():
     """Read and cache settings from project configuration"""
     return ProjectConfig()
 
+
 def user_config_path(target: str = "") -> Path:
     """Get Path to the given target within the user configuration directory"""
     return user_config().CONFIG_PATH / target
+
 
 def dark_mode() -> bool:
     """Are we using a dark theme?"""
     return user_config().get("general", "theme") == "dark"
 
+
 def project_path(target: str = "") -> Path:
     """Get Path to the given target relative to the project root directory"""
     return project_config().root_path() / target
+
 
 def project_dbtwiz_path(target: str = "") -> Path:
     """Get Path to the given target relative to the project .dbtwiz directory"""
@@ -63,10 +68,9 @@ class UserConfig:
             dep_int=[24, 123],
             dep_mart=[20, 75],
             description=[102, 144],
-            deprecated=[124, 196]
-        )
+            deprecated=[124, 196],
+        ),
     )
-
 
     def __init__(self):
         """Get the configuration, from file if it exists or create a new one with defaults"""
@@ -76,23 +80,18 @@ class UserConfig:
             return
         self._set_defaults()
 
-
     def get(self, section, key) -> str:
         return self.parser.get(section, key)
-
 
     def getint(self, section, key) -> int:
         return self.parser.getint(section, key)
 
-
     def getboolean(self, section, key) -> int:
         return self.parser.getboolean(section, key)
-
 
     def color(self, key) -> int:
         """Get the color value of a named key in the current theme"""
         return self.parser.getint("theme", key)
-
 
     def update(self, section, key, value) -> None:
         """Update a setting and write changes to configuration file"""
@@ -104,7 +103,9 @@ class UserConfig:
 
             if section == "general" and key == "theme":
                 if value not in self.THEMES["names"]:
-                    raise InvalidConfig(f"Invalid theme: {value} - must be one of {self.THEMES['names']}")
+                    raise InvalidConfig(
+                        f"Invalid theme: {value} - must be one of {self.THEMES['names']}"
+                    )
                 self._set_theme(theme=value)
             else:
                 self.parser.set(section, key, value)
@@ -113,12 +114,10 @@ class UserConfig:
         except InvalidConfig as ex:
             error(str(ex))
 
-
     def _write_to_file(self) -> None:
         Path.mkdir(self.CONFIG_PATH, exist_ok=True)
         with open(self.CONFIG_FILE, "w+") as f:
             self.parser.write(f)
-
 
     def _set_defaults(self) -> None:
         for section in self.SECTIONS:
@@ -126,7 +125,6 @@ class UserConfig:
         self.parser.set("general", "auth_check", "yes")
         self.parser.set("model_info", "formatter", "fmt -s")
         self._set_theme(self.THEMES["names"][0])
-
 
     def _set_theme(self, theme) -> None:
         self.parser.set("general", "theme", theme)

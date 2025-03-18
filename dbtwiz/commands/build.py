@@ -6,7 +6,7 @@ from pathlib import Path
 from dbtwiz.auth import ensure_auth
 from dbtwiz.config import project_config, project_dbtwiz_path
 from dbtwiz.dbt import dbt_invoke
-from dbtwiz.logging import info, debug, error, fatal
+from dbtwiz.logging import info, debug, error
 from dbtwiz.manifest import Manifest
 
 
@@ -15,18 +15,18 @@ VALID_TARGETS = ["dev", "build", "prod-ci", "prod"]
 LAST_SELECT_FILE = project_dbtwiz_path("last_select.json")
 
 
-def build(target: str,
-          select: str,
-          date: date,
-          use_task_index: bool,
-          save_state: bool,
-          full_refresh: bool,
-          upstream: bool,
-          downstream: bool,
-          work: bool,
-          repeat_last: bool,
-          ) -> None:
-
+def build(
+    target: str,
+    select: str,
+    date: date,
+    use_task_index: bool,
+    save_state: bool,
+    full_refresh: bool,
+    upstream: bool,
+    downstream: bool,
+    work: bool,
+    repeat_last: bool,
+) -> None:
     if target == "dev":
         ensure_auth()
 
@@ -46,11 +46,7 @@ def build(target: str,
 
     select = ""
     chosen_models_with_deps = [
-        "".join([
-            "+" if upstream else "",
-            model,
-            "+" if downstream else ""
-        ])
+        "".join(["+" if upstream else "", model, "+" if downstream else ""])
         for model in chosen_models
     ]
 
@@ -67,7 +63,7 @@ def build(target: str,
     commands = ["build"]
     args = {
         "target": target,
-        "vars": f"{{data_interval_start: \"{date}\"}}",
+        "vars": f'{{data_interval_start: "{date}"}}',
     }
 
     if len(select) > 0:
@@ -94,7 +90,8 @@ def build(target: str,
 
     if save_state and target != "dev":
         info("Saving state, uploading manifest to bucket.")
-        from google.cloud import storage #Only when used
+        from google.cloud import storage  # Only when used
+
         gcs = storage.Client(project=project_config().gcp_project)
         bucket = gcs.bucket(project_config().dbt_state_bucket)
         for filename in ["manifest.json", "run_results.json"]:

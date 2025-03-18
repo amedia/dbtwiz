@@ -1,8 +1,3 @@
-# import os
-
-from textwrap import dedent
-# from rich.console import Console
-
 from dbtwiz.manifest import Manifest
 from dbtwiz.logging import error
 
@@ -17,7 +12,8 @@ def inspect_model(name: str) -> None:
         return
 
     manifest = Manifest()
-    model = manifest.model_by_name(name)
+    manifest.model_by_name(name)
+    # model = manifest.model_by_name(name)
     # print(Manifest().model_info_template().render(model=model))
 
     ancestors = sorted(

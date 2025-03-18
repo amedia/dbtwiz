@@ -11,18 +11,17 @@ VALID_TARGETS = ["dev", "build", "prod-ci", "prod"]
 
 
 def test(
-        target: str,
-        select: str,
-        date: date,
+    target: str,
+    select: str,
+    date: date,
 ) -> None:
-    
     if target == "dev":
         ensure_auth()
 
     commands = ["test"]
     args = {
         "target": target,
-        "vars": f"{{data_interval_start: \"{date}\"}}",
+        "vars": f'{{data_interval_start: "{date}"}}',
     }
 
     models = Manifest.models_cached()

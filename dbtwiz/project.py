@@ -82,7 +82,7 @@ class ModelBasePath:
             "staging": ("1_staging", "stg"),
             "intermediate": ("2_intermediate", "int"),
             "marts": ("3_marts", "mrt"),
-            "bespoke": ("4_bespoke", "bsp")
+            "bespoke": ("4_bespoke", "bsp"),
         }
         if layer not in layer_details:
             raise ValueError(f"Invalid layer: {layer}")

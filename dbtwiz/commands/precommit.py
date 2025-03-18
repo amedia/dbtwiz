@@ -5,9 +5,8 @@ import subprocess
 from dbtwiz.logging import info, fatal
 
 
-QUERY_FOLDERS = [
-    "models", "macros", "tests", "seeds", "analyses"
-]
+QUERY_FOLDERS = ["models", "macros", "tests", "seeds", "analyses"]
+
 
 def sqlfix() -> None:
     query_files = staged_queries()
@@ -23,10 +22,17 @@ def sqlfix() -> None:
 
 
 def staged_queries():
-    git_status = subprocess.run([
-        "git", "status", "--short", "--untracked-files=no",
-        "--no-ahead-behind", "--no-renames"
-    ], capture_output=True)
+    git_status = subprocess.run(
+        [
+            "git",
+            "status",
+            "--short",
+            "--untracked-files=no",
+            "--no-ahead-behind",
+            "--no-renames",
+        ],
+        capture_output=True,
+    )
     if git_status.returncode > 0:
         fatal(git_status.stderr.decode("utf-8"))
 
