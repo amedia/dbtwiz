@@ -14,6 +14,7 @@ def test(
     select: str,
     date: date,
 ) -> None:
+    """Runs tests for models."""
     if target == "dev":
         ensure_auth()
 

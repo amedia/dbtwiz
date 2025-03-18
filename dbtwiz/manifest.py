@@ -19,6 +19,7 @@ class Manifest:
     MODELS_INFO_PATH = project_dbtwiz_path("models")
 
     def __init__(self, path: Path = MANIFEST_PATH):
+        """Initialize the class by loading manifest data from the given path."""
         # TODO: Check that the manifest file exists, and build it if not
         with open(path, "r") as f:
             manifest = json.load(f)
@@ -118,11 +119,13 @@ class Manifest:
         )
 
     def update_models_cache(self):
+        """Save the current models to the models cache file."""
         Path.mkdir(self.MODELS_CACHE_PATH.parent, exist_ok=True)
         with open(self.MODELS_CACHE_PATH, "w+") as f:
             json.dump(self.models(), f)
 
     def update_models_info(self):
+        """Update model information files based on current models."""
         Path.mkdir(self.MODELS_INFO_PATH, exist_ok=True)
         for model in self.models().values():
             model_name = model["name"]
@@ -149,6 +152,7 @@ class Manifest:
 
     @functools.cache
     def model_info_template(self, clear=False) -> Template:
+        """Generate and return the model information template with optional clearing."""
         with open(Path(__file__).parent / "templates" / "model_info.tpl", "r+") as f:
             template = f.read()
         if clear:
@@ -165,6 +169,7 @@ class Manifest:
 
     @functools.cache
     def models(self):
+        """Retrieve all models with their metadata and relationships."""
         models = dict()
         for key, node in self.nodes.items():
             if node["resource_type"] == "model":
@@ -191,12 +196,14 @@ class Manifest:
         return models
 
     def model_by_name(self, name):
+        """Find and return a model by its name."""
         for model in self.models().values():
             if model["name"] == name:
                 return model
         return None
 
     def parent_models(self, key):
+        """Get and return the sorted list of parent models for the given key."""
         parents = [
             self.nodes[nk]["name"]
             for nk in self.parent_map[key]
@@ -205,6 +212,7 @@ class Manifest:
         return sorted(parents, key=self.model_ordering)
 
     def child_models(self, key):
+        """Get and return the sorted list of child models for the given key."""
         children = [
             self.nodes[nk]["name"]
             for nk in self.child_map[key]
@@ -213,6 +221,7 @@ class Manifest:
         return sorted(children, key=self.model_ordering)
 
     def model_ordering(self, name):
+        """Determine and return the ordering key for the given model name."""
         if name.startswith("stg_"):
             return f"0_{name}"
         elif name.startswith("int_"):
@@ -222,6 +231,7 @@ class Manifest:
 
     @functools.cache
     def model_dependencies_upstream(self, model_name):
+        """Retrieve the upstream dependencies for the given model name."""
         parent_models = list(
             filter(lambda node: node.startswith("model."), self.parent_map[model_name])
         )
@@ -237,6 +247,7 @@ class Manifest:
 
     @functools.cache
     def model_dependencies_downstream(self, model_name):
+        """Retrieve the downstream dependencies for the given model name."""
         children = list(
             filter(lambda node: node.startswith("model."), self.child_map[model_name])
         )
@@ -252,6 +263,7 @@ class Manifest:
 
 
 def model_style(name: str):
+    """Determine and return the style color for the given model name."""
     if name.startswith("stg_"):
         key = "dep_stg"
     if name.startswith("int_"):

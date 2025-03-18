@@ -24,6 +24,7 @@ app.add_typer(admin.app, name="admin", help="Administrative commands")
 
 # if __name__ == "__main__":
 def main():
+    """The main function for dbtwiz."""
     try:
         app()
     except commands.InvalidArgumentsError as err:

@@ -7,6 +7,7 @@ QUERY_FOLDERS = ["models", "macros", "tests", "seeds", "analyses"]
 
 
 def sqlfix() -> None:
+    """Runs sqlfmt and sqlfix."""
     query_files = staged_queries()
     if len(query_files) == 0:
         info("No staged SQL changes detected.")
@@ -20,6 +21,13 @@ def sqlfix() -> None:
 
 
 def staged_queries():
+    """
+    Identify and retrieve SQL query files that are staged for commit in the Git repository.
+
+    This function runs a `git status` command to fetch the staged files in the repository.
+    It filters out SQL files within specific query folders (as defined by `QUERY_FOLDERS`)
+    and returns their paths.
+    """
     git_status = subprocess.run(
         [
             "git",

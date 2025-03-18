@@ -5,6 +5,7 @@ from .logging import debug, fatal
 
 
 def dbt_invoke(commands: List[str], **args: dict):
+    """Invokes a dbt run."""
     if args.get("target", "dev") != "dev":
         args["use-colors"] = False
         args["profiles-dir"] = project_config().pod_profiles_path

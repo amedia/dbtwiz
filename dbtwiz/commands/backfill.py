@@ -128,6 +128,7 @@ def backfill(
     status: bool,
     verbose: bool,
 ):
+    """Runs backfill for the given selector and date interval."""
     job_name = generate_job_spec(
         selector=selector,
         date_first=first_date,

@@ -3,12 +3,13 @@ from dbtwiz.manifest import Manifest
 
 
 def inspect_model(name: str) -> None:
+    """Function for inspecting a model."""
     models = Manifest.models_cached()
     if name not in models.keys():
         name = Manifest.choose_models(name, multi=False)
 
     if name is None:
-        error("No model chosen.")
+        error("No model selected.")
         return
 
     manifest = Manifest()

@@ -4,6 +4,7 @@ from dbtwiz.logging import info
 
 
 def freshness(target: str) -> None:
+    """Runs source freshness tests."""
     info("Running source freshness tests")
 
     if target == "dev":

@@ -43,6 +43,8 @@ def project_dbtwiz_path(target: str = "") -> Path:
 
 
 class InvalidConfig(ValueError):
+    """Class for invalid config."""
+
     pass
 
 
@@ -81,12 +83,15 @@ class UserConfig:
         self._set_defaults()
 
     def get(self, section, key) -> str:
+        """Retrieve a string value from the specified section and key."""
         return self.parser.get(section, key)
 
     def getint(self, section, key) -> int:
+        """Retrieve an integer value from the specified section and key."""
         return self.parser.getint(section, key)
 
     def getboolean(self, section, key) -> int:
+        """Retrieve a boolean value from the specified section and key."""
         return self.parser.getboolean(section, key)
 
     def color(self, key) -> int:
@@ -115,11 +120,13 @@ class UserConfig:
             error(str(ex))
 
     def _write_to_file(self) -> None:
+        """Write the current parser configuration to a file."""
         Path.mkdir(self.CONFIG_PATH, exist_ok=True)
         with open(self.CONFIG_FILE, "w+") as f:
             self.parser.write(f)
 
     def _set_defaults(self) -> None:
+        """Initialize the parser with default settings and sections."""
         for section in self.SECTIONS:
             self.parser.add_section(section)
         self.parser.set("general", "auth_check", "yes")
@@ -127,6 +134,7 @@ class UserConfig:
         self._set_theme(self.THEMES["names"][0])
 
     def _set_theme(self, theme) -> None:
+        """Apply the specified theme to the parser configuration."""
         self.parser.set("general", "theme", theme)
         theme_index = self.THEMES["names"].index(theme)
         for key, value in self.THEMES["colors"].items():
@@ -147,10 +155,12 @@ class ProjectConfig:
     ]
 
     def __init__(self) -> None:
+        """Initialize the class by determining the root path and parsing the config."""
         self._determine_root_path()
         self._parse_config()
 
     def root_path(self):
+        """Return the root path of the project."""
         return self.root
 
     def _determine_root_path(self):
@@ -163,6 +173,7 @@ class ProjectConfig:
         fatal("No pyproject.toml file found in current or upstream directories.")
 
     def _parse_config(self):
+        """Parse the 'pyproject.toml' file and set configuration settings."""
         project_file = self.root_path() / "pyproject.toml"
         try:
             parser = configparser.ConfigParser()

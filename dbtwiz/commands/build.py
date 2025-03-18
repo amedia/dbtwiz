@@ -41,12 +41,13 @@ def build(
     work: bool,
     repeat_last: bool,
 ) -> None:
+    """Builds the given models."""
     if target == "dev":
         ensure_auth()
 
     chosen_models = choose_models(target, select, repeat_last, work)
     if chosen_models is None:
-        error("No models chosen.")
+        error("No models selected.")
         return
 
     save_selected_models(chosen_models)
@@ -106,11 +107,13 @@ def build(
 
 
 def save_selected_models(models):
+    """Saves the selected models."""
     with open(LAST_SELECT_FILE, "w+") as f:
         f.write(json.dumps(models))
 
 
 def load_selected_models():
+    """Loads the selected models."""
     if not LAST_SELECT_FILE.exists():
         error("No previously selected models found.")
         return None
