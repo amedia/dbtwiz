@@ -1,18 +1,32 @@
-from datetime import date, timedelta
 import json
 import os
+from datetime import date, timedelta
 from pathlib import Path
 
 from dbtwiz.auth import ensure_auth
 from dbtwiz.config import project_config, project_dbtwiz_path
 from dbtwiz.dbt import dbt_invoke
-from dbtwiz.logging import info, debug, error
+from dbtwiz.logging import debug, error, info
 from dbtwiz.manifest import Manifest
-
 
 VALID_TARGETS = ["dev", "build", "prod-ci", "prod"]
 
 LAST_SELECT_FILE = project_dbtwiz_path("last_select.json")
+
+
+def choose_models(target: str, select, repeat_last: bool, work=None):
+    """
+    Determine the chosen models based on the target, selection, and repeat_last flag.
+    """
+    if target != "dev" or Manifest.can_select_directly(select):
+        chosen_models = [select]
+    elif repeat_last:
+        chosen_models = load_selected_models()
+    else:
+        Manifest().update_models_info()
+        chosen_models = Manifest.choose_models(select, work=work)
+
+    return chosen_models
 
 
 def build(
@@ -30,14 +44,7 @@ def build(
     if target == "dev":
         ensure_auth()
 
-    if target != "dev" or Manifest.can_select_directly(select):
-        chosen_models = [select]
-    elif repeat_last:
-        chosen_models = load_selected_models()
-    else:
-        Manifest().update_models_info()
-        chosen_models = Manifest.choose_models(select, work=work)
-
+    chosen_models = choose_models(target, select, repeat_last, work)
     if chosen_models is None:
         error("No models chosen.")
         return
