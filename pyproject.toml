@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dbtwiz"
+version = "0.2.2"
+authors = [
+    {name = "Amedia Produkt og Teknologi"}
+]
+description = "Python package with CLI helper tool for dbt"
+readme = "README.md"
+license = {text = "MIT"}
+urls = {"Homepage" = "https://github.com/<org>/<package_name>"}
+requires-python = ">=3.11.0"
+dependencies = [
+    "dbt-core>=1.9.1",
+    "google-cloud-storage>=2.19.0",
+    "iterfzf>=1.4.0",
+    "questionary>=2.1.0",
+    "rich>=13.9.0",
+    "ruamel.yaml>=0.18.10",
+    "typer>=0.15.0"
+]
+
+[project.scripts]
+dbtwiz = "dbtwiz.main:main"
