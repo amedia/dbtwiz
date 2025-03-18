@@ -55,17 +55,20 @@ def find_mismatched_models(
         if current_expiration != model["defined_expiration"]:
             table_id = model["table_id"]
             defined = model["defined_expiration"]
-            current = current_expiration
             if current_expiration == -1:
                 difference = model["defined_expiration"]
+                current = "-"
+                description = f"No expiration is set currently, defined expiration is {defined} days"
             else:
                 difference = model["defined_expiration"] - current_expiration
+                current = current_expiration
+                description = f"Expiration is {current} days currenyly, defined expiration is {defined} days"
             mismatched_models.append(
                 {
                     # Attributes used by questionary
                     "name": f"{table_id:<95} {current:>5} → {defined:>5} ({difference:>+1})",
                     "value": table_id,
-                    "description": f"Current expiration is {current} days, defined expiration is {defined} days",
+                    "description": description,
                     # Additional attribute used when updating selected tables
                     "defined_expiration": defined,
                 }
