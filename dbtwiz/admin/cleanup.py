@@ -46,13 +46,6 @@ def build_data_structure(manifest_models, client):
     """
     Build a data structure containing relations from the manifest
     and materializations from BigQuery's information schema.
-
-    Args:
-        manifest_models (list): A list of models, each containing a "relation_name".
-        client: An instance of BigQueryClient for querying information schema.
-
-    Returns:
-        dict: A nested dictionary containing the structure of relations and materializations.
     """
     # Build structure of all relations appearing in the target's manifest
     data = dict()
@@ -88,14 +81,6 @@ def find_orphaned_tables(data: dict) -> list:
     Identify orphaned tables in the data structure. A table is considered orphaned
     if it exists in the "bigquery" list but not in the "manifest" list, provided
     that the "manifest" list is not empty.
-
-    Args:
-        data (dict): A nested dictionary structure containing project, dataset,
-                     and table information.
-
-    Returns:
-        list: A list of strings representing orphaned tables in the format
-              "project.dataset.table".
     """
     orphaned = []
     for project, datasets in data.items():
