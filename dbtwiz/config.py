@@ -1,11 +1,11 @@
 import configparser
 import functools
 from pathlib import Path
-from typing import Dict, Any
+from typing import Any, Dict
 
 import typer
 
-from .logging import info, error, fatal
+from .logging import error, fatal, info
 
 
 @functools.cache

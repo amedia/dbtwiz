@@ -1,5 +1,5 @@
-from dbtwiz.manifest import Manifest
 from dbtwiz.logging import error
+from dbtwiz.manifest import Manifest
 
 
 def inspect_model(name: str) -> None:

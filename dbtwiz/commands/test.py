@@ -3,9 +3,8 @@ from datetime import date
 from dbtwiz.auth import ensure_auth
 from dbtwiz.config import project_config
 from dbtwiz.dbt import dbt_invoke
+from dbtwiz.logging import debug, error, info
 from dbtwiz.manifest import Manifest
-from dbtwiz.logging import info, debug, error
-
 
 VALID_TARGETS = ["dev", "build", "prod-ci", "prod"]
 

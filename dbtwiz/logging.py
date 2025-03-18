@@ -1,8 +1,6 @@
+import typer
 from rich.console import Console
 from rich.panel import Panel
-
-import typer
-
 
 log_console, error_console = Console(), Console(stderr=True)
 

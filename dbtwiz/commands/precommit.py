@@ -1,9 +1,7 @@
-from pathlib import Path
 import subprocess
+from pathlib import Path
 
-
-from dbtwiz.logging import info, fatal
-
+from dbtwiz.logging import fatal, info
 
 QUERY_FOLDERS = ["models", "macros", "tests", "seeds", "analyses"]
 

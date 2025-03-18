@@ -1,15 +1,14 @@
-from datetime import date
-import time
 import subprocess
+import time
 import webbrowser
+from datetime import date
+from textwrap import dedent
 
 from jinja2 import Template
-from textwrap import dedent
 
 from dbtwiz.auth import ensure_auth
 from dbtwiz.config import project_config, project_dbtwiz_path
 from dbtwiz.logging import debug, info
-
 
 MAX_CONCURRENT_TASKS = 8
 YAML_FILE = project_dbtwiz_path("backfill-cloudrun.yaml")

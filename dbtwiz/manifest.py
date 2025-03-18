@@ -1,13 +1,14 @@
 import functools
 import json
 import re
-from jinja2 import Template
 from pathlib import Path
 from typing import List
 
-from .config import project_config, user_config, project_dbtwiz_path
-from .logging import info, debug, error
+from jinja2 import Template
+
+from .config import project_config, project_dbtwiz_path, user_config
 from .dbt import dbt_invoke
+from .logging import debug, error, info
 from .support import models_with_local_changes
 
 
