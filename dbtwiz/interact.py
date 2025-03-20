@@ -16,11 +16,12 @@ def name_validator():
 def dataset_name_validator():
     """Returns the validator for dataset names."""
     return (
-        lambda string:
-        "The value can only contain lowercase, digits, and underscores, and must start with a letter. INFORMATION_SCHEMA is allowed."
-        if string != "INFORMATION_SCHEMA" and not re.match(r"^[a-z][a-z0-9_]*[a-z0-9]$", string)
+        lambda string: "The value can only contain lowercase, digits, and underscores, and must start with a letter. INFORMATION_SCHEMA is allowed."
+        if string != "INFORMATION_SCHEMA"
+        and not re.match(r"^[a-z][a-z0-9_]*[a-z0-9]$", string)
         else True
-)
+    )
+
 
 def table_name_validator(dataset_name):
     """Returns the validator for table names."""
@@ -79,24 +80,38 @@ def select_from_list(
     return choice
 
 
+def validate_selection(selection) -> str | bool:
+    """Validate that the selection contains at least one item."""
+    if len(selection) == 0:
+        return "You must select at least one item"
+    return True
+
+
+def validate_selection_with_na(selection) -> str | bool:
+    """
+    Validate that the selection contains at least one item, and that 'n/a'
+    is not selected along with other options.
+    """
+    if len(selection) == 0:
+        return "You must select at least one item"
+    if "n/a" in selection and len(selection) > 1:
+        return "'n/a' cannot be selected along with other options"
+    return True
+
+
 def multiselect_from_list(question, items, allow_none=False) -> List[str]:
     """Select item from list"""
     from questionary import checkbox  # Lazy import for improved performance
 
-    validate = lambda sel: (len(sel) > 0) or "You must select at least one item"
     na_selection = {"name": "n/a", "description": "Not relevant"}
     default = None
     if allow_none:
         items.insert(0, na_selection)
         default = na_selection
-        validate = (
-            lambda sel: (len(sel) > 0 and (not ("n/a" in sel and len(sel) > 1)))
-            or "You must select at least one item, 'n/a' cannot be selected along with other options."
-        )
     choices = checkbox(
         f"{question}:",
         choices=items,
-        validate=validate,
+        validate=validate_selection_with_na if allow_none else validate_selection,
         style=custom_style(),
         default=default,
     ).unsafe_ask()
@@ -126,7 +141,7 @@ def autocomplete_from_list(
             if allow_blank:
                 return None
             else:
-                error(f"A non-empty choice is required.")
+                error("A non-empty choice is required.")
                 continue
         if not must_exist:
             return choice

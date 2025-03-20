@@ -1,11 +1,7 @@
 import typer
 
-from dbtwiz import admin
-from dbtwiz import commands
-from dbtwiz import model
-from dbtwiz import source
+from dbtwiz import admin, commands, model, source
 from dbtwiz.logging import error
-
 
 app = typer.Typer(
     context_settings={"help_option_names": ["-h", "--help"]},
@@ -28,6 +24,7 @@ app.add_typer(admin.app, name="admin", help="Administrative commands")
 
 # if __name__ == "__main__":
 def main():
+    """The main function for dbtwiz."""
     try:
         app()
     except commands.InvalidArgumentsError as err:

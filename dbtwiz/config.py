@@ -1,11 +1,11 @@
 import configparser
 import functools
 from pathlib import Path
-from typing import Dict, Any
+from typing import Any, Dict
 
 import typer
 
-from .logging import info, error, fatal
+from .logging import error, fatal, info
 
 
 @functools.cache
@@ -13,22 +13,27 @@ def user_config():
     """Read and cache settings from user configuration"""
     return UserConfig()
 
+
 @functools.cache
 def project_config():
     """Read and cache settings from project configuration"""
     return ProjectConfig()
 
+
 def user_config_path(target: str = "") -> Path:
     """Get Path to the given target within the user configuration directory"""
     return user_config().CONFIG_PATH / target
+
 
 def dark_mode() -> bool:
     """Are we using a dark theme?"""
     return user_config().get("general", "theme") == "dark"
 
+
 def project_path(target: str = "") -> Path:
     """Get Path to the given target relative to the project root directory"""
     return project_config().root_path() / target
+
 
 def project_dbtwiz_path(target: str = "") -> Path:
     """Get Path to the given target relative to the project .dbtwiz directory"""
@@ -38,6 +43,8 @@ def project_dbtwiz_path(target: str = "") -> Path:
 
 
 class InvalidConfig(ValueError):
+    """Class for invalid config."""
+
     pass
 
 
@@ -63,10 +70,9 @@ class UserConfig:
             dep_int=[24, 123],
             dep_mart=[20, 75],
             description=[102, 144],
-            deprecated=[124, 196]
-        )
+            deprecated=[124, 196],
+        ),
     )
-
 
     def __init__(self):
         """Get the configuration, from file if it exists or create a new one with defaults"""
@@ -76,23 +82,21 @@ class UserConfig:
             return
         self._set_defaults()
 
-
     def get(self, section, key) -> str:
+        """Retrieve a string value from the specified section and key."""
         return self.parser.get(section, key)
 
-
     def getint(self, section, key) -> int:
+        """Retrieve an integer value from the specified section and key."""
         return self.parser.getint(section, key)
 
-
     def getboolean(self, section, key) -> int:
+        """Retrieve a boolean value from the specified section and key."""
         return self.parser.getboolean(section, key)
-
 
     def color(self, key) -> int:
         """Get the color value of a named key in the current theme"""
         return self.parser.getint("theme", key)
-
 
     def update(self, section, key, value) -> None:
         """Update a setting and write changes to configuration file"""
@@ -104,7 +108,9 @@ class UserConfig:
 
             if section == "general" and key == "theme":
                 if value not in self.THEMES["names"]:
-                    raise InvalidConfig(f"Invalid theme: {value} - must be one of {self.THEMES['names']}")
+                    raise InvalidConfig(
+                        f"Invalid theme: {value} - must be one of {self.THEMES['names']}"
+                    )
                 self._set_theme(theme=value)
             else:
                 self.parser.set(section, key, value)
@@ -113,22 +119,22 @@ class UserConfig:
         except InvalidConfig as ex:
             error(str(ex))
 
-
     def _write_to_file(self) -> None:
+        """Write the current parser configuration to a file."""
         Path.mkdir(self.CONFIG_PATH, exist_ok=True)
         with open(self.CONFIG_FILE, "w+") as f:
             self.parser.write(f)
 
-
     def _set_defaults(self) -> None:
+        """Initialize the parser with default settings and sections."""
         for section in self.SECTIONS:
             self.parser.add_section(section)
         self.parser.set("general", "auth_check", "yes")
         self.parser.set("model_info", "formatter", "fmt -s")
         self._set_theme(self.THEMES["names"][0])
 
-
     def _set_theme(self, theme) -> None:
+        """Apply the specified theme to the parser configuration."""
         self.parser.set("general", "theme", theme)
         theme_index = self.THEMES["names"].index(theme)
         for key, value in self.THEMES["colors"].items():
@@ -149,10 +155,12 @@ class ProjectConfig:
     ]
 
     def __init__(self) -> None:
+        """Initialize the class by determining the root path and parsing the config."""
         self._determine_root_path()
         self._parse_config()
 
     def root_path(self):
+        """Return the root path of the project."""
         return self.root
 
     def _determine_root_path(self):
@@ -165,6 +173,7 @@ class ProjectConfig:
         fatal("No pyproject.toml file found in current or upstream directories.")
 
     def _parse_config(self):
+        """Parse the 'pyproject.toml' file and set configuration settings."""
         project_file = self.root_path() / "pyproject.toml"
         try:
             parser = configparser.ConfigParser()

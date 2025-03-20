@@ -42,6 +42,55 @@ def empty_development_dataset(force_delete: bool) -> None:
             )
 
 
+def build_data_structure(manifest_models, client):
+    """
+    Build a data structure containing relations from the manifest
+    and materializations from BigQuery's information schema.
+    """
+    # Build structure of all relations appearing in the target's manifest
+    data = dict()
+    for model in manifest_models:
+        project, dataset, table = model["relation_name"].replace("`", "").split(".")
+        if dataset == "elementary":  # Skip materializations belonging to Elementary
+            continue
+        data[project] = data.get(project, dict())
+        data[project][dataset] = data[project].get(dataset, dict(manifest=[]))
+        data[project][dataset]["manifest"].append(table)
+
+    # Add existing materializations in DWH by querying information schema
+    for project, datasets in data.items():
+        info(f"Fetching datasets and tables for project {project}")
+        query = f"""
+            select table_schema, array_agg(table_name) as tables
+            from region-eu.INFORMATION_SCHEMA.TABLES
+            where table_catalog = '{project}'
+                and table_name not like '%__dbt_tmp_%'
+            group by table_schema
+        """
+        result = client.run_query(project, query).result()
+        for row in result:
+            dataset = row["table_schema"]
+            data[project][dataset] = data[project].get(dataset, dict(manifest=[]))
+            data[project][dataset]["bigquery"] = row["tables"]
+
+    return data
+
+
+def find_orphaned_tables(data: dict) -> list:
+    """
+    Identify orphaned tables in the data structure. A table is considered orphaned
+    if it exists in the "bigquery" list but not in the "manifest" list, provided
+    that the "manifest" list is not empty.
+    """
+    orphaned = []
+    for project, datasets in data.items():
+        for dataset, variants in datasets.items():
+            for table in variants.get("bigquery", []):
+                if table not in variants["manifest"] and len(variants["manifest"]) > 0:
+                    orphaned.append(f"{project}.{dataset}.{table}")
+    return orphaned
+
+
 def handle_orphaned_materializations(
     target: Target, list_only: bool, force_delete: bool
 ) -> None:
@@ -62,43 +111,13 @@ def handle_orphaned_materializations(
         if m["materialized"] in ["view", "table", "incremental"]
     ]
 
-    # Build structure of all relations appearing in the target's manifest
-    data = dict()
-    for model in manifest_models:
-        project, dataset, table = model["relation_name"].replace("`", "").split(".")
-        if dataset == "elementary":  # Skip materializations belonging to Elementary
-            continue
-        data[project] = data.get(project, dict())
-        data[project][dataset] = data[project].get(dataset, dict(manifest=[]))
-        data[project][dataset]["manifest"].append(table)
-
     client = BigQueryClient()
 
-    # Add existing materializations in DWH by querying information schema
-    for project, datasets in data.items():
-        info(f"Fetching datasets and tables for project {project}")
-        result = client.run_query(
-            project,
-            f"""
-            select table_schema, array_agg(table_name) as tables
-            from region-eu.INFORMATION_SCHEMA.TABLES
-            where table_catalog = '{project}'
-                and table_name not like '%__dbt_tmp_%'
-            group by table_schema
-        """,
-        ).result()
-        for row in result:
-            dataset = row["table_schema"]
-            data[project][dataset] = data[project].get(dataset, dict(manifest=[]))
-            data[project][dataset]["bigquery"] = row["tables"]
+    # Build structure of all relations appearing in the target's manifest
+    data = build_data_structure(manifest_models, client)
 
     # Build list of orphaned DWH materializations that are no longer in the manifest
-    orphaned = []
-    for project, datasets in data.items():
-        for dataset, variants in datasets.items():
-            for table in variants.get("bigquery", []):
-                if table not in variants["manifest"] and len(variants["manifest"]) > 0:
-                    orphaned.append(f"{project}.{dataset}.{table}")
+    orphaned = find_orphaned_tables(data)
 
     if len(orphaned) == 0:
         info("There are no orphaned materializations.")

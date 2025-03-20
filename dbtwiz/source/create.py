@@ -79,21 +79,20 @@ def select_source(context):
 
     if not context.get("source_name") or has_invalid_selection:
         options = {
-                **{"Add new project + dataset": ""},
-                **{
-                    source[
-                        "name"
-                    ]: f"{source['project']}.{source['dataset']}: {' '.join(source.get('description', '').split())[:80]}"
-                    for source in valid_sources
-                },
-            }
+            **{"Add new project + dataset": ""},
+            **{
+                source[
+                    "name"
+                ]: f"{source['project']}.{source['dataset']}: {' '.join(source.get('description', '').split())[:80]}"
+                for source in valid_sources
+            },
+        }
         source_name = autocomplete_from_list(
             "Select source project + dataset",
             items=options,
             must_exist=True,
-            validate=lambda text: (
-                text in options.keys() 
-            ) or "You must select an option from the list"
+            validate=lambda text: (text in options.keys())
+            or "You must select an option from the list",
         )
         context["source"] = get_existing_source(context, source_name=source_name)
     elif context.get("source_name"):
@@ -160,7 +159,9 @@ def select_dataset(context):
             )
     else:
         project_name = context["project_name"]
-        valid_datasets, error_message = context["client"].list_datasets_in_project(project_name)
+        valid_datasets, error_message = context["client"].list_datasets_in_project(
+            project_name
+        )
         if error_message:
             fatal(error_message)
         elif not valid_datasets:
@@ -194,8 +195,11 @@ def set_source_name(context):
     """Function for setting source name."""
     if not context.get("source"):
         context["source_name"] = (
-            f"{context['project_name']}__{context['dataset_name']}"
-        ).replace("-", "_").replace("`", "").lower()
+            (f"{context['project_name']}__{context['dataset_name']}")
+            .replace("-", "_")
+            .replace("`", "")
+            .lower()
+        )
         info(
             f"Adding alias {context['source_name']} for project '{context['project_name']}' and dataset '{context['dataset_name']}'"
         )
@@ -279,19 +283,22 @@ def select_tables(context):
                 fatal("Cancelling")
 
     if context["manual_mode"]:
-        context["tables"] = [input_text(
-            "What is the name of the table",
-            allow_blank=False,
-            validate=lambda text: (
-                all(
-                    [
-                        table_name_validator(context.get("dataset_name"))(text) is True,
-                        text not in context["source"]["tables"],
-                    ]
-                )
-                or "Invalid name format or source already exists for given table name"
-            ),
-        )]
+        context["tables"] = [
+            input_text(
+                "What is the name of the table",
+                allow_blank=False,
+                validate=lambda text: (
+                    all(
+                        [
+                            table_name_validator(context.get("dataset_name"))(text)
+                            is True,
+                            text not in context["source"]["tables"],
+                        ]
+                    )
+                    or "Invalid name format or source already exists for given table name"
+                ),
+            )
+        ]
         context["columns"] = []
 
 

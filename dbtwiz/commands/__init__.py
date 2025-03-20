@@ -1,7 +1,9 @@
 import datetime
+from typing import Annotated
 
 import typer
-from typing import Annotated
+
+from dbtwiz.target import Target
 
 from .backfill import backfill as command_backfill
 from .build import build as command_build
@@ -10,7 +12,6 @@ from .freshness import freshness as command_freshness
 from .manifest import manifest as command_manifest
 from .precommit import sqlfix as command_sqlfix
 from .test import test as command_test
-from dbtwiz.target import Target
 
 app = typer.Typer()
 
@@ -216,7 +217,9 @@ def backfill(
                 "Full refresh in only supported on single day runs."
             )
     # Dispatch
-    command_backfill(select, first_date, last_date, full_refresh, parallelism, status, verbose)
+    command_backfill(
+        select, first_date, last_date, full_refresh, parallelism, status, verbose
+    )
 
 
 @app.command()

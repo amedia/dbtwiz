@@ -1,15 +1,14 @@
-from datetime import date
-import time
 import subprocess
+import time
 import webbrowser
+from datetime import date
+from textwrap import dedent
 
 from jinja2 import Template
-from textwrap import dedent
 
 from dbtwiz.auth import ensure_auth
 from dbtwiz.config import project_config, project_dbtwiz_path
 from dbtwiz.logging import debug, info
-
 
 MAX_CONCURRENT_TASKS = 8
 YAML_FILE = project_dbtwiz_path("backfill-cloudrun.yaml")
@@ -38,11 +37,11 @@ def backfill_job_name(selector: str) -> str:
 
 
 def generate_job_spec(
-        selector: str,
-        date_first: date,
-        date_last: date,
-        full_refresh: bool,
-        parallelism: int,
+    selector: str,
+    date_first: date,
+    date_last: date,
+    full_refresh: bool,
+    parallelism: int,
 ) -> str:
     """Generate job specification YAML file"""
     number_of_days = (date_last - date_first).days + 1
@@ -50,7 +49,7 @@ def generate_job_spec(
     job_name = backfill_job_name(selector)
     if full_refresh:
         assert number_of_days == 1
-        assert '+' not in selector
+        assert "+" not in selector
     job_spec_yaml = job_spec_template().render(
         job_name=job_name,
         parallelism=parallelism,
@@ -121,20 +120,22 @@ def run_command(args: list[str], verbose: bool = False, check: bool = True):
 
 
 def backfill(
-        selector: str,
-        first_date: date,
-        last_date: date,
-        full_refresh: bool,
-        parallelism: int,
-        status: bool,
-        verbose: bool
+    selector: str,
+    first_date: date,
+    last_date: date,
+    full_refresh: bool,
+    parallelism: int,
+    status: bool,
+    verbose: bool,
 ):
+    """Runs backfill for the given selector and date interval."""
     job_name = generate_job_spec(
         selector=selector,
         date_first=first_date,
         date_last=last_date,
         full_refresh=full_refresh,
-        parallelism=parallelism)
+        parallelism=parallelism,
+    )
 
     ensure_auth()
 
@@ -143,15 +144,23 @@ def backfill(
 
     info("Preparing job for execution.")
     run_command(
-        ["gcloud", "run", f"--project={gcp_project}",
-         "jobs", "replace", YAML_FILE],
-        verbose=verbose)
+        ["gcloud", "run", f"--project={gcp_project}", "jobs", "replace", YAML_FILE],
+        verbose=verbose,
+    )
 
     info("Starting job execution.")
     run_command(
-        ["gcloud", "run", f"--project={gcp_project}",
-         "jobs", "execute", f"--region={gcp_region}", job_name],
-        verbose=verbose)
+        [
+            "gcloud",
+            "run",
+            f"--project={gcp_project}",
+            "jobs",
+            "execute",
+            f"--region={gcp_region}",
+            job_name,
+        ],
+        verbose=verbose,
+    )
 
     job_url = (
         f"https://console.cloud.google.com/run/jobs/details"

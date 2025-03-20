@@ -1,23 +1,20 @@
-# import os
-
-from textwrap import dedent
-# from rich.console import Console
-
-from dbtwiz.manifest import Manifest
 from dbtwiz.logging import error
+from dbtwiz.manifest import Manifest
 
 
 def inspect_model(name: str) -> None:
+    """Function for inspecting a model."""
     models = Manifest.models_cached()
     if name not in models.keys():
         name = Manifest.choose_models(name, multi=False)
 
     if name is None:
-        error("No model chosen.")
+        error("No model selected.")
         return
 
     manifest = Manifest()
-    model = manifest.model_by_name(name)
+    manifest.model_by_name(name)
+    # model = manifest.model_by_name(name)
     # print(Manifest().model_info_template().render(model=model))
 
     ancestors = sorted(

@@ -1,6 +1,7 @@
 from typing import Annotated, List
 
 import typer
+
 from dbtwiz.logging import error
 from dbtwiz.target import Target
 

@@ -95,16 +95,19 @@ def select_name(context):
     if context.get("name"):
         name = context.get("name")
     else:
-        model_base_path = ModelBasePath(context.get('layer'))
-        existing_models = list_domain_models(model_base_path, context.get('domain'))
+        model_base_path = ModelBasePath(context.get("layer"))
+        existing_models = list_domain_models(model_base_path, context.get("domain"))
         name = input_text(
             f"Name your new model (it will be prefixed by {model_base_path.get_prefix(context.get('domain'))})",
             validate=lambda text: (
                 all(
                     [
                         name_validator()(text) is True,
-                        not model_base_path.get_prefix(context.get('domain')) + text in existing_models,
-                        not text.startswith(model_base_path.get_prefix(context["domain"]))
+                        model_base_path.get_prefix(context.get("domain")) + text
+                        not in existing_models,
+                        not text.startswith(
+                            model_base_path.get_prefix(context["domain"])
+                        ),
                     ]
                 )
                 or "Invalid name format, a model with given name already exists or you've added the model prefix to the name"
@@ -367,42 +370,19 @@ from renamed
 """
 
 
-def create_model_files(
-    layer: str,
-    source: str,
-    domain: str,
-    name: str,
-    description: str,
+def get_config(
     materialization: str,
+    expiration=None,
+    frequency=None,
     access=None,
     group=None,
     teams=None,
     service_consumers=None,
     access_policy=None,
-    frequency=None,
-    expiration=None,
 ):
-    """Function that creates SQL and YAML files for model."""
-    base_path = ModelBasePath(layer).get_path(domain, name)
-
-    sql_path = base_path.with_suffix(".sql")
-    yml_path = base_path.with_suffix(".yml")
-
-    if yml_path.exists():
-        return fatal(
-            f"Model yml file {yml_path} already exist, cancelling file creation."
-        )
-
-    # Import (for performance) and configure yaml format
-    from ruamel.yaml import YAML
+    """Creates the configuration dictionary for a model based on the input values."""
     from ruamel.yaml.comments import CommentedMap, CommentedSeq
-    from ruamel.yaml.scalarstring import LiteralScalarString
 
-    ruamel_yaml = YAML()
-    ruamel_yaml.preserve_quotes = True
-    ruamel_yaml.indent(mapping=2, sequence=4, offset=2)
-
-    # Define the config as a CommentedMap to maintain order
     config = CommentedMap()
 
     config["materialized"] = materialization
@@ -430,17 +410,79 @@ def create_model_files(
         if service_consumers:
             config["meta"]["service-consumers"] = CommentedSeq(service_consumers)
 
+    return config
+
+
+def create_yml_content(model_name, description: str, config: dict):
+    """
+    Create YAML content as a CommentedMap with a specified version,
+    models, and formatting.
+    """
+    from ruamel.yaml.comments import CommentedMap
+    from ruamel.yaml.scalarstring import LiteralScalarString
+
     yml_content = CommentedMap()
     yml_content["version"] = 2
-    # Add a blank line between 'version' and 'models'
+    # Add a blank line before the 'models' key
     yml_content.yaml_set_comment_before_after_key("models", before="\n")
     yml_content["models"] = [
         {
-            "name": base_path.stem,
+            "name": model_name,
             "description": LiteralScalarString(description),
             "config": config,
         }
     ]
+
+    return yml_content
+
+
+def create_model_files(
+    layer: str,
+    source: str,
+    domain: str,
+    name: str,
+    description: str,
+    materialization: str,
+    access=None,
+    group=None,
+    teams=None,
+    service_consumers=None,
+    access_policy=None,
+    frequency=None,
+    expiration=None,
+):
+    """Function that creates SQL and YAML files for model."""
+    # Import (for performance) and configure yaml format
+    from ruamel.yaml import YAML
+
+    base_path = ModelBasePath(layer).get_path(domain, name)
+
+    sql_path = base_path.with_suffix(".sql")
+    yml_path = base_path.with_suffix(".yml")
+
+    if yml_path.exists():
+        return fatal(
+            f"Model yml file {yml_path} already exist, cancelling file creation."
+        )
+
+    # Define the config
+    config = get_config(
+        materialization=materialization,
+        expiration=expiration,
+        frequency=frequency,
+        access=access,
+        group=group,
+        teams=teams,
+        service_consumers=service_consumers,
+        access_policy=access_policy,
+    )
+
+    # Define the yml content
+    yml_content = create_yml_content(base_path.stem, description, config)
+
+    ruamel_yaml = YAML()
+    ruamel_yaml.preserve_quotes = True
+    ruamel_yaml.indent(mapping=2, sequence=4, offset=2)
 
     info(f"[=== BEGIN {yml_path.relative_to(Path.cwd())} ===]")
     stream = StringIO()
@@ -463,11 +505,11 @@ def create_model_files(
         with open(sql_path, "w+") as f:
             f.write(sql)
     else:
-        info(f"Skippig sql file creation since it already exists")
-    # Open SQL file in editor
+        info("Skippig sql file creation since it already exists")
+    # Open files in editor
     # FIXME: Make editor user configurable with 'code' as default
-    os.system(f"code {yml_path}")
     os.system(f"code {sql_path}")
+    os.system(f"code {yml_path}")
 
 
 def create_model(
