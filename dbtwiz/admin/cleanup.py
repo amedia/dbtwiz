@@ -1,5 +1,6 @@
 from dbtwiz.auth import ensure_auth
 from dbtwiz.bigquery import BigQueryClient
+from dbtwiz.interact import multiselect_from_list
 from dbtwiz.logging import error, info
 from dbtwiz.manifest import Manifest
 from dbtwiz.target import Target
@@ -35,7 +36,7 @@ def empty_development_dataset(force_delete: bool) -> None:
         table_type = table.table_type.lower()
         try:
             client.delete_table(table, project)
-            info(f"Deleted {table_type} {project}.{dataset}.{table.table_id}")
+            info(f"Deleted {table_type} {project}.{dataset}.{table.table_id}", style="red")
         except Exception as e:
             error(
                 f"Failed to delete {table_type} {project}.{dataset}.{table.table_id}: {e}"
@@ -123,21 +124,24 @@ def handle_orphaned_materializations(
         info("There are no orphaned materializations.")
         return
 
-    info(f"Found {len(orphaned)} orphaned materializations.")
-    info("")
+    info(f"Found {len(orphaned)} orphaned materializations.\n", style="yellow")
 
-    for table_id in sorted(orphaned):
-        info(f"Not in manifest: {table_id}")
-        if list_only:
-            delete = False
-        elif force_delete:
-            assert table_id.startswith("amedia-adp-dbt-dev."), (
-                "Can't force delete unless dev!"
-            )
-            delete = True
-        else:
-            answer = input("Delete (y/N)? ")
-            delete = answer.lower() in ["y", "yes"]
-        if delete:
+
+    if list_only:
+        info(f"Not in manifest:", style="yellow")
+        for table_id in sorted(orphaned):
+            info(f"- {table_id}", style="yellow")
+    else:
+        # Prompt user to select tables to delete
+        selected_tables = multiselect_from_list(
+            "Select orphaned tables to delete",
+            items=sorted(orphaned),
+            allow_none=True,
+        ) or []
+        
+        for table_id in selected_tables:
+            if force_delete and not table_id.startswith("amedia-adp-dbt-dev."):
+                info("Can't force delete unless dev!", style="yellow")
+                continue
             client.delete_table(table_id)
             info(f"Deleted {table_id}.")
