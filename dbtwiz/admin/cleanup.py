@@ -105,20 +105,21 @@ def handle_orphaned_materializations(
 
     if target == Target.dev:
         manifest = Manifest()
+        client = BigQueryClient()
     else:
         manifest = Manifest(Manifest.PROD_MANIFEST_PATH)
         force_delete = False  # Always ask before deleting in prod!
+        # Use service account impersonation for prod
+        client = BigQueryClient(
+            impersonation_service_account="dbt-run-sa@amedia-adp-dbt-core.iam.gserviceaccount.com",
+            default_project="amedia-adp-dbt-core",
+        )
 
     manifest_models = [
         m
         for m in manifest.models().values()
         if m["materialized"] in ["view", "table", "incremental"]
     ]
-
-    client = BigQueryClient(
-        impersonation_service_account="dbt-run-sa@amedia-adp-dbt-core.iam.gserviceaccount.com",
-        default_project="amedia-adp-dbt-core",
-    )
 
     # Build structure of all relations appearing in the target's manifest
     data = build_data_structure(manifest_models, client)
@@ -158,7 +159,7 @@ def handle_orphaned_materializations(
             if force_delete and not project_name == "amedia-adp-dbt-dev":
                 info("Can't force delete unless dev!", style="yellow")
                 continue
-            elif project_name not in eligible_projects:
+            elif target == Target.prod and project_name not in eligible_projects:
                 info(
                     f"Can't delete table from projet {project_name}. Must be one of {', '.join(eligible_projects)}",
                     style="yellow",
