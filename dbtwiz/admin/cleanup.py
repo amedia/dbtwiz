@@ -161,7 +161,7 @@ def handle_orphaned_materializations(
                 continue
             elif target == Target.prod and project_name not in eligible_projects:
                 info(
-                    f"Can't delete table from projet {project_name}. Must be one of {', '.join(eligible_projects)}",
+                    f"Can't delete table from project {project_name}. Must be one of {', '.join(eligible_projects)}",
                     style="yellow",
                 )
                 continue
