@@ -54,7 +54,7 @@ ensure_newline_before_comments = true
 
 [tool.poetry]
 name = "dbtwiz"
-version = "0.1.0"
+version = "0.2.3"
 description = "Python package with CLI helper tool for dbt"
 authors = ["Amedia Produkt og Teknologi <lars.haugseth@amedia.no>"]
 
