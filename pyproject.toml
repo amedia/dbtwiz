@@ -11,7 +11,7 @@ authors = [
 description = "Python package with CLI helper tool for dbt"
 readme = "README.md"
 license = {text = "MIT"}
-urls = {"Homepage" = "https://github.com/<org>/<package_name>"}
+urls = {"Homepage" = "https://github.com/amedia/dbtwiz"}
 requires-python = ">=3.11.0"
 dependencies = [
     "dbt-core>=1.9.1",
@@ -51,16 +51,3 @@ include_trailing_comma = true
 force_grid_wrap = 0
 use_parentheses = true
 ensure_newline_before_comments = true
-
-[tool.poetry]
-name = "dbtwiz"
-version = "0.2.3"
-description = "Python package with CLI helper tool for dbt"
-authors = ["Amedia Produkt og Teknologi <lars.haugseth@amedia.no>"]
-
-[tool.poetry.dependencies]
-python = "^3.11"
-
-[tool.poetry.group.dev.dependencies]
-ruff = ">=0.11.0"
-isort = ">=6.0.1"
