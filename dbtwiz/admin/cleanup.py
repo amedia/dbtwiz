@@ -36,7 +36,10 @@ def empty_development_dataset(force_delete: bool) -> None:
         table_type = table.table_type.lower()
         try:
             client.delete_table(table, project)
-            info(f"Deleted {table_type} {project}.{dataset}.{table.table_id}", style="red")
+            info(
+                f"Deleted {table_type} {project}.{dataset}.{table.table_id}",
+                style="red",
+            )
         except Exception as e:
             error(
                 f"Failed to delete {table_type} {project}.{dataset}.{table.table_id}: {e}"
@@ -112,7 +115,10 @@ def handle_orphaned_materializations(
         if m["materialized"] in ["view", "table", "incremental"]
     ]
 
-    client = BigQueryClient()
+    client = BigQueryClient(
+        impersonation_service_account="dbt-run-sa@amedia-adp-dbt-core.iam.gserviceaccount.com",
+        default_project="amedia-adp-dbt-core",
+    )
 
     # Build structure of all relations appearing in the target's manifest
     data = build_data_structure(manifest_models, client)
@@ -126,22 +132,37 @@ def handle_orphaned_materializations(
 
     info(f"Found {len(orphaned)} orphaned materializations.\n", style="yellow")
 
-
     if list_only:
         info(f"Not in manifest:", style="yellow")
         for table_id in sorted(orphaned):
             info(f"- {table_id}", style="yellow")
     else:
         # Prompt user to select tables to delete
-        selected_tables = multiselect_from_list(
-            "Select orphaned tables to delete",
-            items=sorted(orphaned),
-            allow_none=True,
-        ) or []
-        
+        selected_tables = (
+            multiselect_from_list(
+                "Select orphaned tables to delete",
+                items=sorted(orphaned),
+                allow_none=True,
+            )
+            or []
+        )
+
+        eligible_projects = [
+            "amedia-adp-dbt-core",
+            "amedia-adp-marts",
+            "amedia-adp-bespoke",
+        ]
+
         for table_id in selected_tables:
-            if force_delete and not table_id.startswith("amedia-adp-dbt-dev."):
+            project_name = table_id.split(".")[0]
+            if force_delete and not project_name == "amedia-adp-dbt-dev":
                 info("Can't force delete unless dev!", style="yellow")
                 continue
-            client.delete_table(table_id)
+            elif project_name not in eligible_projects:
+                info(
+                    f"Can't delete table from projet {project_name}. Must be one of {', '.join(eligible_projects)}",
+                    style="yellow",
+                )
+                continue
+            client.delete_table(table_id=table_id)
             info(f"Deleted {table_id}.")
