@@ -4,10 +4,10 @@ import time
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from dbtwiz.interact import confirm
+
 from .config import user_config
 from .logging import info, warn
-
-from dbtwiz.interact import confirm
 
 CREDENTIALS_JSON = Path("gcloud", "application_default_credentials.json")
 
