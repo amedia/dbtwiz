@@ -1,5 +1,6 @@
 from dbtwiz.auth import ensure_auth
 from dbtwiz.bigquery import BigQueryClient
+from dbtwiz.interact import multiselect_from_list
 from dbtwiz.logging import error, info
 from dbtwiz.manifest import Manifest
 from dbtwiz.target import Target
@@ -35,7 +36,10 @@ def empty_development_dataset(force_delete: bool) -> None:
         table_type = table.table_type.lower()
         try:
             client.delete_table(table, project)
-            info(f"Deleted {table_type} {project}.{dataset}.{table.table_id}")
+            info(
+                f"Deleted {table_type} {project}.{dataset}.{table.table_id}",
+                style="red",
+            )
         except Exception as e:
             error(
                 f"Failed to delete {table_type} {project}.{dataset}.{table.table_id}: {e}"
@@ -101,17 +105,21 @@ def handle_orphaned_materializations(
 
     if target == Target.dev:
         manifest = Manifest()
+        client = BigQueryClient()
     else:
         manifest = Manifest(Manifest.PROD_MANIFEST_PATH)
         force_delete = False  # Always ask before deleting in prod!
+        # Use service account impersonation for prod
+        client = BigQueryClient(
+            impersonation_service_account="dbt-run-sa@amedia-adp-dbt-core.iam.gserviceaccount.com",
+            default_project="amedia-adp-dbt-core",
+        )
 
     manifest_models = [
         m
         for m in manifest.models().values()
         if m["materialized"] in ["view", "table", "incremental"]
     ]
-
-    client = BigQueryClient()
 
     # Build structure of all relations appearing in the target's manifest
     data = build_data_structure(manifest_models, client)
@@ -123,21 +131,39 @@ def handle_orphaned_materializations(
         info("There are no orphaned materializations.")
         return
 
-    info(f"Found {len(orphaned)} orphaned materializations.")
-    info("")
+    info(f"Found {len(orphaned)} orphaned materializations.\n", style="yellow")
 
-    for table_id in sorted(orphaned):
-        info(f"Not in manifest: {table_id}")
-        if list_only:
-            delete = False
-        elif force_delete:
-            assert table_id.startswith("amedia-adp-dbt-dev."), (
-                "Can't force delete unless dev!"
+    if list_only:
+        info(f"Not in manifest:", style="yellow")
+        for table_id in sorted(orphaned):
+            info(f"- {table_id}", style="yellow")
+    else:
+        # Prompt user to select tables to delete
+        selected_tables = (
+            multiselect_from_list(
+                "Select orphaned tables to delete",
+                items=sorted(orphaned),
+                allow_none=True,
             )
-            delete = True
-        else:
-            answer = input("Delete (y/N)? ")
-            delete = answer.lower() in ["y", "yes"]
-        if delete:
-            client.delete_table(table_id)
+            or []
+        )
+
+        eligible_projects = [
+            "amedia-adp-dbt-core",
+            "amedia-adp-marts",
+            "amedia-adp-bespoke",
+        ]
+
+        for table_id in selected_tables:
+            project_name = table_id.split(".")[0]
+            if force_delete and not project_name == "amedia-adp-dbt-dev":
+                info("Can't force delete unless dev!", style="yellow")
+                continue
+            elif target == Target.prod and project_name not in eligible_projects:
+                info(
+                    f"Can't delete table from project {project_name}. Must be one of {', '.join(eligible_projects)}",
+                    style="yellow",
+                )
+                continue
+            client.delete_table(table_id=table_id)
             info(f"Deleted {table_id}.")

@@ -4,6 +4,8 @@ import time
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from dbtwiz.interact import confirm
+
 from .config import user_config
 from .logging import info, warn
 
@@ -41,11 +43,5 @@ def ensure_auth():
     else:
         warn("No GCP authentication credentials found.")
 
-    info("Do you wish to reauthenticate now (y/n)?")
-    answer = input()
-    if answer[0:1].lower() == "n":
-        info("So be it.")
-        time.sleep(1)
-        return
-
-    subprocess.run(["gcloud", "auth", "application-default", "login"])
+    if confirm("Do you wish to reauthenticate now?"):
+        subprocess.run(["gcloud", "auth", "application-default", "login"], shell=True)
