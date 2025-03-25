@@ -1,13 +1,12 @@
 import os
 import subprocess
-import time
 from datetime import datetime, timedelta
 from pathlib import Path
 
 from dbtwiz.interact import confirm
 
 from .config import user_config
-from .logging import info, warn
+from .logging import warn
 
 CREDENTIALS_JSON = Path("gcloud", "application_default_credentials.json")
 
@@ -44,4 +43,4 @@ def ensure_auth():
         warn("No GCP authentication credentials found.")
 
     if confirm("Do you wish to reauthenticate now?"):
-        subprocess.run(["gcloud", "auth", "application-default", "login"], shell=True)
+        subprocess.run(["gcloud auth application-default login"], shell=True)
