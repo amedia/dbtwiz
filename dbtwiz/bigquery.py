@@ -10,14 +10,19 @@ MILLISECONDS_PER_DAY = 1000 * 60 * 60 * 24
 class BigQueryClient:
     """Class for BigQuery client"""
 
-    def __init__(self):
+    def __init__(
+        self, impersonation_service_account: str = None, default_project: str = None
+    ):
         """Initializes the class."""
         from google.api_core.exceptions import Forbidden, NotFound
 
         self.Forbidden = Forbidden
         self.NotFound = NotFound
+        self.impersonation_service_account = impersonation_service_account
+        self.default_project = default_project
         self._bigquery = None
         self._client = None
+        self._credentials = None
 
     def get_bigquery(self):
         """Get or import the BigQuery package."""
@@ -31,8 +36,35 @@ class BigQueryClient:
         """Get or set the BigQuery client."""
         if self._client is None:
             bigquery = self.get_bigquery()
-            self._client = bigquery.Client()
+            credentials = self.get_credentials()
+            self._client = bigquery.Client(
+                credentials=credentials, project=self.default_project
+            )
         return self._client
+
+    def get_credentials(self):
+        """Retrieve or create credentials, optionally with impersonation."""
+        if self._credentials is None:
+            from google.auth import default
+            from google.auth.impersonated_credentials import Credentials
+
+            credentials, project = default()
+
+            # Use the project from default credentials if no default_project is provided
+            if not self.default_project:
+                self.default_project = project
+
+            # Impersonate the target service account if specified
+            if self.impersonation_service_account:
+                self._credentials = Credentials(
+                    source_credentials=credentials,
+                    target_principal=self.impersonation_service_account,
+                    target_scopes=["https://www.googleapis.com/auth/cloud-platform"],
+                )
+            else:
+                self._credentials = credentials
+
+        return self._credentials
 
     def list_datasets_in_project(self, project) -> Tuple[List[str], str]:
         """Fetch all datasets in the given project from BigQuery."""
@@ -115,9 +147,9 @@ class BigQueryClient:
         """Runs a query in bigquery"""
         return self.get_client().query(query, project=project)
 
-    def delete_table(self, table_id, project=None):
+    def delete_table(self, table_id):
         """Deletes a table from bigquery"""
-        self.get_client().delete_table(table_id, project=project)
+        self.get_client().delete_table(table_id)
 
     def get_bigquery_partition_expiration(self, table_id: str) -> int:
         """Get the current partition expiration for a table in BigQuery."""
