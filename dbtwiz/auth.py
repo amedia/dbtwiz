@@ -43,4 +43,4 @@ def ensure_auth():
         warn("No GCP authentication credentials found.")
 
     if confirm("Do you wish to reauthenticate now?"):
-        subprocess.run(["gcloud auth application-default login"], shell=True)
+        subprocess.run("gcloud auth application-default login", shell=True)
