@@ -137,7 +137,7 @@ def backfill(
         parallelism=parallelism,
     )
 
-    ensure_auth()
+    ensure_auth(check_app_default_auth=True, check_gcloud_auth=True)
 
     gcp_project = project_config().gcp_project
     gcp_region = project_config().gcp_region
