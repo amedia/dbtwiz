@@ -71,7 +71,7 @@ def ensure_gcloud_auth() -> None:
     # Check if an allowed domain account is authenticated
     for account in accounts:
         if account.get("status") == "ACTIVE" and any(
-            account.get("account").endswith(f"@{domain}") for domain in allowed_domains
+            account.get("account").lower().endswith(f"@{domain}") for domain in allowed_domains
         ):
             return
     warn("No valid GCP account is authenticated.")
