@@ -145,6 +145,7 @@ class ProjectConfig:
     """Project-specific settings from pyproject.toml"""
 
     SETTINGS = [
+        "gcp_auth_domains",
         "gcp_project",
         "gcp_region",
         "dbt_state_bucket",
