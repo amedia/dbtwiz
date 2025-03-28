@@ -6,7 +6,7 @@ from pathlib import Path
 
 from dbtwiz.interact import confirm
 
-from .config import user_config
+from .config import project_config, user_config
 from .logging import fatal, warn
 
 CREDENTIALS_JSON = Path("gcloud", "application_default_credentials.json")
@@ -49,7 +49,7 @@ def ensure_app_default_auth() -> None:
 
 def ensure_gcloud_auth() -> None:
     """Ensures gcloud authorization is active."""
-    allowed_domains = ["amedia.no"]
+    allowed_domains = project_config().gcp_auth_domains or []
     # Get list of authenticated accounts
     result = subprocess.run(
         "gcloud auth list --format=json",
