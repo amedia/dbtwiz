@@ -1,3 +1,4 @@
+import ast
 import json
 import os
 import subprocess
@@ -49,7 +50,7 @@ def ensure_app_default_auth() -> None:
 
 def ensure_gcloud_auth() -> None:
     """Ensures gcloud authorization is active."""
-    allowed_domains = project_config().gcp_auth_domains or []
+    allowed_domains = ast.literal_eval(project_config().gcp_auth_domains) or []
     # Get list of authenticated accounts
     result = subprocess.run(
         "gcloud auth list --format=json",
