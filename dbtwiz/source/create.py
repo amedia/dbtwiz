@@ -38,78 +38,6 @@ def get_existing_source(
     )
 
 
-# 28.03.2026 Sindre:
-# Commented out since it might be more user friendly to avoid source aliases
-
-# def select_source(context):
-#     """Function for selecting source."""
-#     valid_sources = context["sources"]
-#     has_invalid_selection = context.get("source_name") and not any(
-#         item["name"] == context.get("source_name") for item in valid_sources
-#     )
-#     if has_invalid_selection:
-#         warn(
-#             f"The provided value ({context.get('source_name')}) for source_name is invalid."
-#         )
-#     if has_invalid_selection or (
-#         not context.get("source_name")
-#         and context.get("project_name")
-#         and context.get("dataset_name")
-#     ):
-#         existing_source = get_existing_source(
-#             context,
-#             project_name=context.get("project_name"),
-#             dataset_name=context.get("dataset_name"),
-#         )
-#         if existing_source:
-#             info(
-#                 f"Using existing source alias '{existing_source['name']}' for project '{context.get('project_name')}' and dataset '{context.get('dataset_name')}'."
-#             )
-#             context["source"] = existing_source
-#             has_invalid_selection = False
-#             return
-#         else:
-#             warn(
-#                 f"Couldn't find an existing source alias for project ({context.get('project_name')}) and dataset ({context.get('dataset_name')})."
-#             )
-#         if (
-#             not existing_source
-#             and not context.get("source_name")
-#             and context.get("project_name")
-#             and context.get("dataset_name")
-#         ):
-#             return
-
-#     if not context.get("source_name") or has_invalid_selection:
-#         options = {
-#             **{"Add new project + dataset": ""},
-#             **{
-#                 source[
-#                     "name"
-#                 ]: f"{source['project']}.{source['dataset']}: {' '.join(source.get('description', '').split())[:80]}"
-#                 for source in valid_sources
-#             },
-#         }
-#         source_name = autocomplete_from_list(
-#             "Select source project + dataset",
-#             items=options,
-#             must_exist=True,
-#             validate=lambda text: (text in options.keys())
-#             or "You must select an option from the list",
-#         )
-#         context["source"] = get_existing_source(context, source_name=source_name)
-#     elif context.get("source_name"):
-#         context["source"] = get_existing_source(
-#             context, source_name=context.get("source_name")
-#         )
-#     if context["source"] and context.get("project_name"):
-#         info("Ignoring provided project name since existing source is used.")
-#         del context["project_name"]
-#     if context["source"] and context.get("dataset_name"):
-#         info("Ignoring provided dataset name since existing source is used.")
-#         del context["dataset_name"]
-
-
 def select_project(context):
     """Function for selecting project."""
     if context.get("source"):
@@ -421,7 +349,6 @@ def create_source(
     }
 
     for func in [
-        # select_source,
         select_project,
         select_dataset,
         set_source_name,
