@@ -33,16 +33,15 @@ def empty_development_dataset(force_delete: bool) -> None:
         if answer.lower() not in ["y", "yes"]:
             return
     for table in tables:
-        table_type = table.table_type.lower()
         try:
             client.delete_table(table, project)
             info(
-                f"Deleted {table_type} {project}.{dataset}.{table.table_id}",
+                f"Deleted {project}.{dataset}.{table}",
                 style="red",
             )
         except Exception as e:
             error(
-                f"Failed to delete {table_type} {project}.{dataset}.{table.table_id}: {e}"
+                f"Failed to delete {project}.{dataset}.{table}: {e}"
             )
 
 
