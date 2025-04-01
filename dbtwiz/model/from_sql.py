@@ -86,6 +86,7 @@ def replace_table_references(
 
 
 def convert_sql_to_model(file_path: str):
+    """Converts a sql file to a dbt model by replacing full table references with ref and source."""
     if not file_path:
         fatal("Unable to convert sql to model since no file was specified.")
 
