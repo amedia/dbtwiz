@@ -43,12 +43,19 @@ $ dbtwiz config model_info:formatter "cat -s"
 
 ## Subcommands
 
-- [backfill](docs/backfill.md)
+- model
+    - create
+    - inspect
+- source
+    - create
 - [build](docs/build.md)
-- [cleanup](#cleanup)
-- [config](#config)
-- [freshness](#freshness)
-- [manifest](#manifest)
-- [model](#model)
-- [sqlfix](#sqlfix)
-- [test](#test)
+- test
+- sqlfix
+- manifest
+- [backfill](docs/backfill.md)
+- freshness
+- config
+- admin
+    - orphaned
+    - cleandev
+    - partition-expiry
