@@ -4,6 +4,7 @@ import typer
 
 from .create import create_model
 from .inspect import inspect_model
+from .from_sql import convert_sql_to_model
 
 app = typer.Typer()
 
@@ -121,3 +122,14 @@ def inspect(
 ):
     """Output information about a given model"""
     inspect_model(name)
+
+
+@app.command()
+def from_sql(
+    file_path: Annotated[
+        str,
+        typer.Option("--file-path", "-f", help="File path for sql file"),
+    ],
+):
+    """Convert a sql file to a dbt model by replacing table references with source and ref"""
+    convert_sql_to_model(file_path)
