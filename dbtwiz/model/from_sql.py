@@ -11,8 +11,8 @@ def build_reference_lookup(manifest: dict) -> Dict[str, Tuple[str, str]]:
     lookup_dict = {}
 
     # Process models
-    for unique_id, node in manifest["nodes"].items():
-        if not unique_id.startswith("model."):
+    for node in manifest.models().values():
+        if not node.get("unique_id").startswith("model."):
             continue
 
         database = node.get("database", "").lower()
@@ -25,7 +25,10 @@ def build_reference_lookup(manifest: dict) -> Dict[str, Tuple[str, str]]:
             lookup_dict[key] = ("ref", name)
 
     # Process sources
-    for unique_id, source in manifest["sources"].items():
+    for source in manifest.sources().values():
+        if not source.get("unique_id").startswith("source."):
+            continue
+
         database = source.get("database", "").lower()
         schema = source.get("schema", "").lower()
         name = source.get("name", "")
@@ -106,4 +109,4 @@ def convert_sql_to_model(file_path: str):
         info(f"No references replaced in {file_path}")
 
     if unresolved:
-        warn("Unresolved tables:\n   - " + unresolved.join("\n  - "))
+        warn("Unresolved tables:\n  - " + "\n  - ".join(unresolved))
