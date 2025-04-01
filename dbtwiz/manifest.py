@@ -61,7 +61,6 @@ class Manifest:
             return int(difference_in_seconds // 3600)
         return 999
 
-    # TODO: Should only download if older than x
     @classmethod
     def download_prod_manifest(cls, force=False):
         """Downloads latest production manifest if force or older than 1 hour."""
