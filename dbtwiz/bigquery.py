@@ -1,8 +1,8 @@
-from typing import List, Tuple
+from typing import Dict, List, Tuple
 
 from ruamel.yaml.scalarstring import PreservedScalarString
 
-from dbtwiz.logging import info
+from dbtwiz.logging import info, error
 
 MILLISECONDS_PER_DAY = 1000 * 60 * 60 * 24
 
@@ -182,3 +182,69 @@ class BigQueryClient:
             self.get_client().update_table(table, ["time_partitioning"])
         else:
             info(f"Table {table_id} is not partitioned. Skipping update.")
+
+    def update_table_constraints(
+        self, table_id: str, table_constraints: Dict
+    ) -> None:
+        """
+        Updates the table constraints (primary/foreign keys) using the BigQuery REST API.
+
+        Args:
+            table_id: The full table ID (e.g., 'project.dataset.table').
+            table_constraints: The table constraints to apply.
+        """
+        try:
+            from google.auth.transport.requests import AuthorizedSession
+            # Create an authorized session
+            authed_session = AuthorizedSession(self.get_credentials())
+
+            # Construct the REST API URL
+            project_id, dataset_id, table_id_only = table_id.split(".")
+            table_path = f"https://bigquery.googleapis.com/bigquery/v2/projects/{project_id}/datasets/{dataset_id}/tables/{table_id_only}"
+
+            # Prepare the request body
+            body = {
+                "tableReference": {
+                    "projectId": project_id,
+                    "datasetId": dataset_id,
+                    "tableId": table_id_only,
+                },
+            }
+
+            # If table_constraints is None, remove constraints
+            if table_constraints is None:
+                body["tableConstraints"] = table_constraints
+            else:
+                # Convert table_constraints to a dictionary
+                new_table_constraints = {}
+                if table_constraints.primary_key:
+                    new_table_constraints["primaryKey"] = {
+                        "columns": table_constraints.primary_key.columns,
+                    }
+                if table_constraints.foreign_keys:
+                    new_table_constraints["foreignKeys"] = [
+                        {
+                            "name": fk.name,
+                            "referencedTable": {
+                                "projectId": fk.referenced_table.project_id,
+                                "datasetId": fk.referenced_table.dataset_id,
+                                "tableId": fk.referenced_table.table_id,
+                            },
+                            "columnReferences": [
+                                {
+                                    "referencingColumn": ref.referencing_column,
+                                    "referencedColumn": ref.referenced_column,
+                                }
+                                for ref in fk.column_references
+                            ],
+                        }
+                        for fk in table_constraints.foreign_keys
+                    ]
+                body["tableConstraints"] = new_table_constraints
+
+            # Send the PATCH request to update the table constraints
+            response = authed_session.patch(table_path, json=body)
+            response.raise_for_status()
+
+        except Exception as e:
+            error(f"Error updating table constraints for {table_id}: {e}")
