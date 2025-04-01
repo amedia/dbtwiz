@@ -6,6 +6,7 @@ from typing import List
 
 from jinja2 import Template
 
+from .auth import ensure_app_default_auth
 from .config import project_config, project_dbtwiz_path, user_config
 from .dbt import dbt_invoke
 from .logging import debug, error, info
@@ -45,20 +46,38 @@ class Manifest:
         info("Parsing development manifest")
         dbt_invoke(["parse"], quiet=True)
 
+    @classmethod
+    def get_manifest_age(cls, manifest_path):
+        """Returns the age of the manifest in hours. If it doesn't exist, 999 is returned."""
+        manifest_file = Path(manifest_path)
+        if manifest_file.is_file():
+            from datetime import datetime
+
+            modified_time_float = manifest_file.stat().st_mtime
+            modified_time = datetime.fromtimestamp(modified_time_float)
+            current_time = datetime.now()
+            difference_in_seconds = (current_time - modified_time).total_seconds()
+
+            return int(difference_in_seconds // 3600)
+        return 999
+
     # TODO: Should only download if older than x
     @classmethod
-    def download_prod_manifest(cls):
-        """Download latest production manifest"""
-        info("Fetching production manifest")
-        from google.cloud import storage  # Only when used
+    def download_prod_manifest(cls, force=False):
+        """Downloads latest production manifest if force or older than 1 hour."""
+        if force or cls.get_manifest_age(manifest_path=cls.PROD_MANIFEST_PATH) >= 1:
+            info("Fetching production manifest")
+            from google.cloud import storage  # Only when used
 
-        gcs = storage.Client(project=project_config().gcp_project)
-        blob = gcs.bucket(project_config().dbt_state_bucket).blob("manifest.json")
-        # Create path if missing
-        cls.PROD_MANIFEST_PATH.parent.mkdir(parents=True, exist_ok=True)
-        # Download prod manifest to path
-        blob.download_to_filename(cls.PROD_MANIFEST_PATH)
-        gcs.close()
+            ensure_app_default_auth()
+
+            gcs = storage.Client(project=project_config().gcp_project)
+            blob = gcs.bucket(project_config().dbt_state_bucket).blob("manifest.json")
+            # Create path if missing
+            cls.PROD_MANIFEST_PATH.parent.mkdir(parents=True, exist_ok=True)
+            # Download prod manifest to path
+            blob.download_to_filename(cls.PROD_MANIFEST_PATH)
+            gcs.close()
 
     @classmethod
     def update_manifests(cls, type):
