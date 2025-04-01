@@ -24,6 +24,7 @@ class Manifest:
         with open(path, "r") as f:
             manifest = json.load(f)
             self.nodes = manifest["nodes"]
+            self.sources_nodes = manifest["sources"]
             self.parent_map = manifest["parent_map"]
             self.child_map = manifest["child_map"]
 
@@ -44,6 +45,7 @@ class Manifest:
         info("Parsing development manifest")
         dbt_invoke(["parse"], quiet=True)
 
+    # TODO: Should only download if older than x
     @classmethod
     def download_prod_manifest(cls):
         """Download latest production manifest"""
@@ -178,9 +180,11 @@ class Manifest:
                 parent_models = self.parent_models(key)
                 child_models = self.child_models(key)
                 models[node["name"]] = dict(
+                    unique_id=key,
                     database=node["database"],
                     schema=node["schema"],
                     name=node["name"],
+                    alias=node["alias"],
                     path=node["path"],
                     folder=str(folder),
                     tags=node["tags"],
@@ -260,6 +264,30 @@ class Manifest:
                 dependencies.add((child, materialized))
                 dependencies.update(self.model_dependencies_downstream(child))
         return dependencies
+
+    @functools.cache
+    def sources(self):
+        """Retrieve all models with their metadata and relationships."""
+        sources = dict()
+        for key, node in self.sources_nodes.items():
+            if node["resource_type"] == "source":
+                sources[node["name"]] = dict(
+                    unique_id=key,
+                    database=node["database"],
+                    schema=node["schema"],
+                    name=node["name"],
+                    source_name=node["source_name"],
+                    source_description=node["source_description"],
+                    identifier=node["identifier"],
+                    path=node["path"],
+                    folder="sources",
+                    description=node["description"],
+                    tags=node["tags"],
+                    meta=node["meta"],
+                    config=node["config"],
+                    source_meta=node["source_meta"],
+                )
+        return sources
 
 
 def model_style(name: str):
