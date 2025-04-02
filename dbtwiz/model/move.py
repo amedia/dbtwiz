@@ -1,4 +1,5 @@
 import os
+import re
 from copy import deepcopy
 from io import StringIO
 from pathlib import Path
@@ -122,9 +123,7 @@ def move_model(
             os.remove(old_yml_file)
             info(f"Deleted old dbt files for {old_model_name}", style="yellow")
 
-        info(
-            f"Successfully migrated model {old_model_name} to {new_model_name}"
-        )
+        info(f"Successfully migrated model {old_model_name} to {new_model_name}")
 
     except Exception as e:
         error(f"Error updating dbt files for model {old_model_name}: {e}")
@@ -134,3 +133,47 @@ def move_model(
         if os.path.exists(new_yml_file):
             os.remove(new_yml_file)
         info(f"Rolled back changes for {old_model_name}.")
+
+
+def update_model_references(old_model_name: str, new_model_name: str) -> None:
+    """
+    Updates all references to the old model name in dbt SQL files to the new model name.
+
+    Args:
+        old_model_name: The old model name (e.g., 'stg_old_domain__old_model_name').
+        new_model_name: The new model name (e.g., 'stg_new_domain__new_model_name').
+    """
+    try:
+        # Define the regex pattern to match `{{ ref('model_name') }}` with flexible spacing
+        ref_pattern = re.compile(
+            r"\{\{\s*ref\s*\(\s*['\"]"
+            + re.escape(old_model_name)
+            + r"['\"]\s*\)\s*\}\}",
+            re.IGNORECASE,
+        )
+
+        # Walk through the dbt project directory to find all SQL files
+        for root, _, files in os.walk(Path("models")):
+            for file in files:
+                if file.endswith(".sql"):
+                    file_path = Path(root) / file
+
+                    # Read the file content
+                    with open(file_path, "r") as f:
+                        content = f.read()
+
+                    # Replace all occurrences of the old model name with the new model name
+                    updated_content, replacements = ref_pattern.subn(
+                        f'{{{{ ref("{new_model_name}") }}}}', content
+                    )
+
+                    # If replacements were made, write the updated content back to the file
+                    if replacements > 0:
+                        with open(file_path, "w") as f:
+                            f.write(updated_content)
+                        info(f"Updated {replacements} references in {file_path}")
+
+        info(f"Completed updating references from {old_model_name} to {new_model_name}")
+
+    except Exception as e:
+        error(f"Error updating references in dbt files: {e}")
