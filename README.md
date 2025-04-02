@@ -45,8 +45,9 @@ $ dbtwiz config model_info:formatter "cat -s"
 
 - model
     - create
-    - inspect
     - from-sql
+    - inspect
+    - move
 - source
     - create
 - [build](docs/build.md)
