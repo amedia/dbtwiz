@@ -255,7 +255,7 @@ class BigQueryClient:
         except Exception as e:
             error(f"Error updating table constraints for {table_id}: {e}")
 
-    def copy_properties(self, source_table, destination_table, property_type) -> None:
+    def _copy_properties(self, source_table, destination_table, property_type) -> None:
         """
         Copies all relevant properties from a source table to a destination table.
         """
@@ -321,7 +321,7 @@ class BigQueryClient:
                 new_table = bigquery.Table(new_table_id)
 
                 # Copy all table properties
-                self.copy_properties(
+                self._copy_properties(
                     source_table=source_table,
                     destination_table=new_table,
                     property_type="TABLE",
@@ -344,7 +344,7 @@ class BigQueryClient:
                 # Create a new view with the same definition as the source view
                 new_view = bigquery.Table(new_table_id)
                 new_view.view_query = source_table.view_query
-                self.copy_properties(
+                self._copy_properties(
                     source_table=source_table,
                     destination_table=new_view,
                     property_type="VIEW",
@@ -426,7 +426,7 @@ class BigQueryClient:
                 # For views, create a new view with the same definition
                 bck_view = bigquery.Table(backup_table_id)
                 bck_view.view_query = old_table.view_query
-                self.copy_properties(
+                self._copy_properties(
                     source_table=old_table,
                     destination_table=bck_view,
                     property_type="VIEW",
@@ -451,7 +451,7 @@ class BigQueryClient:
             )
             view = bigquery.Table(view_id)
             view.view_query = f"select * from `{new_table_id}`"
-            self.copy_properties(
+            self._copy_properties(
                 source_table=old_table, destination_table=view, property_type="VIEW"
             )
             view.description = f"THIS VIEW IS DEPRECATED. USE {new_table_id}."
