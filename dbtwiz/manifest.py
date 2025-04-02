@@ -63,8 +63,8 @@ class Manifest:
 
     @classmethod
     def download_prod_manifest(cls, force=False):
-        """Downloads latest production manifest if force or older than 1 hour."""
-        if force or cls.get_local_manifest_age(manifest_path=cls.PROD_MANIFEST_PATH) >= 1:
+        """Downloads latest production manifest if force or older than 2 hours."""
+        if force or cls.get_local_manifest_age(manifest_path=cls.PROD_MANIFEST_PATH) >= 2:
             info("Fetching production manifest")
             from google.cloud import storage  # Only when used
 
