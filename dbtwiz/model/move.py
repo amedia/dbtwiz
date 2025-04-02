@@ -123,7 +123,7 @@ def move_model(
             info(f"Deleted old dbt files for {old_model_name}", style="yellow")
 
         info(
-            f"Successfully updated dbt files for model: {old_model_name} -> {new_model_name}"
+            f"Successfully migrated model {old_model_name} to {new_model_name}"
         )
 
     except Exception as e:
