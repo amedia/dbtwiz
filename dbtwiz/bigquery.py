@@ -66,14 +66,14 @@ class BigQueryClient:
                 self._credentials = credentials
 
         return self._credentials
-    
+
     def get_authorized_session(self):
         """Retrieve or create authorized session."""
         if self._authorized_session is None:
             from google.auth.transport.requests import AuthorizedSession
 
             self._authorized_session = AuthorizedSession(self.get_credentials())
-        
+
         return self._authorized_session
 
     def list_datasets_in_project(self, project) -> Tuple[List[str], str]:
@@ -336,11 +336,9 @@ class BigQueryClient:
                     )
                 # Copy data from the old table to the new table
                 job_config = bigquery.CopyJobConfig()
-                job = client.copy_table(
-                    source_table, new_table, job_config=job_config
-                )
+                job = client.copy_table(source_table, new_table, job_config=job_config)
                 job.result()  # Wait for the job to complete
-                print(f"Created new table: {new_table_id}")
+                info(f"Created new table: {new_table_id}")
 
             elif source_table.table_type == "VIEW":
                 # Create a new view with the same definition as the source view
@@ -354,7 +352,7 @@ class BigQueryClient:
                 new_view = client.create_table(new_view)
                 new_view.schema = source_table.schema
                 new_view = client.update_table(new_view, ["schema"])
-                print(f"Created new view {new_table_id}")
+                info(f"Created new view {new_table_id}")
 
             else:
                 raise ValueError(f"Unsupported table type: {source_table.table_type}")
@@ -363,6 +361,136 @@ class BigQueryClient:
             client.set_iam_policy(new_table_id, source_iam_policy)
 
         except self.NotFound:
-            print(f"Error: Table/view {old_table_id} not found.")
+            error(f"Error: Table/view {old_table_id} not found.")
         except Exception as e:
-            print(f"Error copying table/view {old_table_id} to {new_table_id}: {e}")
+            error(f"Error copying table/view {old_table_id} to {new_table_id}: {e}")
+
+    def migrate_table(
+        self,
+        old_table_id: str,
+        new_table_id: str,
+        backup_table_id: str,
+    ) -> None:
+        """
+        Replaces an exisiting table/view with a view to the given new table/view, which must already exist.
+        Before doing so, it creates a backup table in the original dataset.
+
+        Args:
+            old_table_id: The full table ID of the original table/view (e.g., 'project_a.dataset_old.table_old').
+            new_table_id: The full table ID of the new table/view (e.g., 'project_b.dataset_new.table_new').
+            backup_table_id: The full table ID of the backup table/view (e.g., 'project_a.dataset_old.table_old__bck').
+        """
+        try:
+            client = self.get_client()
+            bigquery = self.get_bigquery()
+
+            # Get the old table/view metadata
+            old_table = client.get_table(old_table_id)
+
+            old_table_name = old_table_id.split(".")[-1]
+            bck_table_name = backup_table_id.split(".")[-1]
+
+            # Fetch the IAM policy before renaming/deleting the old table/view
+            source_iam_policy = client.get_iam_policy(old_table_id)
+
+            # Handle tables and views differently
+            if old_table.table_type == "TABLE":
+                if old_table.table_constraints:
+                    # Remove constraints before renaming
+                    self.update_table_constraints(
+                        table_id=old_table_id,
+                        table_constraints=None,
+                    )
+
+                # For tables, use ALTER TABLE ... RENAME TO
+                query = f"""
+                alter table `{old_table_id}`
+                rename to `{bck_table_name}`;
+                """
+                query_job = client.query(query)
+                query_job.result()  # Wait for the job to complete
+                bck_table = client.get_table(backup_table_id)
+                bck_table.description = (
+                    f"THIS TABLE IS FOR BACKUP PURPOSES ONLY. USE {new_table_id}."
+                )
+                client.update_table(bck_table, ["description"])
+                if old_table.table_constraints:
+                    # Reapply constraints after renaming
+                    self.update_table_constraints(
+                        table_id=backup_table_id,
+                        table_constraints=old_table.table_constraints,
+                    )
+                info(f"Renamed table {old_table_id} to {bck_table_name}")
+
+            elif old_table.table_type == "VIEW":
+                # For views, create a new view with the same definition
+                bck_view = bigquery.Table(backup_table_id)
+                bck_view.view_query = old_table.view_query
+                self.copy_properties(
+                    source_table=old_table,
+                    destination_table=bck_view,
+                    property_type="VIEW",
+                )
+                bck_view.description = (
+                    f"THIS VIEW IS FOR BACKUP PURPOSES ONLY. USE {new_table_id}."
+                )
+                bck_view = client.create_table(bck_view)
+                bck_view.schema = old_table.schema
+                bck_view = client.update_table(bck_view, ["schema"])
+                info(f"Created new view {backup_table_id} as copy of {old_table_id}")
+
+                # Delete the original view
+                client.delete_table(old_table_id)
+
+            else:
+                raise ValueError(f"Unsupported table type: {old_table.table_type}")
+
+            # Create a view at the original table/view location
+            view_id = (
+                old_table_id  # View will have the same ID as the original table/view
+            )
+            view = bigquery.Table(view_id)
+            view.view_query = f"select * from `{new_table_id}`"
+            self.copy_properties(
+                source_table=old_table, destination_table=view, property_type="VIEW"
+            )
+            view.description = f"THIS VIEW IS DEPRECATED. USE {new_table_id}."
+            view = client.create_table(view)
+            view.schema = old_table.schema
+            view = client.update_table(view, ["schema"])
+            if old_table.table_constraints:
+                # Remove constraints before renaming
+                self.update_table_constraints(
+                    table_id=view_id,
+                    table_constraints=old_table.table_constraints,
+                )
+            info(f"Created view {view_id}")
+
+            # Replicate grants from the old table/view to the view
+            client.set_iam_policy(view_id, source_iam_policy)
+
+        except self.NotFound:
+            error(f"Error: Table/view {old_table_id} not found.")
+        except Exception as e:
+            error(f"Error renaming table/view or creating view: {e}")
+            # Roll back changes if any step fails
+            if old_table.table_type == "TABLE" and "bck_table_name" in locals():
+                # For tables, revert the rename operation
+                revert_query = f"""
+                alter table `{backup_table_id}`
+                rename to `{old_table_name}`;
+                """
+                try:
+                    revert_job = client.query(revert_query)
+                    revert_job.result()
+                    info(f"Rollback: Renamed {backup_table_id} back to {old_table_id}")
+                except Exception as revert_error:
+                    error(f"Failed to roll back rename operation: {revert_error}")
+            elif old_table.table_type == "VIEW" and "bck_table_name" in locals():
+                # For views, delete the new view if it was created
+                if client.get_table(bck_table_name, retry=None):
+                    client.delete_table(bck_table_name)
+                    info(f"Rollback: Deleted {bck_table_name}")
+            if "view_id" in locals() and client.get_table(view_id, retry=None):
+                client.delete_table(view_id)
+                info(f"Rollback: Deleted {view_id}")
