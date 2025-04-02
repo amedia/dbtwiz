@@ -181,7 +181,7 @@ def move(
     actions: Annotated[
         List[MoveAction],
         typer.Option("--action", "-a", help="Which move actions to execute"),
-    ] = MoveAction.move_model,
+    ] = [MoveAction.move_model],
     safe: Annotated[
         bool,
         typer.Option(
