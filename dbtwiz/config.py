@@ -1,11 +1,12 @@
 import configparser
 import functools
+import tomllib
 from pathlib import Path
 from typing import Any, Dict
 
 import typer
 
-from .logging import error, fatal, info
+from .logging import error, fatal, info, warn
 
 
 @functools.cache
@@ -177,12 +178,20 @@ class ProjectConfig:
         """Parse the 'pyproject.toml' file and set configuration settings."""
         project_file = self.root_path() / "pyproject.toml"
         try:
-            parser = configparser.ConfigParser()
-            parser.read(project_file)
-            for setting in self.SETTINGS:
-                value = parser.get("tool.dbtwiz.project", setting)
-                if value[0] == value[-1] and value[0] in ["'", '"']:
-                    value = value[1:-1]  # Strip surrounding quotes
-                self.__setattr__(setting, value)
+            with open("pyproject.toml", "rb") as f:
+                config = tomllib.load(f)
+                for setting in self.SETTINGS:
+                    value = (
+                        config.get("tool", {})
+                        .get("dbtwiz", {})
+                        .get("project", {})
+                        .get(setting, None)
+                    )
+                    if value:
+                        if value[0] == value[-1] and value[0] in ["'", '"']:
+                            value = value[1:-1]  # Strip surrounding quotes
+                        self.__setattr__(setting, value)
+                    else:
+                        warn(f"{setting} is missing from tool.dbtwiz.project config in pyproject.toml")
         except Exception as ex:
             fatal(f"Failed to parse file {project_file}: {ex}")
