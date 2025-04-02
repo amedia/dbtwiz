@@ -194,10 +194,6 @@ class BigQueryClient:
             table_constraints: The table constraints to apply.
         """
         try:
-            from google.auth.transport.requests import AuthorizedSession
-            # Create an authorized session
-            authed_session = AuthorizedSession(self.get_credentials())
-
             # Construct the REST API URL
             project_id, dataset_id, table_id_only = table_id.split(".")
             table_path = f"https://bigquery.googleapis.com/bigquery/v2/projects/{project_id}/datasets/{dataset_id}/tables/{table_id_only}"
@@ -242,6 +238,9 @@ class BigQueryClient:
                     ]
                 body["tableConstraints"] = new_table_constraints
 
+            # Create an authorized session
+            from google.auth.transport.requests import AuthorizedSession
+            authed_session = AuthorizedSession(self.get_credentials())
             # Send the PATCH request to update the table constraints
             response = authed_session.patch(table_path, json=body)
             response.raise_for_status()
