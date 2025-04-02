@@ -23,6 +23,7 @@ class BigQueryClient:
         self._bigquery = None
         self._client = None
         self._credentials = None
+        self._authorized_session = None
 
     def get_bigquery(self):
         """Get or import the BigQuery package."""
@@ -65,6 +66,15 @@ class BigQueryClient:
                 self._credentials = credentials
 
         return self._credentials
+    
+    def get_authorized_session(self):
+        """Retrieve or create authorized session."""
+        if self._authorized_session is None:
+            from google.auth.transport.requests import AuthorizedSession
+
+            self._authorized_session = AuthorizedSession(self.get_credentials())
+        
+        return self._authorized_session
 
     def list_datasets_in_project(self, project) -> Tuple[List[str], str]:
         """Fetch all datasets in the given project from BigQuery."""
@@ -183,9 +193,7 @@ class BigQueryClient:
         else:
             info(f"Table {table_id} is not partitioned. Skipping update.")
 
-    def update_table_constraints(
-        self, table_id: str, table_constraints: Dict
-    ) -> None:
+    def update_table_constraints(self, table_id: str, table_constraints: Dict) -> None:
         """
         Updates the table constraints (primary/foreign keys) using the BigQuery REST API.
 
@@ -239,11 +247,122 @@ class BigQueryClient:
                 body["tableConstraints"] = new_table_constraints
 
             # Create an authorized session
-            from google.auth.transport.requests import AuthorizedSession
-            authed_session = AuthorizedSession(self.get_credentials())
+            authed_session = self.get_authorized_session()
             # Send the PATCH request to update the table constraints
             response = authed_session.patch(table_path, json=body)
             response.raise_for_status()
 
         except Exception as e:
             error(f"Error updating table constraints for {table_id}: {e}")
+
+    def copy_properties(self, source_table, destination_table, property_type) -> None:
+        """
+        Copies all relevant properties from a source table to a destination table.
+        """
+        # Copy universal properties
+        destination_table.description = source_table.description
+        destination_table.labels = source_table.labels
+        if hasattr(source_table, "default_collation"):
+            destination_table.default_collation = source_table.default_collation
+
+        # Copy table specific options
+        if property_type == "TABLE":
+            # Copy schema (includes column descriptions)
+            destination_table.schema = source_table.schema
+
+            # Copy general properties
+            destination_table.time_partitioning = source_table.time_partitioning
+            destination_table.range_partitioning = source_table.range_partitioning
+            destination_table.clustering_fields = source_table.clustering_fields
+            destination_table.expires = source_table.expires
+            destination_table.encryption_configuration = (
+                source_table.encryption_configuration
+            )
+            destination_table.friendly_name = source_table.friendly_name
+
+            # Copy table options
+            destination_table.require_partition_filter = (
+                source_table.require_partition_filter
+            )
+            destination_table.max_staleness = source_table.max_staleness
+
+            if hasattr(source_table, "external_data_configuration"):
+                destination_table.external_data_configuration = (
+                    source_table.external_data_configuration
+                )
+            if hasattr(source_table, "materialized_view"):
+                destination_table.materialized_view = source_table.materialized_view
+
+        # Copy view specific options
+        elif property_type == "VIEW":
+            if hasattr(source_table, "view_options"):
+                destination_table.view_options = source_table.view_options
+
+    def copy_table(self, old_table_id: str, new_table_id: str) -> None:
+        """
+        Copies a BigQuery table or view from the old location to the new location.
+
+        Args:
+            old_table_id: The full table ID of the source table/view (e.g., 'project_a.dataset_old.table_old').
+            new_table_id: The full table ID of the destination table/view (e.g., 'project_b.dataset_new.table_new').
+        """
+        try:
+            client = self.get_client()
+            bigquery = self.get_bigquery()
+            # Get the source table/view
+            source_table = client.get_table(old_table_id)
+
+            # Fetch the IAM policy before renaming/deleting the old table/view
+            source_iam_policy = client.get_iam_policy(old_table_id)
+
+            # Check if the source object is a table or a view
+            if source_table.table_type == "TABLE":
+                # Create a new table with the same definition as the source table
+                new_table = bigquery.Table(new_table_id)
+
+                # Copy all table properties
+                self.copy_properties(
+                    source_table=source_table,
+                    destination_table=new_table,
+                    property_type="TABLE",
+                )
+
+                # Create the new table in BigQuery
+                new_table = client.create_table(new_table)
+                if source_table.table_constraints:
+                    self.update_table_constraints(
+                        table_id=new_table_id,
+                        table_constraints=source_table.table_constraints,
+                    )
+                # Copy data from the old table to the new table
+                job_config = bigquery.CopyJobConfig()
+                job = client.copy_table(
+                    source_table, new_table, job_config=job_config
+                )
+                job.result()  # Wait for the job to complete
+                print(f"Created new table: {new_table_id}")
+
+            elif source_table.table_type == "VIEW":
+                # Create a new view with the same definition as the source view
+                new_view = bigquery.Table(new_table_id)
+                new_view.view_query = source_table.view_query
+                self.copy_properties(
+                    source_table=source_table,
+                    destination_table=new_view,
+                    property_type="VIEW",
+                )
+                new_view = client.create_table(new_view)
+                new_view.schema = source_table.schema
+                new_view = client.update_table(new_view, ["schema"])
+                print(f"Created new view {new_table_id}")
+
+            else:
+                raise ValueError(f"Unsupported table type: {source_table.table_type}")
+
+            # Replicate grants from the old table/view to the new table/view
+            client.set_iam_policy(new_table_id, source_iam_policy)
+
+        except self.NotFound:
+            print(f"Error: Table/view {old_table_id} not found.")
+        except Exception as e:
+            print(f"Error copying table/view {old_table_id} to {new_table_id}: {e}")
