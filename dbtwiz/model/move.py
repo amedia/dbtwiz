@@ -7,17 +7,18 @@ from ruamel.yaml import YAML
 
 from dbtwiz.logging import error, info
 
+
 def move_model(
     old_folder_path: str,
     old_model_name: str,
     new_folder_path: str,
     new_model_name: str,
-    safe: bool = True
+    safe: bool = True,
 ) -> None:
     """
     Moves a model by copying with a new name to a new location.
 
-    If parameter safe is True then retains the original model, 
+    If parameter safe is True then retains the original model,
     but changes it to be a view pointing to the new model.
     Otherwise, the old model is deleted.
     """
@@ -93,8 +94,7 @@ def move_model(
             old_yml_content_updated_str = StringIO()
             ruamel_yaml.dump(old_yml_content_updated, old_yml_content_updated_str)
             old_yml_content_updated_str = old_yml_content_updated_str.getvalue()
-      
-      
+
         new_yml_content_str = StringIO()
         ruamel_yaml.dump(new_yml_content, new_yml_content_str)
         new_yml_content_str = new_yml_content_str.getvalue()
@@ -122,7 +122,9 @@ def move_model(
             os.remove(old_yml_file)
             info(f"Deleted old dbt files for {old_model_name}", style="yellow")
 
-        info(f"Successfully updated dbt files for model: {old_model_name} -> {new_model_name}")
+        info(
+            f"Successfully updated dbt files for model: {old_model_name} -> {new_model_name}"
+        )
 
     except Exception as e:
         error(f"Error updating dbt files for model {old_model_name}: {e}")

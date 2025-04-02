@@ -144,7 +144,11 @@ def move(
     ],
     old_model_name: Annotated[
         str,
-        typer.Option("--old-mode-name", "-omn", help="Current name for dbt model (excluding file type)"),
+        typer.Option(
+            "--old-mode-name",
+            "-omn",
+            help="Current name for dbt model (excluding file type)",
+        ),
     ],
     new_folder_path: Annotated[
         str,
@@ -152,11 +156,19 @@ def move(
     ],
     new_model_name: Annotated[
         str,
-        typer.Option("--new-model-name", "-nmn", help="New name for dbt model (excluding file type)"),
+        typer.Option(
+            "--new-model-name",
+            "-nmn",
+            help="New name for dbt model (excluding file type)",
+        ),
     ],
     safe: Annotated[
         bool,
-        typer.Option("--safe", "-s", help="Whether to keep old model as a view to the new or do a hard move."),
+        typer.Option(
+            "--safe",
+            "-s",
+            help="Whether to keep old model as a view to the new or do a hard move.",
+        ),
     ] = True,
 ):
     """Moves a model by copying with a new name to a new location"""
