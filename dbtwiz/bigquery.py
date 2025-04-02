@@ -298,9 +298,9 @@ class BigQueryClient:
             if hasattr(source_table, "view_options"):
                 destination_table.view_options = source_table.view_options
 
-    def copy_table(self, old_table_id: str, new_table_id: str) -> None:
+    def create_table_copy(self, old_table_id: str, new_table_id: str) -> None:
         """
-        Copies a BigQuery table or view from the old location to the new location.
+        Creates a copy of a BigQuery table or view with the new table id.
 
         Args:
             old_table_id: The full table ID of the source table/view (e.g., 'project_a.dataset_old.table_old').
