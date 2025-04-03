@@ -2,7 +2,7 @@ from typing import Dict, List, Tuple
 
 from ruamel.yaml.scalarstring import PreservedScalarString
 
-from dbtwiz.logging import info, error
+from dbtwiz.logging import error, info
 
 MILLISECONDS_PER_DAY = 1000 * 60 * 60 * 24
 
