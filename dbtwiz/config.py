@@ -145,19 +145,9 @@ class UserConfig:
 class ProjectConfig:
     """Project-specific settings from pyproject.toml"""
 
-    SETTINGS = [
-        "gcp_auth_domains",
-        "gcp_project",
-        "gcp_region",
-        "dbt_state_bucket",
-        "dbt_image_url",
-        "dbt_service_account",
-        "pod_manifest_path",
-        "pod_profiles_path",
-    ]
-
     def __init__(self) -> None:
         """Initialize the class by determining the root path and parsing the config."""
+        self._config = {}
         self._determine_root_path()
         self._parse_config()
 
@@ -169,31 +159,40 @@ class ProjectConfig:
         """Search upward from current path to find project root"""
         path_list = [Path.cwd()] + list(Path.cwd().parents)
         for path in path_list:
-            if (path / "pyproject.toml").exists:
+            if (path / "pyproject.toml").exists():
                 self.root = path
                 return
         fatal("No pyproject.toml file found in current or upstream directories.")
 
     def _parse_config(self):
-        """Parse the 'pyproject.toml' file and set configuration settings."""
+        """Parse the 'pyproject.toml' file and store the configuration."""
         project_file = self.root_path() / "pyproject.toml"
         try:
-            with open("pyproject.toml", "rb") as f:
+            with open(project_file, "rb") as f:
                 config = tomllib.load(f)
-                for setting in self.SETTINGS:
-                    value = (
-                        config.get("tool", {})
-                        .get("dbtwiz", {})
-                        .get("project", {})
-                        .get(setting, None)
-                    )
-                    if value:
-                        if value[0] == value[-1] and value[0] in ["'", '"']:
-                            value = value[1:-1]  # Strip surrounding quotes
-                        self.__setattr__(setting, value)
-                    else:
-                        warn(
-                            f"{setting} is missing from tool.dbtwiz.project config in pyproject.toml"
-                        )
+                self._config = (
+                    config.get("tool", {}).get("dbtwiz", {}).get("project", {})
+                )
         except Exception as ex:
             fatal(f"Failed to parse file {project_file}: {ex}")
+
+    def __getattr__(self, name):
+        """Dynamically handle attribute access and warn if the setting is missing."""
+        if name in self._config:
+            value = self._config[name]
+            if (
+                isinstance(value, str)
+                and value[0] == value[-1]
+                and value[0] in ["'", '"']
+            ):
+                value = value[1:-1]  # Strip surrounding quotes
+            return value
+        else:
+            warn(
+                f"'{name}' is missing from tool.dbtwiz.project config in pyproject.toml"
+            )
+            return None  # or raise AttributeError if you prefer
+
+    def __dir__(self):
+        """Include dynamic attributes for autocompletion."""
+        return list(self._config.keys()) + list(super().__dir__())
