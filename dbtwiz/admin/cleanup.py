@@ -60,7 +60,7 @@ def build_data_structure(manifest_models, client):
         data[project][dataset]["manifest"].append(table)
 
     # Add existing materializations in DWH by querying information schema
-    for project, datasets in data.items():
+    for project in data.keys():
         info(f"Fetching datasets and tables for project {project}")
         query = f"""
             select table_schema, array_agg(table_name) as tables
