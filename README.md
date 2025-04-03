@@ -43,21 +43,29 @@ $ dbtwiz config model_info:formatter "cat -s"
 
 ## Subcommands
 
-- `model`: Commands for a dbt model
-    - `create`: Create new dbt model
-    - `inspect`: Output information about a given model
-    - `from-sql`: Convert a sql file to a dbt model by replacing table references with source and ref
-    - `move`: Moves a model by copying to a new location with a new name, and/or by updating the references to the model by other dbt models.
-- `source`: Commands for a dbt source
-    - `create`: Create new dbt source
-- [build](docs/build.md): Build dbt models
-- `test`: Test dbt models
-- `sqlfix`: Run sqlfmt-fix and sqlfluff-fix on staged changes
-- `manifest`: Update dev and production manifests for fast lookup
-- [backfill](docs/backfill.md): Backfill dbt models by generating job spec and execute through Cloud Run
-- `freshness`: Run source freshness tests
-- `config`: Update configuration setting
-- `admin`: Administrative commands
-    - `orphaned`: List or delete orphaned materializations in the data warehouse
-    - `cleandev`: Delete all materializations in the dbt development dataset
-    - `partition-expiry`: Checks for mismatched partition expiry and allows updating to correct
+[comment]: <> (START ACCESS CONFIG)
+
+- `model` - Commands for a dbt model
+  - [`create`](docs/model_create.md) - Create new dbt model
+  - [`inspect`](docs/model_inspect.md) - Output information about a given model
+  - [`from_sql`](docs/model_from_sql.md) - Convert a sql file to a dbt model by replacing table references with source and ref
+  - [`move`](docs/model_move.md) - Moves a model by copying to a new location with a new name,
+and/or by updating the references to the model by other dbt models.
+- `source` - Commands for a dbt source
+  - [`create`](docs/source_create.md) - Create new dbt source
+- [`build`](docs/build.md) - Build one or more dbt models, using interactive selection with fuzzy-matching,
+unless an exact model name is passed.
+- [`test`](docs/test.md) - Test dbt models
+- [`sqlfix`](docs/sqlfix.md) - Run sqlfmt-fix and sqlfluff-fix on staged changes
+- [`manifest`](docs/manifest.md) - Update dev and production manifests for fast lookup
+- [`backfill`](docs/backfill.md) - The _backfill_ subcommand allows you to (re)run date-partitioned models in production for a
+period spanning one or multiple days. It will spawn a Cloud Run job that will run `dbt` for
+a configurable number of days in parallel.
+- [`freshness`](docs/freshness.md) - Run source freshness tests
+- [`config`](docs/config.md) - Update configuration setting
+- `admin` - Administrative commands
+  - [`orphaned`](docs/admin_orphaned.md) - List or delete orphaned materializations in the data warehouse
+  - [`cleandev`](docs/admin_cleandev.md) - Delete all materializations in the dbt development dataset
+  - [`partition_expiry`](docs/admin_partition_expiry.md) - Checks for mismatched partition expiry and allows updating to correct.
+
+[comment]: <> (END ACCESS CONFIG)
