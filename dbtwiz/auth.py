@@ -36,7 +36,9 @@ def ensure_app_default_auth() -> None:
                 # debug(f"GCP credentials seem to be valid until {expiry.strftime('%H:%M:%S')}.")
                 return
             else:
-                warn("GCP application-default credentials seem to expire within the next five minutes.")
+                warn(
+                    "GCP application-default credentials seem to expire within the next five minutes."
+                )
         else:
             warn(
                 f"GCP application-default credentials seem to have expired at {expiry.strftime('%Y-%m-%d %H:%M:%S')}."
@@ -72,7 +74,8 @@ def ensure_gcloud_auth() -> None:
     # Check if an allowed domain account is authenticated
     for account in accounts:
         if account.get("status") == "ACTIVE" and any(
-            account.get("account").lower().endswith(f"@{domain}") for domain in allowed_domains
+            account.get("account").lower().endswith(f"@{domain}")
+            for domain in allowed_domains
         ):
             return
     warn("No valid GCP account is authenticated.")

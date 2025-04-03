@@ -41,9 +41,7 @@ def empty_development_dataset(force_delete: bool) -> None:
                 style="red",
             )
         except Exception as e:
-            error(
-                f"Failed to delete {table_id}: {e}"
-            )
+            error(f"Failed to delete {table_id}: {e}")
 
 
 def build_data_structure(manifest_models, client):

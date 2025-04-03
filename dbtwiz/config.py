@@ -192,6 +192,8 @@ class ProjectConfig:
                             value = value[1:-1]  # Strip surrounding quotes
                         self.__setattr__(setting, value)
                     else:
-                        warn(f"{setting} is missing from tool.dbtwiz.project config in pyproject.toml")
+                        warn(
+                            f"{setting} is missing from tool.dbtwiz.project config in pyproject.toml"
+                        )
         except Exception as ex:
             fatal(f"Failed to parse file {project_file}: {ex}")
