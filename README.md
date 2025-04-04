@@ -9,6 +9,9 @@ pip install git+https://github.com/amedia/dbtwiz
 
 ## Subcommands
 
+These are the available subcommands for `dbtwiz`.
+You can also run `dbtwiz --help`/`dbtwiz -h`, which will list the commands with more details.
+
 [comment]: <> (START ACCESS CONFIG)
 
 - `model` - Commands for a dbt model
