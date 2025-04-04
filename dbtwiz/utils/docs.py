@@ -128,9 +128,14 @@ def generate_markdown(app_name: str, full_command_path: List[str], command_func)
             "\n## Examples\n\n" + "\n".join(cmd for cmd in example_commands) + "\n"
         )
 
-    # ... rest of markdown generation ...
-
     markdown += examples_section
+
+    # Check for changes before writing file TODO: Remove print
+    if output_file.exists():
+        with open(output_file, 'r', encoding='utf-8') as f:
+            if f.read() == markdown:
+                print(f"[=] No changes: {output_file.relative_to(REPO_ROOT)}")
+                return
 
     try:
         with open(output_file, "w", encoding="utf-8") as f:
@@ -256,10 +261,14 @@ def update_readme(app: typer.Typer, app_name: str):
         command_list = generate_readme_command_list(app, app_name)
         new_content = f"{before_content}\n\n{command_list}\n\n{after_content}"
 
-        with open(README_PATH, "w", encoding="utf-8") as f:
-            f.write(new_content)
+        # Check for changes before writing file TODO: Remove print
+        if content != new_content:
+            with open(README_PATH, "w", encoding='utf-8') as f:
+                f.write(new_content)
+            print(f"[✓] Updated command list in {README_PATH.relative_to(REPO_ROOT)}")
+        else:
+            print(f"[=] README.md command list unchanged")
 
-        print(f"[✓] Updated command list in {README_PATH.relative_to(REPO_ROOT)}")
     except Exception as e:
         print(f"[x] Failed to update {README_PATH.relative_to(REPO_ROOT)}: {e}")
 
