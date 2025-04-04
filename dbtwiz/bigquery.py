@@ -405,8 +405,6 @@ class BigQueryClient:
             # Replicate grants from the old table/view to the new table/view
             client.set_iam_policy(new_table_id, old_iam_policy)
 
-        except self.NotFound:
-            error(f"Error: {old_table_id} not found.")
         except Exception as e:
             error(f"Error copying table/view {old_table_id} to {new_table_id}: {e}")
 
@@ -520,8 +518,6 @@ class BigQueryClient:
             # Replicate grants from the old table/view to the view
             client.set_iam_policy(view_id, old_iam_policy)
 
-        except self.NotFound:
-            error(f"Error: Table/view {old_table_id} not found.")
         except Exception as e:
             error(f"Error renaming table/view or creating view: {e}")
             # Roll back changes if any step fails
