@@ -135,9 +135,9 @@ def generate_markdown(app_name: str, full_command_path: List[str], command_func)
     try:
         with open(output_file, "w", encoding="utf-8") as f:
             f.write(markdown)
-        print(f"Generated: {output_file.relative_to(REPO_ROOT)}")
+        print(f"[✓] Generated: {output_file.relative_to(REPO_ROOT)}")
     except Exception as e:
-        print(f"Failed to write {output_file.relative_to(REPO_ROOT)}: {e}")
+        print(f"[x] Failed to write {output_file.relative_to(REPO_ROOT)}: {e}")
 
 
 def get_group_name(group) -> str:
@@ -233,7 +233,7 @@ def generate_readme_command_list(app: typer.Typer, app_name: str) -> str:
 def update_readme(app: typer.Typer, app_name: str):
     """Update README.md with the command list between the special comments"""
     if not README_PATH.exists():
-        print(f"README.md not found at {README_PATH.relative_to(REPO_ROOT)}")
+        print(f"[x] README.md not found at {README_PATH.relative_to(REPO_ROOT)}")
         return
 
     try:
@@ -247,7 +247,7 @@ def update_readme(app: typer.Typer, app_name: str):
         end_pos = content.find(end_marker)
 
         if start_pos == -1 or end_pos == -1:
-            print("Could not find START/END ACCESS CONFIG markers in README.md")
+            print("[x] Could not find START/END ACCESS CONFIG markers in README.md")
             return
 
         before_content = content[: start_pos + len(start_marker)]
@@ -259,9 +259,9 @@ def update_readme(app: typer.Typer, app_name: str):
         with open(README_PATH, "w", encoding="utf-8") as f:
             f.write(new_content)
 
-        print(f"Updated command list in {README_PATH.relative_to(REPO_ROOT)}")
+        print(f"[✓] Updated command list in {README_PATH.relative_to(REPO_ROOT)}")
     except Exception as e:
-        print(f"Failed to update {README_PATH.relative_to(REPO_ROOT)}: {e}")
+        print(f"[x] Failed to update {README_PATH.relative_to(REPO_ROOT)}: {e}")
 
 
 def process_commands(
