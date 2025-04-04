@@ -1,0 +1,11 @@
+repos:
+-   repo: local
+    hooks:
+    -   id: update-docs
+        name: Generate updated docs
+        entry: poetry run python dbtwiz/utils/docs.py
+        language: system
+        pass_filenames: false
+        always_run: false
+        # Only run for changes to macro yml, readme_base or readme
+        files: '^macros/.*\.yml$|^utils/readme\_base\.md$|^utils/update_readme\.py$'
