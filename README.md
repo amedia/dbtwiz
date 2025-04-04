@@ -40,7 +40,7 @@ a configurable number of days in parallel.
 ## Configuration
 Depending on the specific subcommand, there are some configuration settings defined in a `pyproject.toml` file that the tool will look for.
 
-The tool will give you a warning when you run a commmand that needs one of the config elements, so you don't need to add them all before it becomes relevant.
+The tool will give you a warning when you run a commmand that needs one of the config elements should it be missing, so you don't need to add them all before it becomes relevant.
 
 ```
 [tool.dbtwiz.project]
