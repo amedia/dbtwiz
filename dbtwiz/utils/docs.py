@@ -140,7 +140,7 @@ def generate_markdown(app_name: str, full_command_path: List[str], command_func)
     try:
         with open(output_file, "w", encoding="utf-8") as f:
             f.write(markdown)
-        print(f"[✓] Generated: {output_file.relative_to(REPO_ROOT)}")
+        print(f"[+] Generated: {output_file.relative_to(REPO_ROOT)}")
     except Exception as e:
         print(f"[x] Failed to write {output_file.relative_to(REPO_ROOT)}: {e}")
 
@@ -265,7 +265,7 @@ def update_readme(app: typer.Typer, app_name: str):
         if content != new_content:
             with open(README_PATH, "w", encoding='utf-8') as f:
                 f.write(new_content)
-            print(f"[✓] Updated command list in {README_PATH.relative_to(REPO_ROOT)}")
+            print(f"[+] Updated command list in {README_PATH.relative_to(REPO_ROOT)}")
         else:
             print(f"[=] README.md command list unchanged")
 
