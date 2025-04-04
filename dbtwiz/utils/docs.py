@@ -165,18 +165,12 @@ def generate_readme_command_list(app: typer.Typer, app_name: str) -> str:
         return str(cmd)
 
     def get_command_description(cmd) -> str:
-        """Extract the command description from either the callback or Typer info"""
+        """Extract the command description from help or the callback info"""
         if hasattr(cmd, "help") and cmd.help:
             return cmd.help
 
         if hasattr(cmd, "callback") and cmd.callback and cmd.callback.__doc__:
             return inspect.cleandoc(cmd.callback.__doc__)
-
-        if hasattr(cmd, "typer_instance") and hasattr(cmd.typer_instance, "info"):
-            help_text = getattr(cmd.typer_instance.info, "help", None)
-            if isinstance(help_text, DefaultPlaceholder):
-                return getattr(help_text, "value", "No description available.")
-            return help_text or "No description available."
 
         return "No description available."
 
