@@ -323,7 +323,7 @@ class BigQueryClient:
 
             if table_state and table_state != expected_state:
                 state_results.append(
-                    f"- {table}: expected state was `{expected_state}` but had `{table_state}`"
+                    f"- {table_id}: expected state was `{expected_state}` but had `{table_state}`"
                 )
 
         if len(state_results) > 0:
@@ -345,8 +345,6 @@ class BigQueryClient:
         try:
             client = self.get_client()
             bigquery = self.get_bigquery()
-            # Get the source table/view
-            old_table = client.get_table(old_table_id)
 
             # Verify table states - skip if not as expected
             table_state_check = self._check_expected_table_states(
@@ -359,7 +357,8 @@ class BigQueryClient:
             if not table_state_check:
                 return
 
-            # Fetch the IAM policy before renaming/deleting the old table/view
+            # Get table metadata and iam policy
+            old_table = client.get_table(old_table_id)
             old_iam_policy = client.get_iam_policy(old_table_id)
 
             # Check if the source object is a table or a view
@@ -407,7 +406,7 @@ class BigQueryClient:
             client.set_iam_policy(new_table_id, old_iam_policy)
 
         except self.NotFound:
-            error(f"Error: Table/view {old_table_id} not found.")
+            error(f"Error: {old_table_id} not found.")
         except Exception as e:
             error(f"Error copying table/view {old_table_id} to {new_table_id}: {e}")
 
@@ -430,9 +429,6 @@ class BigQueryClient:
             client = self.get_client()
             bigquery = self.get_bigquery()
 
-            # Get table metadata
-            old_table = client.get_table(old_table_id)
-
             # Verify table states - skip if not as expected
             table_state_check = self._check_expected_table_states(
                 tables=[
@@ -445,11 +441,12 @@ class BigQueryClient:
             if not table_state_check:
                 return
 
+            # Get table metadata and iam policy
+            old_table = client.get_table(old_table_id)
+            old_iam_policy = client.get_iam_policy(old_table_id)
+
             old_table_name = old_table_id.split(".")[-1]
             backup_table_name = backup_table_id.split(".")[-1]
-
-            # Fetch the IAM policy before renaming/deleting the old table/view
-            source_iam_policy = client.get_iam_policy(old_table_id)
 
             # Handle tables and views differently
             if old_table.table_type == "TABLE":
@@ -521,7 +518,7 @@ class BigQueryClient:
             info(f"Created view {view_id}")
 
             # Replicate grants from the old table/view to the view
-            client.set_iam_policy(view_id, source_iam_policy)
+            client.set_iam_policy(view_id, old_iam_policy)
 
         except self.NotFound:
             error(f"Error: Table/view {old_table_id} not found.")
