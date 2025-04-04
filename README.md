@@ -1,44 +1,10 @@
 # dbtwiz
-Python package with CLI helper tool for dbt
+Python package with CLI helper tools for dbt.
 
 ## Installation
 
 ```
 pip install git+https://github.com/amedia/dbtwiz
-```
-
-## Development
-
-```
-# where you keep locally checked out repos:
-git clone git@github.com:amedia/dbtwiz
-
-# inside the virtual environment of your dbt project:
-pip install -e <local-path-to-dbtwiz-repository>
-```
-
-## Configuration
-
-The default configuration of _dbtwiz_ will be installed the first time you run it, but you
-may want to adjust some settings from the get-go to fit your environment.
-
-### Dark mode
-If you're using a dark background colour in your terminal, you should configure _dbtwiz_ to
-use bright colours for highlighting in previews and elsewhere to make the text more readable.
-
-Run the following command to switch from default light mode to dark mode:
-```shell
-$ dbtwiz config theme dark
-```
-
-### Preview formatter
-
-By default, _dbtwiz_ uses the command _fmt_ tool to format text in the preview window when
-selecting models interactively. Under macOS, the _fmt_ tool won't handle ANSI escape codes,
-and unless you have the GNU coreutils version of _fmt_ you will get garbage characters in the
-preview window, and should switch to the simple _cat_ command for formatting instead:
-```shell
-$ dbtwiz config model_info:formatter "cat -s"
 ```
 
 ## Subcommands
@@ -69,3 +35,53 @@ a configurable number of days in parallel.
   - [`partition_expiry`](docs/admin_partition_expiry.md) - Checks for mismatched partition expiry and allows updating to correct.
 
 [comment]: <> (END ACCESS CONFIG)
+
+
+## Configuration
+Depending on the specific subcommand, there are some configuration settings defined in a `pyproject.toml` file that the tool will look for.
+
+The tool will give you a warning when you run a commmand that needs one of the config elements, so you don't need to add them all before it becomes relevant.
+
+```
+[tool.dbtwiz.project]
+gcp_auth_domains = []
+gcp_project = ""
+gcp_region = ""
+dbt_state_bucket = ""
+dbt_image_url = ""
+dbt_service_account = ""
+pod_manifest_path = ""
+pod_profiles_path = ""
+```
+
+The default configuration of _dbtwiz_ will be installed the first time you run it, but you
+may want to adjust some settings from the get-go to fit your environment.
+
+### Dark mode
+If you're using a dark background colour in your terminal, you should configure _dbtwiz_ to
+use bright colours for highlighting in previews and elsewhere to make the text more readable.
+
+Run the following command to switch from default light mode to dark mode:
+```shell
+$ dbtwiz config theme dark
+```
+
+### Preview formatter
+
+By default, _dbtwiz_ uses the command _fmt_ tool to format text in the preview window when
+selecting models interactively. Under macOS, the _fmt_ tool won't handle ANSI escape codes,
+and unless you have the GNU coreutils version of _fmt_ you will get garbage characters in the
+preview window, and should switch to the simple _cat_ command for formatting instead:
+```shell
+$ dbtwiz config model_info:formatter "cat -s"
+```
+
+## Development
+
+```
+# where you keep locally checked out repos:
+git clone git@github.com:amedia/dbtwiz
+
+# inside the virtual environment of your dbt project:
+pip install -e <local-path-to-dbtwiz-repository>
+```
