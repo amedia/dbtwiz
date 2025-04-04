@@ -6,7 +6,7 @@ from typing import Any, Dict
 
 import typer
 
-from .logging import error, fatal, info, warn
+from .logging import error, fatal, info
 
 
 @functools.cache
@@ -180,15 +180,13 @@ class ProjectConfig:
         """Dynamically handle attribute access and warn if the setting is missing."""
         if name in self._config:
             value = self._config[name]
-            if (
-                isinstance(value, str)
-                and value[0] == value[-1]
-                and value[0] in ["'", '"']
-            ):
-                value = value[1:-1]  # Strip surrounding quotes
+            if not value or value == "":
+                fatal(
+                    f"'{name}' config is undefined in tool.dbtwiz.project config in pyproject.toml"
+                )
             return value
         else:
-            warn(
+            fatal(
                 f"'{name}' is missing from tool.dbtwiz.project config in pyproject.toml"
             )
             return None  # or raise AttributeError if you prefer
