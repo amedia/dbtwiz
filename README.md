@@ -39,8 +39,9 @@ a configurable number of days in parallel.
 
 [comment]: <> (END ACCESS CONFIG)
 
-
 ## Configuration
+
+### Project config
 Depending on the specific subcommand, there are some configuration settings defined in a `pyproject.toml` file that the tool will look for.
 
 The tool will give you a warning when you run a commmand that needs one of the config elements should it be missing, so you don't need to add them all before it becomes relevant.
@@ -57,6 +58,7 @@ pod_manifest_path = ""
 pod_profiles_path = ""
 ```
 
+### User config
 The default configuration of _dbtwiz_ will be installed the first time you run it, but you
 may want to adjust some settings from the get-go to fit your environment.
 
