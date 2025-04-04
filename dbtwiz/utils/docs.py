@@ -6,7 +6,7 @@ from typing import Annotated, List, get_args, get_origin
 import typer
 from typer.models import ArgumentInfo, DefaultPlaceholder, OptionInfo
 
-from dbtwiz import admin, commands, model, source
+from dbtwiz import main
 
 # Get the directory where this script lives
 SCRIPT_DIR = Path(__file__).parent.resolve()
@@ -286,12 +286,5 @@ def process_commands(
 
 
 def update_docs():
-    app = typer.Typer()
-
-    app.add_typer(model.app, name="model", help="Commands for a dbt model")
-    app.add_typer(source.app, name="source", help="Commands for a dbt source")
-    app.add_typer(commands.app)
-    app.add_typer(admin.app, name="admin", help="Administrative commands")
-
-    process_commands(app, "dbtwiz")
-    update_readme(app, "dbtwiz")
+    process_commands(main.app, "dbtwiz")
+    update_readme(main.app, "dbtwiz")
