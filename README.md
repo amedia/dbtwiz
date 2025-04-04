@@ -62,7 +62,7 @@ pod_profiles_path = ""
 The default configuration of _dbtwiz_ will be installed the first time you run it, but you
 may want to adjust some settings from the get-go to fit your environment.
 
-### Dark mode
+#### Dark mode
 If you're using a dark background colour in your terminal, you should configure _dbtwiz_ to
 use bright colours for highlighting in previews and elsewhere to make the text more readable.
 
@@ -71,7 +71,7 @@ Run the following command to switch from default light mode to dark mode:
 $ dbtwiz config theme dark
 ```
 
-### Preview formatter
+#### Preview formatter
 
 By default, _dbtwiz_ uses the command _fmt_ tool to format text in the preview window when
 selecting models interactively. Under macOS, the _fmt_ tool won't handle ANSI escape codes,
