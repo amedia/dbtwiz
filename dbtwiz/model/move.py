@@ -9,6 +9,22 @@ from ruamel.yaml import YAML
 from dbtwiz.logging import error, info
 
 
+def _write_file(file_path, file_content):
+    """Generic function for writing file."""
+    with open(file_path, "w", encoding="utf-8") as file:
+        file.write(file_content)
+
+
+def _read_file(file_path, yml_loader=None):
+    """Generic function for reading file."""
+    with open(file_path, "r", encoding="utf-8") as file:
+        if yml_loader:
+            return yml_loader.load(file)
+        else:
+            return file.read()
+    return None
+
+
 def move_model(
     old_folder_path: str,
     old_model_name: str,
@@ -43,18 +59,12 @@ def move_model(
         ruamel_yaml.indent(mapping=2, sequence=4, offset=2)
 
         # Step 1: Create new SQL and YML content in memory
-        # Read the old SQL file
-        with open(old_sql_file, "r", encoding="utf-8") as file:
-            old_sql_content = file.read()
+        # Read the old files
+        old_sql_content = _read_file(old_sql_file)
+        old_yml_content = _read_file(old_yml_file, yml_loader=ruamel_yaml)
 
-        # Create new SQL content (same as old SQL content)
+        # Create new file contents
         new_sql_content = old_sql_content
-
-        # Read the old YML file
-        with open(old_yml_file, "r", encoding="utf-8") as file:
-            old_yml_content = ruamel_yaml.load(file)
-
-        # Create new YML content with the new model name
         new_yml_content = deepcopy(old_yml_content)
         new_yml_content["models"][0]["name"] = new_model_name
 
@@ -101,22 +111,12 @@ def move_model(
         new_yml_content_str = new_yml_content_str.getvalue()
 
         # Step 5: Write all changes to disk (only if all in-memory operations succeeded)
-        # Write new SQL file
-        with open(new_sql_file, "w", encoding="utf-8") as file:
-            file.write(new_sql_content)
-
-        # Write new YML file
-        with open(new_yml_file, "w", encoding="utf-8") as file:
-            file.write(new_yml_content_str)
+        _write_file(new_sql_file, new_sql_content)
+        _write_file(new_yml_file, new_yml_content_str)
 
         if safe:
-            # Update old SQL file
-            with open(old_sql_file, "w", encoding="utf-8") as file:
-                file.write(old_sql_content_updated)
-
-            # Update old YML file
-            with open(old_yml_file, "w", encoding="utf-8") as file:
-                file.write(old_yml_content_updated_str)
+            _write_file(old_sql_file, old_sql_content_updated)
+            _write_file(old_yml_file, old_yml_content_updated_str)
         else:
             # Delete the old files
             os.remove(old_sql_file)
@@ -158,19 +158,15 @@ def update_model_references(old_model_name: str, new_model_name: str) -> None:
                 if file.endswith(".sql"):
                     file_path = Path(root) / file
 
-                    # Read the file content
-                    with open(file_path, "r") as f:
-                        content = f.read()
-
                     # Replace all occurrences of the old model name with the new model name
+                    content = _read_file(file_path)
                     updated_content, replacements = ref_pattern.subn(
                         f'{{{{ ref("{new_model_name}") }}}}', content
                     )
 
                     # If replacements were made, write the updated content back to the file
                     if replacements > 0:
-                        with open(file_path, "w") as f:
-                            f.write(updated_content)
+                        _write_file(file_path, updated_content)
                         info(f"Updated {replacements} references in {file_path}")
 
         info(f"Completed updating references from {old_model_name} to {new_model_name}")
