@@ -1,6 +1,6 @@
 # `dbtwiz model from_sql`
 
-Convert a sql file to a dbt model by replacing table references with source and ref
+Convert a sql file to a dbt model by replacing table references with source and ref.
 
 ## Options
 

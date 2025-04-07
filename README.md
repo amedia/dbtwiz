@@ -1,5 +1,6 @@
 # dbtwiz
-Python package with CLI helper tools for dbt.
+Python package with CLI helper tool for dbt in GCP using BigQuery.
+Although some functions are platform independent, the majority assume GCP and BigQuery is used.
 
 ## Installation
 
@@ -15,9 +16,9 @@ You can also run `dbtwiz --help`/`dbtwiz -h`, which will list the commands with 
 [comment]: <> (START ACCESS CONFIG)
 
 - `model` - Commands for a dbt model
-  - [`create`](docs/model_create.md) - Create new dbt model
-  - [`inspect`](docs/model_inspect.md) - Output information about a given model
-  - [`from_sql`](docs/model_from_sql.md) - Convert a sql file to a dbt model by replacing table references with source and ref
+  - [`create`](docs/model_create.md) - Create new dbt model.
+  - [`inspect`](docs/model_inspect.md) - Output information about a given model.
+  - [`from_sql`](docs/model_from_sql.md) - Convert a sql file to a dbt model by replacing table references with source and ref.
   - [`move`](docs/model_move.md) - Moves a model by copying to a new location with a new name,
 and/or by updating the references to the model by other dbt models.
 - `source` - Commands for a dbt source

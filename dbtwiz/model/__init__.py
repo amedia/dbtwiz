@@ -3,6 +3,8 @@ from typing import Annotated, List
 
 import typer
 
+from dbtwiz.utils.decorators import description
+
 from .create import create_model
 from .from_sql import convert_sql_to_model
 from .inspect import inspect_model
@@ -19,6 +21,21 @@ class MoveAction(str, Enum):
 
 
 @app.command()
+@description(
+    """The dbt model creation functions assume a dbt project folder structure that is models -> layer -> domain:
+```
+models:
+  1_staging (stg as abbreviation)
+    <folders for each domain>
+      <models prefixed by abbreviated layer and domain, e.g. stg_<domain>__model_identifier>
+  2_intermediate (int as abbreviation)
+    <as above>
+  3_marts (mrt as abbreviation)
+    <as above>
+  4_bespoke (bsp as abbreviation)
+    <as above>
+```"""
+)
 def create(
     quick: Annotated[
         bool,
@@ -103,7 +120,7 @@ def create(
         ),
     ] = None,
 ):
-    """Create new dbt model"""
+    """Create new dbt model."""
     create_model(
         quick=quick,
         layer=layer,
@@ -129,7 +146,7 @@ def inspect(
         typer.Option("--name", "-n", help="Model name or path"),
     ],
 ):
-    """Output information about a given model"""
+    """Output information about a given model."""
     inspect_model(name=name)
 
 
@@ -140,7 +157,7 @@ def from_sql(
         typer.Option("--file-path", "-f", help="File path for sql file"),
     ],
 ):
-    """Convert a sql file to a dbt model by replacing table references with source and ref"""
+    """Convert a sql file to a dbt model by replacing table references with source and ref."""
     convert_sql_to_model(file_path=file_path)
 
 

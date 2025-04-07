@@ -1,6 +1,6 @@
 # `dbtwiz model inspect`
 
-Output information about a given model
+Output information about a given model.
 
 ## Options
 

@@ -1,7 +1,20 @@
 # `dbtwiz model create`
 
-Create new dbt model
+Create new dbt model.
 
+The dbt model creation functions assume a dbt project folder structure that is models -> layer -> domain:
+```
+models:
+  1_staging (stg as abbreviation)
+    <folders for each domain>
+      <models prefixed by abbreviated layer and domain, e.g. stg_<domain>__model_identifier>
+  2_intermediate (int as abbreviation)
+    <as above>
+  3_marts (mrt as abbreviation)
+    <as above>
+  4_bespoke (bsp as abbreviation)
+    <as above>
+```
 ## Options
 
 ### `--quick`, `-q`
