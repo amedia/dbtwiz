@@ -3,13 +3,13 @@ from typing import Annotated
 
 import typer
 
+from dbtwiz.manifest import Manifest
 from dbtwiz.target import Target
 from dbtwiz.utils.decorators import examples
 
 from .backfill import backfill as command_backfill
 from .build import build as command_build
 from .config import config as command_config
-from .manifest import manifest as command_manifest
 from .test import test as command_test
 
 app = typer.Typer()
@@ -183,7 +183,7 @@ def manifest(
     ] = "all",
 ):
     """Update dev and production manifests for fast lookup"""
-    command_manifest(type)
+    Manifest.update_manifests(type)
 
 
 @app.command()
