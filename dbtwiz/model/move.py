@@ -25,6 +25,12 @@ def _read_file(file_path, yml_loader=None):
     return None
 
 
+def _safe_delete_file(file_path):
+    """Safely deletes a file should it exist."""
+    if os.path.exists(file_path):
+        os.remove(file_path)
+
+
 def move_model(
     old_folder_path: str,
     old_model_name: str,
@@ -119,19 +125,16 @@ def move_model(
             _write_file(old_yml_file, old_yml_content_updated_str)
         else:
             # Delete the old files
-            os.remove(old_sql_file)
-            os.remove(old_yml_file)
+            _safe_delete_file(old_sql_file)
+            _safe_delete_file(old_yml_file)
             info(f"Deleted old dbt files for {old_model_name}", style="yellow")
 
         info(f"Successfully migrated model {old_model_name} to {new_model_name}")
 
     except Exception as e:
         error(f"Error updating dbt files for model {old_model_name}: {e}")
-        # Clean up partially created files if any
-        if os.path.exists(new_sql_file):
-            os.remove(new_sql_file)
-        if os.path.exists(new_yml_file):
-            os.remove(new_yml_file)
+        _safe_delete_file(new_sql_file)
+        _safe_delete_file(new_yml_file)
         info(f"Rolled back changes for {old_model_name}.")
 
 
