@@ -1,24 +1,21 @@
 import json
 import os
 from datetime import date, timedelta
-from pathlib import Path
 
 from dbtwiz.auth import ensure_auth
-from dbtwiz.config import project_config, project_dbtwiz_path
+from dbtwiz.config import project_dbtwiz_path
 from dbtwiz.dbt import dbt_invoke
-from dbtwiz.logging import debug, error, info
+from dbtwiz.logging import debug, error, fatal, info
 from dbtwiz.manifest import Manifest
-
-VALID_TARGETS = ["dev", "build", "prod-ci", "prod"]
 
 LAST_SELECT_FILE = project_dbtwiz_path("last_select.json")
 
 
-def choose_models(target: str, select, repeat_last: bool, work=None):
+def choose_models(select, repeat_last: bool, work=None):
     """
     Determine the chosen models based on the target, selection, and repeat_last flag.
     """
-    if target != "dev" or Manifest.can_select_directly(select):
+    if Manifest.can_select_directly(select):
         chosen_models = [select]
     elif repeat_last:
         chosen_models = load_selected_models()
@@ -34,7 +31,6 @@ def build(
     select: str,
     date: date,
     use_task_index: bool,
-    save_state: bool,
     full_refresh: bool,
     upstream: bool,
     downstream: bool,
@@ -42,8 +38,10 @@ def build(
     repeat_last: bool,
 ) -> None:
     """Builds the given models."""
-    if target == "dev":
-        ensure_auth()
+    if target != "dev":
+        fatal("Build command is only support for use in dev.")
+
+    ensure_auth()
 
     chosen_models = choose_models(target, select, repeat_last, work)
     if chosen_models is None:
@@ -77,11 +75,6 @@ def build(
     if len(select) > 0:
         info(f"Building models matching '{select}'.")
         args["select"] = select
-    elif target != "dev":
-        info("Builing modified models and their downstream dependencies.")
-        args["select"] = "state:modified+"
-        args["defer"] = True
-        args["state"] = project_config().pod_manifest_path
     else:
         error("Selector is required with dev target.")
         return
@@ -95,15 +88,6 @@ def build(
         args["write-json"] = False
 
     dbt_invoke(commands, **args)
-
-    if save_state and target != "dev":
-        info("Saving state, uploading manifest to bucket.")
-        from google.cloud import storage  # Only when used
-
-        gcs = storage.Client(project=project_config().gcp_project)
-        bucket = gcs.bucket(project_config().dbt_state_bucket)
-        for filename in ["manifest.json", "run_results.json"]:
-            bucket.blob(filename).upload_from_filename(Path.cwd() / "target" / filename)
 
 
 def save_selected_models(models):

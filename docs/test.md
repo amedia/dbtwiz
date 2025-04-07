@@ -6,7 +6,7 @@ Test dbt models
 
 ### `--target`, `-t`
 
-Target
+Target. Only dev is supported.
 
 ### `--select`, `-s`
 

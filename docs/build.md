@@ -7,15 +7,7 @@ unless an exact model name is passed.
 
 ### `--target`, `-t`
 
-Build target. The string value must be one of the following:
-
-- dev (default)
-
-- build (for pull requests)
-
-- prod
-
-- prod-ci (for merging to master)
+Build target. Only dev is supported.
  
 As a model developer, you should never have to use this option.
 If you need to rebuild models in production, use the [backfill](backfill.md) command.

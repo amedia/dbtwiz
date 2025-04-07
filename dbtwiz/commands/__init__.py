@@ -28,11 +28,7 @@ def build(
         typer.Option(
             "--target",
             "-t",
-            help="""Build target. The string value must be one of the following:\n
-- dev (default)\n
-- build (for pull requests)\n
-- prod\n
-- prod-ci (for merging to master)\n 
+            help="""Build target. Only dev is supported.\n 
 As a model developer, you should never have to use this option.
 If you need to rebuild models in production, use the [backfill](backfill.md) command.""",
         ),
@@ -155,7 +151,7 @@ Pass this option to rebuild the same models that you most recently built.""",
 @app.command()
 def test(
     target: Annotated[
-        Target, typer.Option("--target", "-t", help="Target")
+        Target, typer.Option("--target", "-t", help="Target. Only dev is supported.")
     ] = Target.dev,
     select: Annotated[
         str, typer.Option("--select", "-s", help="Model selector passed to dbt")
