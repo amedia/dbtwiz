@@ -8,7 +8,7 @@ version = "0.2.4"
 authors = [
     {name = "Amedia Produkt og Teknologi"}
 ]
-description = "Python package with CLI helper tool for dbt"
+description = "Python package with CLI helper tool for dbt in GCP using BigQuery"
 readme = "README.md"
 license = {text = "MIT"}
 urls = {"Homepage" = "https://github.com/amedia/dbtwiz"}
