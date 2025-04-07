@@ -96,7 +96,7 @@ def generate_markdown(app_name: str, full_command_path: List[str], command_func)
     DOCS_DIR.mkdir(exist_ok=True)
 
     full_command_path = [
-        command for command in full_command_path if type(command) != DefaultPlaceholder
+        command for command in full_command_path if not isinstance(command, DefaultPlaceholder)
     ]
 
     command_path_str = " ".join([app_name] + full_command_path)
