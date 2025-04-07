@@ -84,12 +84,12 @@ class Manifest:
             gcs.close()
 
     @classmethod
-    def update_manifests(cls, type):
+    def update_manifests(cls, type, force=False):
         """Rebuild local manifest and download latest production manifest"""
         if type in ("all", "dev"):
             cls.rebuild_manifest()
         if type in ("all", "prod"):
-            cls.download_prod_manifest()
+            cls.download_prod_manifest(force=force)
 
     @classmethod
     def get_manifest(cls, manifest_path):

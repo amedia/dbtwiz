@@ -100,7 +100,7 @@ def handle_orphaned_materializations(
     """List or delete orphaned materializations"""
     ensure_auth()
 
-    Manifest.update_manifests(target)
+    Manifest.update_manifests(target, force=True)
 
     if target == Target.dev:
         manifest = Manifest()

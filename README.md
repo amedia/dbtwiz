@@ -31,7 +31,6 @@ unless an exact model name is passed.
 - [`backfill`](docs/backfill.md) - The _backfill_ subcommand allows you to (re)run date-partitioned models in production for a
 period spanning one or multiple days. It will spawn a Cloud Run job that will run `dbt` for
 a configurable number of days in parallel.
-- [`freshness`](docs/freshness.md) - Run source freshness tests
 - [`config`](docs/config.md) - Update configuration setting
 - `admin` - Administrative commands
   - [`orphaned`](docs/admin_orphaned.md) - List or delete orphaned materializations in the data warehouse

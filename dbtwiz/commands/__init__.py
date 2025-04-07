@@ -9,7 +9,6 @@ from dbtwiz.utils.decorators import examples
 from .backfill import backfill as command_backfill
 from .build import build as command_build
 from .config import config as command_config
-from .freshness import freshness as command_freshness
 from .manifest import manifest as command_manifest
 from .precommit import sqlfix as command_sqlfix
 from .test import test as command_test
@@ -282,21 +281,6 @@ def backfill(
     command_backfill(
         select, first_date, last_date, full_refresh, parallelism, status, verbose
     )
-
-
-@app.command()
-def freshness(
-    target: Annotated[
-        Target,
-        typer.Option(
-            "--target",
-            "-t",  # does this have any function when checking sources?
-            help="Target",
-        ),
-    ] = Target.dev,
-) -> None:
-    """Run source freshness tests"""
-    command_freshness(target.value)
 
 
 @app.command()
