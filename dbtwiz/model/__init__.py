@@ -6,6 +6,7 @@ import typer
 from dbtwiz.utils.decorators import description
 
 from .create import create_model
+from .fix import fix_sql_file
 from .from_sql import convert_sql_to_model
 from .inspect import inspect_model
 from .move import move_model, update_model_references
@@ -225,3 +226,20 @@ def move(
             old_model_name=old_model_name,
             new_model_name=new_model_name,
         )
+
+
+@app.command()
+def fix(
+    staged: Annotated[
+        bool,
+        typer.Option(
+            "--staged", "-s", is_flag=True, help="Whether to fix staged sql files."
+        ),
+    ] = False,
+    model_names: Annotated[
+        List[str],
+        typer.Option("--model-name", "-m", help="Models to fix."),
+    ] = [],
+):
+    """Run sqlfmt and sqlfix for staged and/or defined sql files."""
+    fix_sql_file(staged=staged, model_names=model_names)

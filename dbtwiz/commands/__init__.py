@@ -10,7 +10,6 @@ from .backfill import backfill as command_backfill
 from .build import build as command_build
 from .config import config as command_config
 from .manifest import manifest as command_manifest
-from .precommit import sqlfix as command_sqlfix
 from .test import test as command_test
 
 app = typer.Typer()
@@ -170,12 +169,6 @@ def test(
         raise InvalidArgumentsError("Date must be on the YYYY-mm-dd format.")
     # Dispatch
     command_test(target.value, select, run_date)
-
-
-@app.command()
-def sqlfix():
-    """Run sqlfmt-fix and sqlfluff-fix on staged changes"""
-    command_sqlfix()
 
 
 @app.command()
