@@ -132,7 +132,7 @@ def handle_orphaned_materializations(
     info(f"Found {len(orphaned)} orphaned materializations.\n", style="yellow")
 
     if list_only:
-        info(f"Not in manifest:", style="yellow")
+        info("Not in manifest:", style="yellow")
         for table_id in sorted(orphaned):
             info(f"- {table_id}", style="yellow")
     else:
