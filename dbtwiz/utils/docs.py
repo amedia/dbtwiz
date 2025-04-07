@@ -6,7 +6,7 @@ from typing import Annotated, List, get_args, get_origin
 import typer
 from typer.models import ArgumentInfo, DefaultPlaceholder, OptionInfo
 
-from dbtwiz import main
+from dbtwiz.main import app as main_app
 
 # Get the directory where this script lives
 SCRIPT_DIR = Path(__file__).parent.resolve()
@@ -306,8 +306,8 @@ def process_commands(
 
 def update_docs():
     """Adds markdown files for each command and updates readme."""
-    process_commands(main.app, "dbtwiz")
-    update_readme(main.app, "dbtwiz")
+    process_commands(main_app, "dbtwiz")
+    update_readme(main_app, "dbtwiz")
 
 
 if __name__ == "__main__":
