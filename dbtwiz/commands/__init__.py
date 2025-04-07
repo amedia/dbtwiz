@@ -28,7 +28,7 @@ def build(
         typer.Option(
             "--target",
             "-t",
-            help="""Build target. Only dev is supported.\n 
+            help="""Build target. Only dev is supported.\n
 As a model developer, you should never have to use this option.
 If you need to rebuild models in production, use the [backfill](backfill.md) command.""",
         ),

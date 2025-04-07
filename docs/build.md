@@ -8,7 +8,7 @@ unless an exact model name is passed.
 ### `--target`, `-t`
 
 Build target. Only dev is supported.
- 
+
 As a model developer, you should never have to use this option.
 If you need to rebuild models in production, use the [backfill](backfill.md) command.
 
