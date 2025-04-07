@@ -1,14 +1,12 @@
 from typing import List
 
-from .config import project_config
 from .logging import debug, fatal
 
 
 def dbt_invoke(commands: List[str], **args: dict):
     """Invokes a dbt run."""
     if args.get("target", "dev") != "dev":
-        args["use-colors"] = False
-        args["profiles-dir"] = project_config().pod_profiles_path
+        fatal("Invoke command is only support for use in dev.")
 
     dbt_args = [c for c in commands]
     for key, value in args.items():
