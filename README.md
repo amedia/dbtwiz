@@ -48,14 +48,18 @@ The tool will give you a warning when you run a commmand that needs one of the c
 
 ```
 [tool.dbtwiz.project]
-bucket_state_project = ""
-bucket_state_identifier = ""
-service_account_project = ""
-service_account_identifier = ""
-service_account_region = ""
-user_project = ""
-user_auth_verified_domains = []
-docker_image_url_dbt = ""
+# Config for bucket containing dbt manifest.json at the top level
+bucket_state_project = ""         # Project name for bucket
+bucket_state_identifier = ""      # Bucket name
+# Config for service account used for backfill and cleanup of orphaned models in prod
+service_account_project = ""      # Project name for where service account actions are run
+service_account_identifier = ""   # Name of service account
+service_account_region = ""       # Region for where service account actions are run
+# Config for user actions
+user_project = ""                 # Project name for where user queries are run
+user_auth_verified_domains = []   # Which domains to check when identifying whether user is already authenticated
+# Config for docker image used for backfill
+docker_image_url_dbt = ""         # Url for docker image
 ```
 
 ### User config
