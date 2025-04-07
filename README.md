@@ -20,6 +20,7 @@ You can also run `dbtwiz --help`/`dbtwiz -h`, which will list the commands with 
   - [`fix`](docs/model_fix.md) - Run sqlfmt and sqlfix for staged and/or defined sql files.
   - [`from_sql`](docs/model_from_sql.md) - Convert a sql file to a dbt model by replacing table references with source and ref.
   - [`inspect`](docs/model_inspect.md) - Output information about a given model.
+  - [`lint`](docs/model_lint.md) - Run sqlfmt --diff and sqlfluff lint for staged and/or defined sql files.
   - [`move`](docs/model_move.md) - Moves a model by copying to a new location with a new name,
 and/or by updating the references to the model by other dbt models.
 - `source` - Commands for a dbt source
