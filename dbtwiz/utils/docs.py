@@ -168,79 +168,79 @@ def should_have_docs(cmd) -> bool:
     return hasattr(cmd, "callback") and cmd.callback
 
 
+def get_clean_command_name(cmd) -> str:
+    """Get a clean command name, handling DefaultPlaceholder and other cases"""
+    if isinstance(cmd, DefaultPlaceholder):
+        return str(cmd.value) if hasattr(cmd, "value") else "command"
+    return str(cmd)
+
+def get_command_description(cmd) -> str:
+    """Extract the command description from help or the callback info"""
+    if hasattr(cmd, "help") and cmd.help:
+        return cmd.help
+
+    if hasattr(cmd, "callback") and cmd.callback and cmd.callback.__doc__:
+        return inspect.cleandoc(cmd.callback.__doc__)
+
+    return "No description available."
+
+def process_command_group(group, current_path: List[str], level: int = 0) -> List[str]:
+    """Process a command group and return a list of command entries"""
+    command_list = []
+    
+    # Clean the current path
+    cleaned_path = [
+        get_clean_command_name(cmd)
+        for cmd in current_path
+        if not isinstance(cmd, DefaultPlaceholder)
+    ]
+
+    # Process commands first
+    for cmd in getattr(group, "registered_commands", []):
+        if hasattr(cmd, "callback") and cmd.callback:
+            cmd_name = get_clean_command_name(cmd.callback.__name__)
+
+            full_path = cleaned_path + [cmd_name]
+            safe_filename = "_".join(full_path).lower()
+            description = get_command_description(cmd)
+            indent = "  " * level
+            rel_docs_path = f"docs/{safe_filename}.md"
+            command_list.append(
+                f"{indent}- [`{cmd_name}`]({rel_docs_path}) - {description}"
+            )
+
+    # Then process groups (subcommands)
+    for subgroup in getattr(group, "registered_groups", []):
+        if hasattr(subgroup, "typer_instance"):
+            group_name = get_group_name(subgroup)
+            if group_name is None or isinstance(group_name, DefaultPlaceholder):
+                command_list.extend(
+                    process_command_group(subgroup.typer_instance, cleaned_path, level)
+                )
+                continue
+
+            full_path = cleaned_path + [group_name]
+            indent = "  " * level
+            description = get_command_description(subgroup)
+            safe_filename = "_".join(full_path).lower()
+            rel_docs_path = f"docs/{safe_filename}.md"
+
+            if should_have_docs(subgroup):
+                command_list.append(
+                    f"{indent}- [`{group_name}`]({rel_docs_path}) - {description}"
+                )
+            else:
+                command_list.append(f"{indent}- `{group_name}` - {description}")
+
+            command_list.extend(
+                process_command_group(subgroup.typer_instance, full_path, level + 1)
+            )
+    
+    return command_list
+
 def generate_readme_command_list(app: typer.Typer, app_name: str) -> str:
     """Generate a markdown list of all commands with links to their documentation"""
-    command_list = []
-
-    def get_clean_command_name(cmd) -> str:
-        """Get a clean command name, handling DefaultPlaceholder and other cases"""
-        if isinstance(cmd, DefaultPlaceholder):
-            return str(cmd.value) if hasattr(cmd, "value") else "command"
-        return str(cmd)
-
-    def get_command_description(cmd) -> str:
-        """Extract the command description from help or the callback info"""
-        if hasattr(cmd, "help") and cmd.help:
-            return cmd.help
-
-        if hasattr(cmd, "callback") and cmd.callback and cmd.callback.__doc__:
-            return inspect.cleandoc(cmd.callback.__doc__)
-
-        return "No description available."
-
-    def process_command_group(group, current_path: List[str], level: int = 0):
-        nonlocal command_list
-
-        # Clean the current path
-        cleaned_path = [
-            get_clean_command_name(cmd)
-            for cmd in current_path
-            if not isinstance(cmd, DefaultPlaceholder)
-        ]
-
-        # Process commands first
-        for cmd in getattr(group, "registered_commands", []):
-            if hasattr(cmd, "callback") and cmd.callback:
-                cmd_name = get_clean_command_name(cmd.callback.__name__)
-
-                full_path = cleaned_path + [cmd_name]
-                safe_filename = "_".join(
-                    full_path
-                ).lower()  # Removed app_name from filename
-
-                description = get_command_description(cmd)
-                indent = "  " * level
-                rel_docs_path = f"docs/{safe_filename}.md"
-                command_list.append(
-                    f"{indent}- [`{cmd_name}`]({rel_docs_path}) - {description}"
-                )
-
-        # Then process groups (subcommands)
-        for subgroup in getattr(group, "registered_groups", []):
-            if hasattr(subgroup, "typer_instance"):
-                group_name = get_group_name(subgroup)
-                if group_name is None or isinstance(group_name, DefaultPlaceholder):
-                    process_command_group(subgroup.typer_instance, cleaned_path, level)
-                    continue
-
-                full_path = cleaned_path + [group_name]
-                indent = "  " * level
-                description = get_command_description(subgroup)
-                safe_filename = "_".join(
-                    full_path
-                ).lower()  # Removed app_name from filename
-                rel_docs_path = f"docs/{safe_filename}.md"
-
-                if should_have_docs(subgroup):
-                    command_list.append(
-                        f"{indent}- [`{group_name}`]({rel_docs_path}) - {description}"
-                    )
-                else:
-                    command_list.append(f"{indent}- `{group_name}` - {description}")
-
-                process_command_group(subgroup.typer_instance, full_path, level + 1)
-
-    process_command_group(app, [])
+    command_list = process_command_group(app, [])
     return "\n".join(command_list)
 
 
