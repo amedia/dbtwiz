@@ -33,8 +33,8 @@ period spanning one or multiple days. It will spawn a Cloud Run job that will ru
 a configurable number of days in parallel.
 - [`config`](docs/config.md) - Update configuration setting
 - `admin` - Administrative commands
-  - [`orphaned`](docs/admin_orphaned.md) - List or delete orphaned materializations in the data warehouse
   - [`cleandev`](docs/admin_cleandev.md) - Delete all materializations in the dbt development dataset
+  - [`orphaned`](docs/admin_orphaned.md) - List or delete orphaned materializations in the data warehouse
   - [`partition_expiry`](docs/admin_partition_expiry.md) - Checks for mismatched partition expiry and allows updating to correct.
 
 [comment]: <> (END ACCESS CONFIG)

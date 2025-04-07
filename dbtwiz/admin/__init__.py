@@ -14,6 +14,21 @@ app = typer.Typer()
 
 
 @app.command()
+def cleandev(
+    force_delete: Annotated[
+        bool,
+        typer.Option(
+            "--force", "-f", help=("Delete without asking for confirmation first")
+        ),
+    ] = False,
+) -> None:
+    """Delete all materializations in the dbt development dataset"""
+    from .cleanup import empty_development_dataset
+
+    empty_development_dataset(force_delete)
+
+
+@app.command()
 def orphaned(
     target: Annotated[
         Target, typer.Option("--target", "-t", help="Target")
@@ -42,21 +57,6 @@ def orphaned(
         from .cleanup import handle_orphaned_materializations
 
         handle_orphaned_materializations(target, list_only, force_delete)
-
-
-@app.command()
-def cleandev(
-    force_delete: Annotated[
-        bool,
-        typer.Option(
-            "--force", "-f", help=("Delete without asking for confirmation first")
-        ),
-    ] = False,
-) -> None:
-    """Delete all materializations in the dbt development dataset"""
-    from .cleanup import empty_development_dataset
-
-    empty_development_dataset(force_delete)
 
 
 @app.command()
