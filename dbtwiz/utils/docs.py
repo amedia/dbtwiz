@@ -76,6 +76,21 @@ def extract_param_info(param) -> dict:
     return param_info
 
 
+def get_decorator_docs(command_func, decorator_name, docs_header) -> str:
+    decorator_value = getattr(command_func, decorator_name, [])
+
+    # Generate docs section
+    section_markdown = ""
+    if decorator_value:
+        section_markdown = (
+            (f"\n## {docs_header}\n\n" if docs_header else "")
+            + "\n".join(val for val in decorator_value)
+            + "\n"
+        )
+
+    return section_markdown
+
+
 def generate_markdown(app_name: str, full_command_path: List[str], command_func):
     """Generate documentation for a single command"""
     DOCS_DIR.mkdir(exist_ok=True)
@@ -113,22 +128,15 @@ def generate_markdown(app_name: str, full_command_path: List[str], command_func)
             required_args.append(f"- `{param_info['name']}`: {param_info['help']}")
 
     markdown = f"# `{command_path_str}`\n\n{description}\n\n"
+
+    markdown += get_decorator_docs(command_func, "_command_description", None)
+
     if required_args:
         markdown += "## Required arguments\n\n" + "\n".join(required_args) + "\n\n"
     if options:
         markdown += "## Options\n\n" + "\n".join(options)
 
-    # Get examples from decorator if they exist
-    example_commands = getattr(command_func, "_command_examples", [])
-
-    # Generate examples section
-    examples_section = ""
-    if example_commands:
-        examples_section = (
-            "\n## Examples\n\n" + "\n".join(cmd for cmd in example_commands) + "\n"
-        )
-
-    markdown += examples_section
+    markdown += get_decorator_docs(command_func, "_command_examples", "Examples")
 
     # Check for changes before writing file
     if output_file.exists():
