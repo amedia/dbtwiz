@@ -70,7 +70,7 @@ to the state bucket after the build has successfully completed. This is only rel
 when running with target `prod`, and should not be used elsewhere.
 
 The state bucket is set in the project's _pyproject.toml_ file in the
-section `[tool.dbtwiz.project]` and the setting `dbt_state_bucket`.""",
+section `[tool.dbtwiz.project]` and the setting `bucket_state_identifier`.""",
         ),
     ] = False,
     full_refresh: Annotated[

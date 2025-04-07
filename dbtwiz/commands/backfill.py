@@ -54,12 +54,12 @@ def generate_job_spec(
         job_name=job_name,
         parallelism=parallelism,
         task_count=number_of_days,
-        image=project_config().dbt_image_url,
+        image=project_config().docker_image_url_dbt,
         selector=selector,
         start_date=date_first.strftime("%Y-%m-%d"),
         full_refresh=full_refresh,
-        service_account=project_config().dbt_service_account,
-        gcp_region=project_config().gcp_region,
+        service_account=project_config().service_account_identifier,
+        service_account_region=project_config().service_account_region,
     )
     with open(YAML_FILE, "w+") as f:
         f.write(job_spec_yaml)
@@ -74,7 +74,7 @@ def job_spec_template():
     metadata:
       name: {{ job_name }}
       labels:
-        cloud.googleapis.com/location: {{ gcp_region }}
+        cloud.googleapis.com/location: {{ service_account_region }}
     spec:
       template:
         spec:
@@ -139,12 +139,19 @@ def backfill(
 
     ensure_auth(check_app_default_auth=True, check_gcloud_auth=True)
 
-    gcp_project = project_config().gcp_project
-    gcp_region = project_config().gcp_region
+    service_account_project = project_config().service_account_project
+    service_account_region = project_config().service_account_region
 
     info("Preparing job for execution.")
     run_command(
-        ["gcloud", "run", f"--project={gcp_project}", "jobs", "replace", YAML_FILE],
+        [
+            "gcloud",
+            "run",
+            f"--project={service_account_project}",
+            "jobs",
+            "replace",
+            YAML_FILE,
+        ],
         verbose=verbose,
     )
 
@@ -153,10 +160,10 @@ def backfill(
         [
             "gcloud",
             "run",
-            f"--project={gcp_project}",
+            f"--project={service_account_project}",
             "jobs",
             "execute",
-            f"--region={gcp_region}",
+            f"--region={service_account_region}",
             job_name,
         ],
         verbose=verbose,
@@ -164,7 +171,7 @@ def backfill(
 
     job_url = (
         f"https://console.cloud.google.com/run/jobs/details"
-        f"/{gcp_region}/{job_name}/executions?project={gcp_project}"
+        f"/{service_account_region}/{job_name}/executions?project={service_account_project}"
     )
     info(f"Job status page: {job_url}")
     if status:

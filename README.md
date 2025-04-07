@@ -49,14 +49,14 @@ The tool will give you a warning when you run a commmand that needs one of the c
 
 ```
 [tool.dbtwiz.project]
-gcp_auth_domains = []
-gcp_project = ""
-gcp_region = ""
-dbt_state_bucket = ""
-dbt_image_url = ""
-dbt_service_account = ""
-pod_manifest_path = ""
-pod_profiles_path = ""
+bucket_state_project = ""
+bucket_state_identifier = ""
+service_account_project = ""
+service_account_identifier = ""
+service_account_region = ""
+user_project = ""
+user_auth_verified_domains = []
+docker_image_url_dbt = ""
 ```
 
 ### User config

@@ -155,9 +155,9 @@ class BigQueryClient:
         except Exception as e:
             return f"Error: Failed to verify project '{project}': {e}"
 
-    def run_query(self, project, query):
+    def run_query(self, query):
         """Runs a query in bigquery"""
-        return self.get_client().query(query, project=project)
+        return self.get_client().query(query)
 
     def delete_table(self, table_id):
         """Deletes a table from bigquery"""

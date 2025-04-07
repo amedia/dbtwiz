@@ -73,8 +73,10 @@ class Manifest:
 
             ensure_app_default_auth()
 
-            gcs = storage.Client(project=project_config().gcp_project)
-            blob = gcs.bucket(project_config().dbt_state_bucket).blob("manifest.json")
+            gcs = storage.Client(project=project_config().bucket_state_project)
+            blob = gcs.bucket(project_config().bucket_state_identifier).blob(
+                "manifest.json"
+            )
             # Create path if missing
             cls.PROD_MANIFEST_PATH.parent.mkdir(parents=True, exist_ok=True)
             # Download prod manifest to path

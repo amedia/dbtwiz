@@ -1,5 +1,6 @@
 from dbtwiz.auth import ensure_auth
 from dbtwiz.bigquery import BigQueryClient
+from dbtwiz.config import project_config
 from dbtwiz.interact import multiselect_from_list
 from dbtwiz.logging import error, info
 from dbtwiz.manifest import Manifest
@@ -20,7 +21,7 @@ def empty_development_dataset(force_delete: bool) -> None:
         if m["materialized"] != "ephemeral"
     ][0]
 
-    client = BigQueryClient()
+    client = BigQueryClient(default_project=project_config().user_project)
     tables, _ = client.fetch_tables_in_dataset(project, dataset)
     if not tables:
         info(f"Dataset {project}.{dataset} is already empty.")
@@ -69,7 +70,7 @@ def build_data_structure(manifest_models, client):
                 and table_name not like '%__dbt_tmp_%'
             group by table_schema
         """
-        result = client.run_query(project, query).result()
+        result = client.run_query(query).result()
         for row in result:
             dataset = row["table_schema"]
             data[project][dataset] = data[project].get(dataset, dict(manifest=[]))
@@ -103,14 +104,14 @@ def handle_orphaned_materializations(
 
     if target == Target.dev:
         manifest = Manifest()
-        client = BigQueryClient()
+        client = BigQueryClient(default_project=project_config().user_project)
     else:
         manifest = Manifest(Manifest.PROD_MANIFEST_PATH)
         force_delete = False  # Always ask before deleting in prod!
         # Use service account impersonation for prod
         client = BigQueryClient(
-            impersonation_service_account="dbt-run-sa@amedia-adp-dbt-core.iam.gserviceaccount.com",
-            default_project="amedia-adp-dbt-core",
+            impersonation_service_account=project_config().service_account_identifier,
+            default_project=project_config().service_account_project,
         )
 
     manifest_models = [
