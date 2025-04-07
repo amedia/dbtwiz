@@ -195,7 +195,7 @@ class BigQueryClient:
         else:
             info(f"Table {table_id} is not partitioned. Skipping update.")
 
-    def update_table_constraints(self, table_id: str, table_constraints: Dict) -> None:
+    def update_table_constraints(self, table_id: str, table_constraints: Dict, should_update: bool = True) -> None:
         """
         Updates the table constraints (primary/foreign keys) using the BigQuery REST API.
 
@@ -203,6 +203,9 @@ class BigQueryClient:
             table_id: The full table ID (e.g., 'project.dataset.table').
             table_constraints: The table constraints to apply.
         """
+        if not should_update:
+            return
+
         try:
             # Construct the REST API URL
             project_id, dataset_id, table_id_only = table_id.split(".")
@@ -374,11 +377,11 @@ class BigQueryClient:
 
                 # Create the new table in BigQuery
                 new_table = client.create_table(new_table)
-                if old_table.table_constraints:
-                    self.update_table_constraints(
-                        table_id=new_table_id,
-                        table_constraints=old_table.table_constraints,
-                    )
+                self.update_table_constraints(
+                    table_id=new_table_id,
+                    table_constraints=old_table.table_constraints,
+                    should_update=old_table.table_constraints is not None,
+                )
                 # Copy data from the old table to the new table
                 job_config = bigquery.CopyJobConfig()
                 job = client.copy_table(old_table, new_table, job_config=job_config)
@@ -448,12 +451,12 @@ class BigQueryClient:
 
             # Handle tables and views differently
             if old_table.table_type == "TABLE":
-                if old_table.table_constraints:
-                    # Remove constraints before renaming
-                    self.update_table_constraints(
-                        table_id=old_table_id,
-                        table_constraints=None,
-                    )
+                # Remove constraints before renaming
+                self.update_table_constraints(
+                    table_id=old_table_id,
+                    table_constraints=None,
+                    should_update=old_table.table_constraints is not None,
+                )
 
                 # For tables, use ALTER TABLE ... RENAME TO
                 query = f"""
@@ -465,12 +468,12 @@ class BigQueryClient:
                 backup_table = client.get_table(backup_table_id)
                 backup_table.description = f"{BACKUP_MESSAGE}. USE {new_table_id}."
                 client.update_table(backup_table, ["description"])
-                if old_table.table_constraints:
-                    # Reapply constraints after renaming
-                    self.update_table_constraints(
-                        table_id=backup_table_id,
-                        table_constraints=old_table.table_constraints,
-                    )
+                # Reapply constraints after renaming
+                self.update_table_constraints(
+                    table_id=backup_table_id,
+                    table_constraints=old_table.table_constraints,
+                    should_update=old_table.table_constraints is not None,
+                )
                 info(f"Renamed table {old_table_id} to {backup_table_name}")
 
             elif old_table.table_type == "VIEW":
@@ -507,12 +510,12 @@ class BigQueryClient:
             view = client.create_table(view)
             view.schema = old_table.schema
             view = client.update_table(view, ["schema"])
-            if old_table.table_constraints:
-                # Remove constraints before renaming
-                self.update_table_constraints(
-                    table_id=view_id,
-                    table_constraints=old_table.table_constraints,
-                )
+            # Remove constraints before renaming
+            self.update_table_constraints(
+                table_id=view_id,
+                table_constraints=old_table.table_constraints,
+                should_update=old_table.table_constraints is not None,
+            )
             info(f"Created view {view_id}")
 
             # Replicate grants from the old table/view to the view
