@@ -141,14 +141,20 @@ def create(
 
 
 @app.command()
-def inspect(
-    name: Annotated[
-        str,
-        typer.Option("--name", "-n", help="Model name or path"),
-    ],
+def fix(
+    staged: Annotated[
+        bool,
+        typer.Option(
+            "--staged", "-s", is_flag=True, help="Whether to fix staged sql files."
+        ),
+    ] = False,
+    model_names: Annotated[
+        List[str],
+        typer.Option("--model-name", "-m", help="Models to fix."),
+    ] = [],
 ):
-    """Output information about a given model."""
-    inspect_model(name=name)
+    """Run sqlfmt and sqlfix for staged and/or defined sql files."""
+    fix_sql_file(staged=staged, model_names=model_names)
 
 
 @app.command()
@@ -161,6 +167,16 @@ def from_sql(
     """Convert a sql file to a dbt model by replacing table references with source and ref."""
     convert_sql_to_model(file_path=file_path)
 
+
+@app.command()
+def inspect(
+    name: Annotated[
+        str,
+        typer.Option("--name", "-n", help="Model name or path"),
+    ],
+):
+    """Output information about a given model."""
+    inspect_model(name=name)
 
 @app.command()
 def move(
@@ -226,20 +242,3 @@ def move(
             old_model_name=old_model_name,
             new_model_name=new_model_name,
         )
-
-
-@app.command()
-def fix(
-    staged: Annotated[
-        bool,
-        typer.Option(
-            "--staged", "-s", is_flag=True, help="Whether to fix staged sql files."
-        ),
-    ] = False,
-    model_names: Annotated[
-        List[str],
-        typer.Option("--model-name", "-m", help="Models to fix."),
-    ] = [],
-):
-    """Run sqlfmt and sqlfix for staged and/or defined sql files."""
-    fix_sql_file(staged=staged, model_names=model_names)

@@ -17,11 +17,11 @@ You can also run `dbtwiz --help`/`dbtwiz -h`, which will list the commands with 
 
 - `model` - Commands for a dbt model
   - [`create`](docs/model_create.md) - Create new dbt model.
-  - [`inspect`](docs/model_inspect.md) - Output information about a given model.
+  - [`fix`](docs/model_fix.md) - Run sqlfmt and sqlfix for staged and/or defined sql files.
   - [`from_sql`](docs/model_from_sql.md) - Convert a sql file to a dbt model by replacing table references with source and ref.
+  - [`inspect`](docs/model_inspect.md) - Output information about a given model.
   - [`move`](docs/model_move.md) - Moves a model by copying to a new location with a new name,
 and/or by updating the references to the model by other dbt models.
-  - [`fix`](docs/model_fix.md) - Run sqlfmt and sqlfix for staged and/or defined sql files.
 - `source` - Commands for a dbt source
   - [`create`](docs/source_create.md) - Create new dbt source
 - [`build`](docs/build.md) - Build one or more dbt models, using interactive selection with fuzzy-matching,
