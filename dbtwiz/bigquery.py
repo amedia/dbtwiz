@@ -195,7 +195,9 @@ class BigQueryClient:
         else:
             info(f"Table {table_id} is not partitioned. Skipping update.")
 
-    def update_table_constraints(self, table_id: str, table_constraints: Dict, should_update: bool = True) -> None:
+    def update_table_constraints(
+        self, table_id: str, table_constraints: Dict, should_update: bool = True
+    ) -> None:
         """
         Updates the table constraints (primary/foreign keys) using the BigQuery REST API.
 
