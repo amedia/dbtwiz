@@ -174,6 +174,7 @@ def get_clean_command_name(cmd) -> str:
         return str(cmd.value) if hasattr(cmd, "value") else "command"
     return str(cmd)
 
+
 def get_command_description(cmd) -> str:
     """Extract the command description from help or the callback info"""
     if hasattr(cmd, "help") and cmd.help:
@@ -184,10 +185,11 @@ def get_command_description(cmd) -> str:
 
     return "No description available."
 
+
 def process_command_group(group, current_path: List[str], level: int = 0) -> List[str]:
     """Process a command group and return a list of command entries"""
     command_list = []
-    
+
     # Clean the current path
     cleaned_path = [
         get_clean_command_name(cmd)
@@ -235,8 +237,9 @@ def process_command_group(group, current_path: List[str], level: int = 0) -> Lis
             command_list.extend(
                 process_command_group(subgroup.typer_instance, full_path, level + 1)
             )
-    
+
     return command_list
+
 
 def generate_readme_command_list(app: typer.Typer, app_name: str) -> str:
     """Generate a markdown list of all commands with links to their documentation"""
