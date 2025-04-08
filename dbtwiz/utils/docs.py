@@ -1,18 +1,9 @@
 import inspect
-import re
 from pathlib import Path
 from typing import Annotated, List, get_args, get_origin
 
 import typer
 from typer.models import ArgumentInfo, DefaultPlaceholder, OptionInfo
-
-
-def sanitize_filename(name: str) -> str:
-    """Convert any string to a safe filename"""
-    if not name or isinstance(name, (int, float, bool)):
-        return "command"
-    name = re.sub(r"[^\w\-_]", "", str(name).replace(" ", "_"))
-    return name.lower() or "command"
 
 
 def extract_param_info(param) -> dict:
