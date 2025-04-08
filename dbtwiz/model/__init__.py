@@ -187,10 +187,38 @@ def from_sql(
 
 
 @app.command()
+@examples(
+    """Run the following command to inspect a given model:
+```
+dbtwiz model inspect mrt_siteconfig__site_groups
+```
+
+The command will then output the ancestors and descendants for the model, e.g.
+```
+Ancestors:
+- stg_siteconfig__sites
+- int_sitegroups_all_local
+- int_sitegroups_all_sites
+- int_sitegroups_amedia_local
+- int_sitegroups_amedia_owned
+- int_sitegroups_classes
+- int_sitegroups_mainsites
+- int_sitegroups_multisites
+- int_sitegroups_regions
+- int_sitegroups_sections
+
+Descendants:
+- mrt_siteconfig__site_groups_map
+- mrt_siteconfig__site_groups_map_with_sections
+- mrt_subscriptions__purchases_by_sitegroup
+- mrt_subscriptions__upgrades_by_sitegroup
+- mrt_subscriptions_bt_tables__abo_sites
+```"""
+)
 def inspect(
     name: Annotated[
         str,
-        typer.Option("--name", "-n", help="Model name or path"),
+        typer.Argument(help="Model name or path"),
     ],
 ):
     """Output information about a given model."""
@@ -198,6 +226,22 @@ def inspect(
 
 
 @app.command()
+@examples(
+    """Lint any number of given models, e.g.:
+```
+dbtwiz model lint mrt_siteconfig__site_groups mrt_siteconfig__sites
+```
+
+Lint models you have changed and staged:
+```
+dbtwiz model lint -s
+```
+
+It's also possible to combine the two:
+```
+dbtwiz model lint mrt_siteconfig__site_groups mrt_siteconfig__sites -s
+```"""
+)
 def lint(
     model_names: Annotated[
         List[str],
