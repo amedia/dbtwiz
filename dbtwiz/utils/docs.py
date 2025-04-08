@@ -6,14 +6,6 @@ from typing import Annotated, List, get_args, get_origin
 import typer
 from typer.models import ArgumentInfo, DefaultPlaceholder, OptionInfo
 
-from dbtwiz.main import app as main_app
-
-# Get the directory where this script lives
-SCRIPT_DIR = Path(__file__).parent.resolve()
-REPO_ROOT = SCRIPT_DIR.parent.parent  # Goes up two levels from dbtwiz/utils/
-DOCS_DIR = REPO_ROOT / "docs"
-README_PATH = REPO_ROOT / "README.md"
-
 
 def sanitize_filename(name: str) -> str:
     """Convert any string to a safe filename"""
@@ -91,9 +83,15 @@ def get_decorator_docs(command_func, decorator_name, docs_header) -> str:
     return section_markdown
 
 
-def generate_markdown(app_name: str, full_command_path: List[str], command_func):
+def generate_markdown(
+    app_name: str,
+    full_command_path: List[str],
+    command_func,
+    repo_root: Path,
+    docs_dir: Path,
+):
     """Generate documentation for a single command"""
-    DOCS_DIR.mkdir(exist_ok=True)
+    docs_dir.mkdir(exist_ok=True)
 
     full_command_path = [
         command
@@ -105,7 +103,7 @@ def generate_markdown(app_name: str, full_command_path: List[str], command_func)
     safe_filename = "_".join(
         full_command_path
     ).lower()  # Removed app_name from filename
-    output_file = DOCS_DIR / f"{safe_filename}.md"
+    output_file = docs_dir / f"{safe_filename}.md"
 
     description = (
         inspect.cleandoc(command_func.__doc__)
@@ -149,9 +147,9 @@ def generate_markdown(app_name: str, full_command_path: List[str], command_func)
     try:
         with open(output_file, "w", encoding="utf-8") as f:
             f.write(markdown)
-        print(f"[+] Generated: {output_file.relative_to(REPO_ROOT)}")
+        print(f"[+] Generated: {output_file.relative_to(repo_root)}")
     except Exception as e:
-        print(f"[x] Failed to write {output_file.relative_to(REPO_ROOT)}: {e}")
+        print(f"[x] Failed to write {output_file.relative_to(repo_root)}: {e}")
 
 
 def get_group_name(group) -> str:
@@ -247,14 +245,14 @@ def generate_readme_command_list(app: typer.Typer, app_name: str) -> str:
     return "\n".join(command_list)
 
 
-def update_readme(app: typer.Typer, app_name: str):
+def update_readme(app: typer.Typer, app_name: str, repo_root: Path, readme_path: Path):
     """Update README.md with the command list between the special comments"""
-    if not README_PATH.exists():
-        print(f"[x] README.md not found at {README_PATH.relative_to(REPO_ROOT)}")
+    if not readme_path.exists():
+        print(f"[x] README.md not found at {readme_path.relative_to(repo_root)}")
         return
 
     try:
-        with open(README_PATH, "r", encoding="utf-8") as f:
+        with open(readme_path, "r", encoding="utf-8") as f:
             content = f.read()
 
         start_marker = "[comment]: <> (START ACCESS CONFIG)"
@@ -275,16 +273,20 @@ def update_readme(app: typer.Typer, app_name: str):
 
         # Check for changes before writing file
         if content != new_content:
-            with open(README_PATH, "w", encoding="utf-8") as f:
+            with open(readme_path, "w", encoding="utf-8") as f:
                 f.write(new_content)
-            print(f"[+] Updated command list in {README_PATH.relative_to(REPO_ROOT)}")
+            print(f"[+] Updated command list in {readme_path.relative_to(repo_root)}")
 
     except Exception as e:
-        print(f"[x] Failed to update {README_PATH.relative_to(REPO_ROOT)}: {e}")
+        print(f"[x] Failed to update {readme_path.relative_to(repo_root)}: {e}")
 
 
 def process_commands(
-    app: typer.Typer, app_name: str, parent_commands: List[str] = None
+    app: typer.Typer,
+    app_name: str,
+    repo_root: Path,
+    docs_dir: Path,
+    parent_commands: List[str] = None,
 ):
     """Process all commands recursively"""
     parent_commands = parent_commands or []
@@ -293,22 +295,50 @@ def process_commands(
     for cmd in getattr(app, "registered_commands", []):
         if hasattr(cmd, "callback") and cmd.callback:
             cmd_name = cmd.callback.__name__
-            generate_markdown(app_name, parent_commands + [cmd_name], cmd.callback)
+            generate_markdown(
+                app_name=app_name,
+                full_command_path=parent_commands + [cmd_name],
+                command_func=cmd.callback,
+                repo_root=repo_root,
+                docs_dir=docs_dir,
+            )
 
     # Process groups
     for group in getattr(app, "registered_groups", []):
         if hasattr(group, "typer_instance"):
             group_name = get_group_name(group)
             process_commands(
-                group.typer_instance, app_name, parent_commands + [group_name]
+                app=group.typer_instance,
+                app_name=app_name,
+                repo_root=repo_root,
+                docs_dir=docs_dir,
+                parent_commands=parent_commands + [group_name],
             )
 
 
-def update_docs():
+def update_docs(
+    app: typer.Typer, app_name: str, repo_root: Path, docs_dir: Path, readme_path: Path
+):
     """Adds markdown files for each command and updates readme."""
-    process_commands(main_app, "dbtwiz")
-    update_readme(main_app, "dbtwiz")
+    process_commands(app=app, app_name=app_name, repo_root=repo_root, docs_dir=docs_dir)
+    update_readme(
+        app=app, app_name=app_name, repo_root=repo_root, readme_path=readme_path
+    )
 
 
 if __name__ == "__main__":
-    update_docs()
+    # Specific config for dbtwiz package
+    from dbtwiz.main import app
+
+    script_dir = Path(__file__).parent.resolve()
+    repo_root = script_dir.parent.parent  # Goes up two levels from dbtwiz/utils/
+    docs_dir = repo_root / "docs"
+    readme_path = repo_root / "README.md"
+
+    update_docs(
+        app=app,
+        app_name="dbtwiz",
+        repo_root=repo_root,
+        docs_dir=docs_dir,
+        readme_path=readme_path,
+    )
