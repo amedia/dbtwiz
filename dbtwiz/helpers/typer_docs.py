@@ -90,7 +90,8 @@ def _generate_markdown(
         if not isinstance(command, DefaultPlaceholder)
     ]
 
-    command_path_str = " ".join([app_name] + full_command_path)
+    # command_path_str = " ".join([app_name] + full_command_path)
+    command_path_str = " ".join([app_name] + [cmd.replace("_", "-") for cmd in full_command_path])
     safe_filename = "_".join(
         full_command_path
     ).lower()  # Removed app_name from filename
@@ -193,11 +194,12 @@ def _process_command_group(group, current_path: List[str], level: int = 0) -> Li
 
             full_path = cleaned_path + [cmd_name]
             safe_filename = "_".join(full_path).lower()
+            display_name = cmd_name.replace("_", "-")
             description = _get_command_description(cmd)
             indent = "  " * level
             rel_docs_path = f"docs/{safe_filename}.md"
             command_list.append(
-                f"{indent}- [`{cmd_name}`]({rel_docs_path}) - {description}"
+                f"{indent}- [`{display_name}`]({rel_docs_path}) - {description}"
             )
 
     # Then process groups (subcommands)

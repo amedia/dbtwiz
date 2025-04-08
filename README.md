@@ -18,7 +18,7 @@ You can also run `dbtwiz --help`/`dbtwiz -h`, which will list the commands with 
 - `model` - Commands for a dbt model
   - [`create`](docs/model_create.md) - Create new dbt model.
   - [`fix`](docs/model_fix.md) - Run sqlfmt and sqlfix for staged and/or defined sql files.
-  - [`from_sql`](docs/model_from_sql.md) - Convert a sql file to a dbt model by replacing table references with source and ref.
+  - [`from-sql`](docs/model_from_sql.md) - Convert a sql file to a dbt model by replacing table references with source and ref.
   - [`inspect`](docs/model_inspect.md) - Output information about a given model.
   - [`lint`](docs/model_lint.md) - Run sqlfmt --diff and sqlfluff lint for staged and/or defined sql files.
   - [`move`](docs/model_move.md) - Moves a model by copying to a new location with a new name,
@@ -36,7 +36,7 @@ a configurable number of days in parallel.
 - `admin` - Administrative commands
   - [`cleandev`](docs/admin_cleandev.md) - Delete all materializations in the dbt development dataset
   - [`orphaned`](docs/admin_orphaned.md) - List or delete orphaned materializations in the data warehouse
-  - [`partition_expiry`](docs/admin_partition_expiry.md) - Checks for mismatched partition expiry and allows updating to correct.
+  - [`partition-expiry`](docs/admin_partition_expiry.md) - Checks for mismatched partition expiry and allows updating to correct.
 
 [comment]: <> (END COMMAND DOCS)
 

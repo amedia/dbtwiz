@@ -1,4 +1,4 @@
-# `dbtwiz admin partition_expiry`
+# `dbtwiz admin partition-expiry`
 
 Checks for mismatched partition expiry and allows updating to correct.
 
