@@ -21,9 +21,7 @@ def format_sql_files(
         )
     if model_names:
         for name in model_names:
-            files = list(
-                set(files + list(Path("models").rglob(f"{name}.sql")))
-            )
+            files = list(set(files + list(Path("models").rglob(f"{name}.sql"))))
 
     if len(files) == 0:
         info("No files identified for processing.")
