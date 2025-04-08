@@ -5,7 +5,7 @@ from typing import List
 
 from dbtwiz.dbt.project import get_source_tables
 from dbtwiz.gcp.bigquery import BigQueryClient
-from dbtwiz.helpers.log_types import fatal, info, warn
+from dbtwiz.helpers.logger import fatal, info, warn
 from dbtwiz.ui.interact import (
     autocomplete_from_list,
     confirm,

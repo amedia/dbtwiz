@@ -6,7 +6,7 @@ from pathlib import Path
 
 from ruamel.yaml import YAML
 
-from dbtwiz.helpers.log_types import error, info
+from dbtwiz.helpers.logger import error, info
 
 
 def _write_file(file_path, file_content):

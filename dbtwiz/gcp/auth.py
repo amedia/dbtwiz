@@ -6,7 +6,7 @@ from pathlib import Path
 
 from dbtwiz.config.project import project_config
 from dbtwiz.config.user import user_config
-from dbtwiz.helpers.log_types import fatal, warn
+from dbtwiz.helpers.logger import fatal, warn
 from dbtwiz.ui.interact import confirm
 
 CREDENTIALS_JSON = Path("gcloud", "application_default_credentials.json")

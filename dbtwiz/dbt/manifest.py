@@ -9,7 +9,7 @@ from jinja2 import Template
 from dbtwiz.config.project import project_config, project_dbtwiz_path
 from dbtwiz.config.user import user_config
 from dbtwiz.gcp.auth import ensure_app_default_auth
-from dbtwiz.helpers.log_types import debug, error, info
+from dbtwiz.helpers.logger import debug, error, info
 
 from .run import invoke
 from .support import models_with_local_changes

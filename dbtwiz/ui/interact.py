@@ -1,7 +1,7 @@
 import re
 from typing import List
 
-from dbtwiz.helpers.log_types import error
+from dbtwiz.helpers.logger import error
 
 from .style import custom_style
 

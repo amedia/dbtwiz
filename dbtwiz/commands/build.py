@@ -6,7 +6,7 @@ from dbtwiz.config.project import project_dbtwiz_path
 from dbtwiz.dbt.manifest import Manifest
 from dbtwiz.dbt.run import invoke
 from dbtwiz.gcp.auth import ensure_auth
-from dbtwiz.helpers.log_types import debug, error, fatal, info
+from dbtwiz.helpers.logger import debug, error, fatal, info
 
 LAST_SELECT_FILE = project_dbtwiz_path("last_select.json")
 

@@ -2,7 +2,7 @@ from typing import Dict, List, Tuple
 
 from ruamel.yaml.scalarstring import PreservedScalarString
 
-from dbtwiz.helpers.log_types import error, info
+from dbtwiz.helpers.logger import error, info
 
 MILLISECONDS_PER_DAY = 1000 * 60 * 60 * 24
 DEPRECATION_MESSAGE = "THIS OBJECT IS DEPRECATED"

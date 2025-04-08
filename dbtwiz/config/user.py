@@ -5,7 +5,7 @@ from typing import Any, Dict
 
 import typer
 
-from dbtwiz.helpers.log_types import error, info
+from dbtwiz.helpers.logger import error, info
 
 
 @functools.cache

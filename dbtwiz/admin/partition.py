@@ -2,7 +2,7 @@ from typing import Dict, List
 
 from dbtwiz.dbt.manifest import Manifest
 from dbtwiz.gcp.bigquery import BigQueryClient
-from dbtwiz.helpers.log_types import info
+from dbtwiz.helpers.logger import info
 from dbtwiz.ui.interact import multiselect_from_list
 
 

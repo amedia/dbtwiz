@@ -8,7 +8,7 @@ from jinja2 import Template
 
 from dbtwiz.config.project import project_config, project_dbtwiz_path
 from dbtwiz.gcp.auth import ensure_auth
-from dbtwiz.helpers.log_types import debug, info
+from dbtwiz.helpers.logger import debug, info
 
 MAX_CONCURRENT_TASKS = 8
 YAML_FILE = project_dbtwiz_path("backfill-cloudrun.yaml")

@@ -1,6 +1,6 @@
 from typing import List
 
-from dbtwiz.helpers.log_types import debug, fatal
+from dbtwiz.helpers.logger import debug, fatal
 
 
 def invoke(commands: List[str], **args: dict):

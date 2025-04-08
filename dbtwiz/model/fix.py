@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import List
 
 from dbtwiz.helpers.git import get_staged_files
-from dbtwiz.helpers.log_types import info
+from dbtwiz.helpers.logger import info
 
 
 def _find_files_by_file_name(folder: str, file_name: str):

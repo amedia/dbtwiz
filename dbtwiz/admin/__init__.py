@@ -3,7 +3,7 @@ from typing import Annotated, List
 import typer
 
 from dbtwiz.dbt.target import Target
-from dbtwiz.helpers.log_types import error
+from dbtwiz.helpers.logger import error
 
 
 class InvalidArgumentsError(ValueError):

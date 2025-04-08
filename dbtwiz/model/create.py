@@ -14,7 +14,7 @@ from dbtwiz.dbt.project import (
     list_domain_models,
     materialization_choices,
 )
-from dbtwiz.helpers.log_types import fatal, info, warn
+from dbtwiz.helpers.logger import fatal, info, warn
 from dbtwiz.ui.interact import (
     autocomplete_from_list,
     confirm,

@@ -3,7 +3,7 @@ from datetime import date
 from dbtwiz.dbt.manifest import Manifest
 from dbtwiz.dbt.run import invoke
 from dbtwiz.gcp.auth import ensure_auth
-from dbtwiz.helpers.log_types import debug, error, fatal, info
+from dbtwiz.helpers.logger import debug, error, fatal, info
 
 
 def test(

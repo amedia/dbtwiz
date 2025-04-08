@@ -2,7 +2,7 @@ import functools
 import tomllib
 from pathlib import Path
 
-from dbtwiz.helpers.log_types import fatal
+from dbtwiz.helpers.logger import fatal
 
 
 @functools.cache
