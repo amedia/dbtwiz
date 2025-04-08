@@ -6,7 +6,7 @@ import typer
 from dbtwiz.helpers.decorators import description, examples
 
 from .create import create_model
-from .fix import fix_sql_files, lint_sql_files
+from .format import format_sql_files
 from .from_sql import convert_sql_to_model
 from .inspect import inspect_model
 from .move import move_model, update_model_references
@@ -161,7 +161,7 @@ def fix(
     model_names: Annotated[
         List[str],
         typer.Argument(help="Models to fix."),
-    ]=None,
+    ] = None,
     staged: Annotated[
         bool,
         typer.Option(
@@ -170,7 +170,9 @@ def fix(
     ] = False,
 ):
     """Run sqlfmt and sqlfix for staged and/or defined sql files."""
-    fix_sql_files(staged=staged, model_names=model_names)
+    format_sql_files(
+        staged=staged, model_names=model_names, sqlfmt_args=[], sqlfluff_command="fix"
+    )
 
 
 @app.command()
@@ -200,7 +202,7 @@ def lint(
     model_names: Annotated[
         List[str],
         typer.Argument(help="Models to lint."),
-    ]=None,
+    ] = None,
     staged: Annotated[
         bool,
         typer.Option(
@@ -209,7 +211,12 @@ def lint(
     ] = False,
 ):
     """Run sqlfmt --diff and sqlfluff lint for staged and/or defined sql files."""
-    lint_sql_files(staged=staged, model_names=model_names)
+    format_sql_files(
+        staged=staged,
+        model_names=model_names,
+        sqlfmt_args=["--diff"],
+        sqlfluff_command="lint",
+    )
 
 
 @app.command()
