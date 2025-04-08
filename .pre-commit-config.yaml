@@ -1,9 +1,9 @@
 repos:
 -   repo: local
     hooks:
-    -   id: update-docs
-        name: Generate updated docs
-        entry: poetry run python dbtwiz/utils/docs.py
+    -   id: update-command-docs
+        name: Update command docs
+        entry: poetry run python dbtwiz/helpers/typer_docs.py
         language: system
         pass_filenames: false
         always_run: false

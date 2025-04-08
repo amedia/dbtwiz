@@ -2,17 +2,7 @@ import os
 from io import StringIO
 from pathlib import Path
 
-from dbtwiz.interact import (
-    autocomplete_from_list,
-    confirm,
-    description_validator,
-    input_text,
-    multiselect_from_list,
-    name_validator,
-    select_from_list,
-)
-from dbtwiz.logging import fatal, info, warn
-from dbtwiz.project import (
+from dbtwiz.dbt.project import (
     Group,
     ModelBasePath,
     Project,
@@ -23,6 +13,16 @@ from dbtwiz.project import (
     layer_choices,
     list_domain_models,
     materialization_choices,
+)
+from dbtwiz.helpers.log_types import fatal, info, warn
+from dbtwiz.ui.interact import (
+    autocomplete_from_list,
+    confirm,
+    description_validator,
+    input_text,
+    multiselect_from_list,
+    name_validator,
+    select_from_list,
 )
 
 

@@ -13,7 +13,7 @@ pip install git+https://github.com/amedia/dbtwiz
 These are the available subcommands for `dbtwiz`.
 You can also run `dbtwiz --help`/`dbtwiz -h`, which will list the commands with more details.
 
-[comment]: <> (START ACCESS CONFIG)
+[comment]: <> (START COMMAND DOCS)
 
 - `model` - Commands for a dbt model
   - [`create`](docs/model_create.md) - Create new dbt model.
@@ -32,13 +32,13 @@ unless an exact model name is passed.
 - [`backfill`](docs/backfill.md) - The _backfill_ subcommand allows you to (re)run date-partitioned models in production for a
 period spanning one or multiple days. It will spawn a Cloud Run job that will run `dbt` for
 a configurable number of days in parallel.
-- [`config`](docs/config.md) - Update configuration setting
+- [`config`](docs/config.md) - Update user configuration setting
 - `admin` - Administrative commands
   - [`cleandev`](docs/admin_cleandev.md) - Delete all materializations in the dbt development dataset
   - [`orphaned`](docs/admin_orphaned.md) - List or delete orphaned materializations in the data warehouse
   - [`partition_expiry`](docs/admin_partition_expiry.md) - Checks for mismatched partition expiry and allows updating to correct.
 
-[comment]: <> (END ACCESS CONFIG)
+[comment]: <> (END COMMAND DOCS)
 
 ## Configuration
 

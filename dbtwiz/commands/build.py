@@ -2,11 +2,11 @@ import json
 import os
 from datetime import date, timedelta
 
-from dbtwiz.auth import ensure_auth
-from dbtwiz.config import project_dbtwiz_path
-from dbtwiz.dbt import dbt_invoke
-from dbtwiz.logging import debug, error, fatal, info
-from dbtwiz.manifest import Manifest
+from dbtwiz.config.project import project_dbtwiz_path
+from dbtwiz.dbt.manifest import Manifest
+from dbtwiz.dbt.run import invoke
+from dbtwiz.gcp.auth import ensure_auth
+from dbtwiz.helpers.log_types import debug, error, fatal, info
 
 LAST_SELECT_FILE = project_dbtwiz_path("last_select.json")
 
@@ -87,7 +87,7 @@ def build(
         # No need for artifacts when backfilling
         args["write-json"] = False
 
-    dbt_invoke(commands, **args)
+    invoke(commands, **args)
 
 
 def save_selected_models(models):

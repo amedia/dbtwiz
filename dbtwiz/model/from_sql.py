@@ -1,8 +1,8 @@
 import re
 from typing import Dict, List, Tuple
 
-from dbtwiz.logging import fatal, info, warn
-from dbtwiz.manifest import Manifest
+from dbtwiz.dbt.manifest import Manifest
+from dbtwiz.helpers.log_types import fatal, info, warn
 
 
 def build_reference_lookup(manifest: dict) -> Dict[str, Tuple[str, str]]:

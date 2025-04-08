@@ -1,6 +1,6 @@
 # `dbtwiz config`
 
-Update configuration setting
+Update user configuration setting
 
 ## Required arguments
 

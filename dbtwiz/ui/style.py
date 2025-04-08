@@ -1,4 +1,4 @@
-from dbtwiz.config import dark_mode
+from dbtwiz.config.user import dark_mode
 
 
 def custom_style():

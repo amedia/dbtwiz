@@ -1,9 +1,9 @@
 from datetime import date
 
-from dbtwiz.auth import ensure_auth
-from dbtwiz.dbt import dbt_invoke
-from dbtwiz.logging import debug, error, fatal, info
-from dbtwiz.manifest import Manifest
+from dbtwiz.dbt.manifest import Manifest
+from dbtwiz.dbt.run import invoke
+from dbtwiz.gcp.auth import ensure_auth
+from dbtwiz.helpers.log_types import debug, error, fatal, info
 
 
 def test(
@@ -40,4 +40,4 @@ def test(
         error("Selector is required with dev target.")
         return
 
-    dbt_invoke(commands, **args)
+    invoke(commands, **args)

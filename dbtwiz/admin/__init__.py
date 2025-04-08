@@ -2,8 +2,8 @@ from typing import Annotated, List
 
 import typer
 
-from dbtwiz.logging import error
-from dbtwiz.target import Target
+from dbtwiz.dbt.target import Target
+from dbtwiz.helpers.log_types import error
 
 
 class InvalidArgumentsError(ValueError):

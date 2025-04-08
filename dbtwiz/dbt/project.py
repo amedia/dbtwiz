@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Dict, List, Tuple, Union
 
-from .config import project_path
+from dbtwiz.config.project import project_path
 
 
 class Group:

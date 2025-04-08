@@ -1,9 +1,9 @@
 from typing import List
 
-from .logging import debug, fatal
+from dbtwiz.helpers.log_types import debug, fatal
 
 
-def dbt_invoke(commands: List[str], **args: dict):
+def invoke(commands: List[str], **args: dict):
     """Invokes a dbt run."""
     if args.get("target", "dev") != "dev":
         fatal("Invoke command is only support for use in dev.")

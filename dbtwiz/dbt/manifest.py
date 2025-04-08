@@ -6,10 +6,12 @@ from typing import List
 
 from jinja2 import Template
 
-from .auth import ensure_app_default_auth
-from .config import project_config, project_dbtwiz_path, user_config
-from .dbt import dbt_invoke
-from .logging import debug, error, info
+from dbtwiz.config.project import project_config, project_dbtwiz_path
+from dbtwiz.config.user import user_config
+from dbtwiz.gcp.auth import ensure_app_default_auth
+from dbtwiz.helpers.log_types import debug, error, info
+
+from .run import invoke
 from .support import models_with_local_changes
 
 
@@ -44,7 +46,7 @@ class Manifest:
     def rebuild_manifest(cls):
         """Rebuild local manifest"""
         info("Parsing development manifest")
-        dbt_invoke(["parse"], quiet=True)
+        invoke(["parse"], quiet=True)
 
     @classmethod
     def get_local_manifest_age(cls, manifest_path):

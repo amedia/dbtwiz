@@ -4,10 +4,10 @@ import subprocess
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from dbtwiz.interact import confirm
-
-from .config import project_config, user_config
-from .logging import fatal, warn
+from dbtwiz.config.project import project_config
+from dbtwiz.config.user import user_config
+from dbtwiz.helpers.log_types import fatal, warn
+from dbtwiz.ui.interact import confirm
 
 CREDENTIALS_JSON = Path("gcloud", "application_default_credentials.json")
 

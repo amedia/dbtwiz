@@ -2,8 +2,8 @@ import subprocess
 from pathlib import Path
 from typing import List
 
-from dbtwiz.logging import info
-from dbtwiz.utils.git import get_staged_files
+from dbtwiz.helpers.git import get_staged_files
+from dbtwiz.helpers.log_types import info
 
 
 def _find_files_by_file_name(folder: str, file_name: str):
