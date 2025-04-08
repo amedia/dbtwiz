@@ -197,16 +197,16 @@ def inspect(
 
 @app.command()
 def lint(
+    model_names: Annotated[
+        List[str],
+        typer.Argument(help="Models to lint."),
+    ]=None,
     staged: Annotated[
         bool,
         typer.Option(
             "--staged", "-s", is_flag=True, help="Whether to lint staged sql files."
         ),
     ] = False,
-    model_names: Annotated[
-        List[str],
-        typer.Option("--model-name", "-m", help="Models to lint."),
-    ] = [],
 ):
     """Run sqlfmt --diff and sqlfluff lint for staged and/or defined sql files."""
     lint_sql_files(staged=staged, model_names=model_names)
