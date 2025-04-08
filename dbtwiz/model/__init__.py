@@ -3,7 +3,7 @@ from typing import Annotated, List
 
 import typer
 
-from dbtwiz.helpers.decorators import description
+from dbtwiz.helpers.decorators import description, examples
 
 from .create import create_model
 from .fix import fix_sql_files, lint_sql_files
@@ -141,17 +141,33 @@ def create(
 
 
 @app.command()
+@examples(
+    """Fix any number of given models, e.g.:
+```
+dbtwiz model fix mrt_siteconfig__site_groups mrt_siteconfig__sites
+```
+
+Fix models you have changed and staged:
+```
+dbtwiz model fix -s
+```
+
+It's also possible to combine the two:
+```
+dbtwiz model fix mrt_siteconfig__site_groups mrt_siteconfig__sites -s
+```"""
+)
 def fix(
+    model_names: Annotated[
+        List[str],
+        typer.Argument(help="Models to fix."),
+    ]=None,
     staged: Annotated[
         bool,
         typer.Option(
             "--staged", "-s", is_flag=True, help="Whether to fix staged sql files."
         ),
     ] = False,
-    model_names: Annotated[
-        List[str],
-        typer.Option("--model-name", "-m", help="Models to fix."),
-    ] = [],
 ):
     """Run sqlfmt and sqlfix for staged and/or defined sql files."""
     fix_sql_files(staged=staged, model_names=model_names)
