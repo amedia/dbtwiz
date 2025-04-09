@@ -15,6 +15,32 @@ models:
   4_bespoke (bsp as abbreviation)
     <as above>
 ```
+
+This function also has some expectations for the definition of `dbt_project.yml`.
+In `dbt_project.yml` it expects variables like these:
+```
+vars:
+  # <partition expiration type name>-expiration: 30 # expiration in days
+  ...
+  # Access configs - to be used in models for granting access
+  access-policies:
+    <access policy name>:
+      principal: group:<gcp group email>
+      description: ""
+    ...
+  teams:
+    <team name>:
+      principal: group:<team email>
+      description: ""
+    ...
+  service-consumers:
+    <service consumer name>:
+      principal: serviceAccount:<service account email>
+      description: ""
+    ...
+```
+Using this information, the create model function will populate the model yml.
+
 ## Options
 
 ### `--quick`, `-q`

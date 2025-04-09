@@ -2,6 +2,12 @@
 
 Create new dbt source
 
+When creating a new source, the function will ask a number of questions about the new source.
+
+1. Project name: You can manually input the project, but it will autocomplete for the existing source projects.
+2. Dataset name: Select one of the listed datasets that exist in the given project. If the dataset is new, it will ask for a description.
+3. Table name(s): Select one or more of the listed tables that exist in the dataset and aren't defined as source yet. If you only selected one table, it will ask for a description.
+
 ## Options
 
 ### `--source-name`, `-s`
