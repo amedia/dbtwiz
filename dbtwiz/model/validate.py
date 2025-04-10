@@ -100,7 +100,6 @@ class YmlValidator:
                 return False, "YML file is empty or invalid"
 
             updated = False
-            messages = []
 
             for model_def in yml_content.get("models", []):
                 if not isinstance(model_def, dict):
@@ -125,13 +124,11 @@ class YmlValidator:
                         and new_col.get("data_type") != table_col["data_type"]
                     ):
                         new_col["data_type"] = table_col["data_type"]
-                        messages.append(f"Updated data_type for {col_name}")
                         updated = True
 
                     # Add description if missing in yml
                     if "description" not in new_col:
                         new_col["description"] = table_col.get("description")
-                        messages.append(f"Updated description for {col_name}")
                         updated = True
 
                     new_columns.append(new_col)
@@ -139,7 +136,6 @@ class YmlValidator:
                 # Check for removed columns
                 removed_cols = set(yml_cols.keys()) - set(table_cols.keys())
                 if removed_cols:
-                    messages.extend(f"Removed column: {col}" for col in removed_cols)
                     updated = True
 
                 if updated:
@@ -148,8 +144,8 @@ class YmlValidator:
             if updated:
                 with open(yml_path, "w", encoding="utf-8") as f:
                     self.ruamel_yaml.dump(yml_content, f)
-                return True, "YML updated successfully. " + ", ".join(messages)
-            return True, "YML columns are already up to date"
+                return True, f"{yml_path}: updated successfully."
+            return True, f"{yml_path}: already up to date"
 
         except Exception as e:
             return False, f"Error updating YML file: {str(e)}"
