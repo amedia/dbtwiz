@@ -1,0 +1,10 @@
+repos:
+-   repo: local
+    hooks:
+    -   id: update-command-docs
+        name: Update command docs
+        entry: poetry run python dbtwiz/helpers/typer_docs.py
+        language: system
+        pass_filenames: false
+        always_run: false
+        files: '^dbtwiz/.*\.py$'

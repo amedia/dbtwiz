@@ -3,8 +3,10 @@ from io import StringIO
 from pathlib import Path
 from typing import List
 
-from dbtwiz.bigquery import BigQueryClient
-from dbtwiz.interact import (
+from dbtwiz.dbt.project import get_source_tables
+from dbtwiz.gcp.bigquery import BigQueryClient
+from dbtwiz.helpers.logger import fatal, info, warn
+from dbtwiz.ui.interact import (
     autocomplete_from_list,
     confirm,
     dataset_name_validator,
@@ -14,8 +16,6 @@ from dbtwiz.interact import (
     select_from_list,
     table_name_validator,
 )
-from dbtwiz.logging import fatal, info, warn
-from dbtwiz.project import get_source_tables
 
 
 def get_existing_source(

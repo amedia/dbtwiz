@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Dict, List, Tuple, Union
 
-from .config import project_path
+from dbtwiz.config.project import project_path
 
 
 class Group:
@@ -35,28 +35,34 @@ class Project:
         from yaml import safe_load  # Lazy import for improved performance
 
         with open(self.YAML_PATH, "r") as f:
-            data = safe_load(f)
-            self.data = data.get("vars", {})
+            self.data = safe_load(f)
+
+    def name(self) -> str:
+        return self.data.get("name")
 
     def teams(self) -> List[Dict[str, str]]:
         """List of teams defined in project config"""
         return [
             {"name": key, "description": value.get("description")}
-            for key, value in self.data.get("teams", {}).items()
+            for key, value in self.data.get("vars", {}).get("teams", {}).items()
         ]
 
     def service_consumers(self) -> List[Dict[str, str]]:
         """List of service consumers defined in project config"""
         return [
             {"name": key, "description": value.get("description")}
-            for key, value in self.data.get("service-consumers", {}).items()
+            for key, value in self.data.get("vars", {})
+            .get("service-consumers", {})
+            .items()
         ]
 
     def access_policies(self) -> List[Dict[str, str]]:
         """List of access policies defined in project config"""
         return [
             {"name": key, "description": value.get("description")}
-            for key, value in self.data.get("access-policies", {}).items()
+            for key, value in self.data.get("vars", {})
+            .get("access-policies", {})
+            .items()
         ]
 
     def data_expirations(self) -> List[Dict[str, str]]:
@@ -66,7 +72,7 @@ class Project:
                 "name": key,
                 "description": f"Used for {key.replace('-', ' ').replace(' expiration', '')} ({value} days)",
             }
-            for key, value in self.data.items()
+            for key, value in self.data.get("vars", {}).items()
             if key.endswith("-data-expiration")
         ]
 

@@ -1,9 +1,9 @@
 from typing import Dict, List
 
-from dbtwiz.bigquery import BigQueryClient
-from dbtwiz.interact import multiselect_from_list
-from dbtwiz.logging import info
-from dbtwiz.manifest import Manifest
+from dbtwiz.dbt.manifest import Manifest
+from dbtwiz.gcp.bigquery import BigQueryClient
+from dbtwiz.helpers.logger import info
+from dbtwiz.ui.interact import multiselect_from_list
 
 
 # Extract partition expiration variables from the manifest

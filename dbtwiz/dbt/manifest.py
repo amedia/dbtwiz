@@ -6,9 +6,12 @@ from typing import List
 
 from jinja2 import Template
 
-from .config import project_config, project_dbtwiz_path, user_config
-from .dbt import dbt_invoke
-from .logging import debug, error, info
+from dbtwiz.config.project import project_config, project_dbtwiz_path
+from dbtwiz.config.user import user_config
+from dbtwiz.gcp.auth import ensure_app_default_auth
+from dbtwiz.helpers.logger import debug, error, info
+
+from .run import invoke
 from .support import models_with_local_changes
 
 
@@ -24,6 +27,7 @@ class Manifest:
         with open(path, "r") as f:
             manifest = json.load(f)
             self.nodes = manifest["nodes"]
+            self.sources_nodes = manifest["sources"]
             self.parent_map = manifest["parent_map"]
             self.child_map = manifest["child_map"]
 
@@ -42,29 +46,52 @@ class Manifest:
     def rebuild_manifest(cls):
         """Rebuild local manifest"""
         info("Parsing development manifest")
-        dbt_invoke(["parse"], quiet=True)
+        invoke(["parse"], quiet=True)
 
     @classmethod
-    def download_prod_manifest(cls):
-        """Download latest production manifest"""
-        info("Fetching production manifest")
-        from google.cloud import storage  # Only when used
+    def get_local_manifest_age(cls, manifest_path):
+        """Returns the age of the manifest in hours. If it doesn't exist, 999 is returned."""
+        manifest_file = Path(manifest_path)
+        if manifest_file.is_file():
+            from datetime import datetime
 
-        gcs = storage.Client(project=project_config().gcp_project)
-        blob = gcs.bucket(project_config().dbt_state_bucket).blob("manifest.json")
-        # Create path if missing
-        cls.PROD_MANIFEST_PATH.parent.mkdir(parents=True, exist_ok=True)
-        # Download prod manifest to path
-        blob.download_to_filename(cls.PROD_MANIFEST_PATH)
-        gcs.close()
+            modified_time_float = manifest_file.stat().st_mtime
+            modified_time = datetime.fromtimestamp(modified_time_float)
+            current_time = datetime.now()
+            difference_in_seconds = (current_time - modified_time).total_seconds()
+
+            return int(difference_in_seconds // 3600)
+        return 999
 
     @classmethod
-    def update_manifests(cls, type):
+    def download_prod_manifest(cls, force=False):
+        """Downloads latest production manifest if force or older than 2 hours."""
+        if (
+            force
+            or cls.get_local_manifest_age(manifest_path=cls.PROD_MANIFEST_PATH) >= 2
+        ):
+            info("Fetching production manifest")
+            from google.cloud import storage  # Only when used
+
+            ensure_app_default_auth()
+
+            gcs = storage.Client(project=project_config().bucket_state_project)
+            blob = gcs.bucket(project_config().bucket_state_identifier).blob(
+                "manifest.json"
+            )
+            # Create path if missing
+            cls.PROD_MANIFEST_PATH.parent.mkdir(parents=True, exist_ok=True)
+            # Download prod manifest to path
+            blob.download_to_filename(cls.PROD_MANIFEST_PATH)
+            gcs.close()
+
+    @classmethod
+    def update_manifests(cls, type, force=False):
         """Rebuild local manifest and download latest production manifest"""
         if type in ("all", "dev"):
             cls.rebuild_manifest()
         if type in ("all", "prod"):
-            cls.download_prod_manifest()
+            cls.download_prod_manifest(force=force)
 
     @classmethod
     def get_manifest(cls, manifest_path):
@@ -178,9 +205,11 @@ class Manifest:
                 parent_models = self.parent_models(key)
                 child_models = self.child_models(key)
                 models[node["name"]] = dict(
+                    unique_id=key,
                     database=node["database"],
                     schema=node["schema"],
                     name=node["name"],
+                    alias=node["alias"],
                     path=node["path"],
                     folder=str(folder),
                     tags=node["tags"],
@@ -260,6 +289,30 @@ class Manifest:
                 dependencies.add((child, materialized))
                 dependencies.update(self.model_dependencies_downstream(child))
         return dependencies
+
+    @functools.cache
+    def sources(self):
+        """Retrieve all models with their metadata and relationships."""
+        sources = dict()
+        for key, node in self.sources_nodes.items():
+            if node["resource_type"] == "source":
+                sources[node["name"]] = dict(
+                    unique_id=key,
+                    database=node["database"],
+                    schema=node["schema"],
+                    name=node["name"],
+                    source_name=node["source_name"],
+                    source_description=node["source_description"],
+                    identifier=node["identifier"],
+                    path=node["path"],
+                    folder="sources",
+                    description=node["description"],
+                    tags=node["tags"],
+                    meta=node["meta"],
+                    config=node["config"],
+                    source_meta=node["source_meta"],
+                )
+        return sources
 
 
 def model_style(name: str):

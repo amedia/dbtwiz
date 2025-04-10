@@ -3,14 +3,13 @@ from typing import Annotated
 
 import typer
 
-from dbtwiz.target import Target
+from dbtwiz.config.user import UserConfig
+from dbtwiz.dbt.manifest import Manifest
+from dbtwiz.dbt.target import Target
+from dbtwiz.helpers.decorators import examples
 
 from .backfill import backfill as command_backfill
 from .build import build as command_build
-from .config import config as command_config
-from .freshness import freshness as command_freshness
-from .manifest import manifest as command_manifest
-from .precommit import sqlfix as command_sqlfix
 from .test import test as command_test
 
 app = typer.Typer()
@@ -23,35 +22,62 @@ class InvalidArgumentsError(ValueError):
 @app.command()
 def build(
     target: Annotated[
-        Target, typer.Option("--target", "-t", help="Target")
+        Target,
+        typer.Option(
+            "--target",
+            "-t",
+            help="""Build target. Only dev is supported.\n
+As a model developer, you should never have to use this option.
+If you need to rebuild models in production, use the [backfill](backfill.md) command.""",
+        ),
     ] = Target.dev,
     select: Annotated[
-        str, typer.Option("--select", "-s", help="Model selector passed to dbt")
+        str,
+        typer.Option(
+            "--select",
+            "-s",
+            help="""Model selector. If an existing model matches the given selector string exactly,
+it will build with no further interaction. Otherwise an interactive selection
+list will show all models which partially matches using fuzzy match to allow
+you to refine your search.""",
+        ),
     ] = "",
     date: Annotated[
-        str, typer.Option("--date", help="Date to run model on [YYYY-mm-dd]")
+        str,
+        typer.Option(
+            "--date",
+            help="""Date in `YYYY-mm-dd` format.
+For partitioned models, this option sets the date to be passed as `data_interval_start`
+variable and will be picked up by the `start_date()` macro by the models.""",
+        ),
     ] = "",
     use_task_index: Annotated[
         bool,
         typer.Option(
             "--use-task-index",
-            help=("Use task index passed by Cloud Run env as an offset to the date"),
+            help="""This option is only relevant for backfilling, and is set by Cloud Run to
+offset the date for partitioned models relative to the start date.""",
         ),
     ] = False,
     save_state: Annotated[
         bool,
         typer.Option(
             "--save-state",
-            help=(
-                "Save state by uploading the manifest file to the "
-                "state bucket after a successful run"
-            ),
+            help="""For production runs, this option will cause the resulting manifest to be copied over
+to the state bucket after the build has successfully completed. This is only relevant
+when running with target `prod`, and should not be used elsewhere.
+
+The state bucket is set in the project's _pyproject.toml_ file in the
+section `[tool.dbtwiz.project]` and the setting `bucket_state_identifier`.""",
         ),
     ] = False,
     full_refresh: Annotated[
         bool,
         typer.Option(
-            "--full-refresh", "-f", help="Force full refresh when building the model"
+            "--full-refresh",
+            "-f",
+            help="""Build the model with full refresh, which causes existing tables to be deleted and
+recreated. Needed when schema has changed between runs.""",
         ),
     ] = False,
     upstream: Annotated[
@@ -59,7 +85,8 @@ def build(
         typer.Option(
             "--upstream",
             "-u",
-            help="Include building of upstream dependencies of the selected models",
+            help="""Also build upstream models on which the selected model(s) are dependent.
+This will prepend a '+' to your chosen models when passing them on to _dbt_.""",
         ),
     ] = False,
     downstream: Annotated[
@@ -67,7 +94,8 @@ def build(
         typer.Option(
             "--downstream",
             "-d",
-            help="Include building of downstream dependencies of the selected models",
+            help="""Also build downstream models that are directly or indirectly depdendent on the selected model(s).
+This will append a '+' to your chosen models when passing them on to _dbt_.""",
         ),
     ] = False,
     work: Annotated[
@@ -75,14 +103,26 @@ def build(
         typer.Option(
             "--work",
             "-w",
-            help="Consider only new or changed models for interactive selection",
+            help="""When used, this option causes interactive selection to include only models that
+have *staged* local modifications according to `git status`.""",
         ),
     ] = False,
     repeat_last: Annotated[
-        bool, typer.Option("--last", "-l", help="Build the last built models again")
+        bool,
+        typer.Option(
+            "--last",
+            "-l",
+            help="""When you build with _dbtwiz_, it will store a list of selected models in the
+file `.dbtwiz/last_select.json` in the current project.
+
+Pass this option to rebuild the same models that you most recently built.""",
+        ),
     ] = False,
 ) -> None:
-    """Build dbt models"""
+    """
+    Build one or more dbt models, using interactive selection with fuzzy-matching,
+    unless an exact model name is passed.
+    """
     # Validate
     try:
         if date == "":
@@ -109,7 +149,7 @@ def build(
 @app.command()
 def test(
     target: Annotated[
-        Target, typer.Option("--target", "-t", help="Target")
+        Target, typer.Option("--target", "-t", help="Target. Only dev is supported.")
     ] = Target.dev,
     select: Annotated[
         str, typer.Option("--select", "-s", help="Model selector passed to dbt")
@@ -132,12 +172,6 @@ def test(
 
 
 @app.command()
-def sqlfix():
-    """Run sqlfmt-fix and sqlfluff-fix on staged changes"""
-    command_sqlfix()
-
-
-@app.command()
 def manifest(
     type: Annotated[
         str,
@@ -149,10 +183,25 @@ def manifest(
     ] = "all",
 ):
     """Update dev and production manifests for fast lookup"""
-    command_manifest(type)
+    Manifest.update_manifests(type)
 
 
 @app.command()
+@examples(
+    """Example of the basic use-case:
+```shell
+$ dbtwiz backfill mymodel 2024-01-01 2024-01-31
+```
+
+Another example including downstream dependencies and serial execution (needed for models that
+depends on previous partitions of their own data, for example):
+```shell
+$ dbtwiz backfill -p1 mymodel+ 2024-01-01 2024-01-15
+```
+
+After the job has been set up and passed on to Cloud Run, a status page should automatically
+be opened in your browser so you can track progress."""
+)
 def backfill(
     select: Annotated[str, typer.Argument(help="Model selector passed to dbt")],
     date_first: Annotated[
@@ -167,9 +216,10 @@ def backfill(
             "--full-refresh",
             "-f",
             help=(
-                "Do a full refresh when building the model. "
-                "not supported when also building dependencies, "
-                "or when running over multiple days"
+                "Build the model with full refresh, which causes existing tables to be deleted "
+                "and recreated. Needed when schema has changed between runs. "
+                "**This should only be used when backfilling a single date, ie. when "
+                "_date_first_ and _date_last_ are the same.**"
             ),
         ),
     ] = False,
@@ -198,7 +248,11 @@ def backfill(
         typer.Option("--verbose", "-v", help="Output more info about what is going on"),
     ] = False,
 ) -> None:
-    """Backfill dbt models by generating job spec and execute through Cloud Run"""
+    """
+    The _backfill_ subcommand allows you to (re)run date-partitioned models in production for a
+    period spanning one or multiple days. It will spawn a Cloud Run job that will run `dbt` for
+    a configurable number of days in parallel.
+    """
     # Validate
     try:
         first_date = datetime.date.fromisoformat(date_first)
@@ -223,24 +277,14 @@ def backfill(
 
 
 @app.command()
-def freshness(
-    target: Annotated[
-        Target,
-        typer.Option(
-            "--target",
-            "-t",  # does this have any function when checking sources?
-            help="Target",
-        ),
-    ] = Target.dev,
-) -> None:
-    """Run source freshness tests"""
-    command_freshness(target.value)
-
-
-@app.command()
 def config(
     setting: Annotated[str, typer.Argument(help="Configuration setting")],
     value: Annotated[str, typer.Argument(help="Configuration value")],
 ):
-    """Update configuration setting"""
-    command_config(setting, value)
+    """Update user configuration setting"""
+    if ":" in setting:
+        section, key = setting.split(":")
+    else:
+        section, key = "general", setting
+
+    UserConfig().update(section, key, value)

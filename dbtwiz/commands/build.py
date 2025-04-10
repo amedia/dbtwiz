@@ -1,15 +1,12 @@
 import json
 import os
 from datetime import date, timedelta
-from pathlib import Path
 
-from dbtwiz.auth import ensure_auth
-from dbtwiz.config import project_config, project_dbtwiz_path
-from dbtwiz.dbt import dbt_invoke
-from dbtwiz.logging import debug, error, info
-from dbtwiz.manifest import Manifest
-
-VALID_TARGETS = ["dev", "build", "prod-ci", "prod"]
+from dbtwiz.config.project import project_config, project_dbtwiz_path
+from dbtwiz.dbt.manifest import Manifest
+from dbtwiz.dbt.run import invoke
+from dbtwiz.gcp.auth import ensure_auth
+from dbtwiz.helpers.logger import debug, error, info
 
 LAST_SELECT_FILE = project_dbtwiz_path("last_select.json")
 
@@ -34,7 +31,6 @@ def build(
     select: str,
     date: date,
     use_task_index: bool,
-    save_state: bool,
     full_refresh: bool,
     upstream: bool,
     downstream: bool,
@@ -81,7 +77,7 @@ def build(
         info("Builing modified models and their downstream dependencies.")
         args["select"] = "state:modified+"
         args["defer"] = True
-        args["state"] = project_config().pod_manifest_path
+        args["state"] = project_config().docker_image_manifest_path
     else:
         error("Selector is required with dev target.")
         return
@@ -94,16 +90,7 @@ def build(
         # No need for artifacts when backfilling
         args["write-json"] = False
 
-    dbt_invoke(commands, **args)
-
-    if save_state and target != "dev":
-        info("Saving state, uploading manifest to bucket.")
-        from google.cloud import storage  # Only when used
-
-        gcs = storage.Client(project=project_config().gcp_project)
-        bucket = gcs.bucket(project_config().dbt_state_bucket)
-        for filename in ["manifest.json", "run_results.json"]:
-            bucket.blob(filename).upload_from_filename(Path.cwd() / "target" / filename)
+    invoke(commands, **args)
 
 
 def save_selected_models(models):

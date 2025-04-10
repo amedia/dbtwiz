@@ -5,19 +5,13 @@ from typing import Any, Dict
 
 import typer
 
-from .logging import error, fatal, info
+from dbtwiz.helpers.logger import error, info
 
 
 @functools.cache
 def user_config():
     """Read and cache settings from user configuration"""
     return UserConfig()
-
-
-@functools.cache
-def project_config():
-    """Read and cache settings from project configuration"""
-    return ProjectConfig()
 
 
 def user_config_path(target: str = "") -> Path:
@@ -28,18 +22,6 @@ def user_config_path(target: str = "") -> Path:
 def dark_mode() -> bool:
     """Are we using a dark theme?"""
     return user_config().get("general", "theme") == "dark"
-
-
-def project_path(target: str = "") -> Path:
-    """Get Path to the given target relative to the project root directory"""
-    return project_config().root_path() / target
-
-
-def project_dbtwiz_path(target: str = "") -> Path:
-    """Get Path to the given target relative to the project .dbtwiz directory"""
-    dot_path = project_config().root_path() / ".dbtwiz"
-    Path.mkdir(dot_path, exist_ok=True)
-    return project_config().root_path() / ".dbtwiz" / target
 
 
 class InvalidConfig(ValueError):
@@ -139,50 +121,3 @@ class UserConfig:
         theme_index = self.THEMES["names"].index(theme)
         for key, value in self.THEMES["colors"].items():
             self.parser.set("theme", key, str(value[theme_index]))
-
-
-class ProjectConfig:
-    """Project-specific settings from pyproject.toml"""
-
-    SETTINGS = [
-        "gcp_auth_domains",
-        "gcp_project",
-        "gcp_region",
-        "dbt_state_bucket",
-        "dbt_image_url",
-        "dbt_service_account",
-        "pod_manifest_path",
-        "pod_profiles_path",
-    ]
-
-    def __init__(self) -> None:
-        """Initialize the class by determining the root path and parsing the config."""
-        self._determine_root_path()
-        self._parse_config()
-
-    def root_path(self):
-        """Return the root path of the project."""
-        return self.root
-
-    def _determine_root_path(self):
-        """Search upward from current path to find project root"""
-        path_list = [Path.cwd()] + list(Path.cwd().parents)
-        for path in path_list:
-            if (path / "pyproject.toml").exists:
-                self.root = path
-                return
-        fatal("No pyproject.toml file found in current or upstream directories.")
-
-    def _parse_config(self):
-        """Parse the 'pyproject.toml' file and set configuration settings."""
-        project_file = self.root_path() / "pyproject.toml"
-        try:
-            parser = configparser.ConfigParser()
-            parser.read(project_file)
-            for setting in self.SETTINGS:
-                value = parser.get("tool.dbtwiz.project", setting)
-                if value[0] == value[-1] and value[0] in ["'", '"']:
-                    value = value[1:-1]  # Strip surrounding quotes
-                self.__setattr__(setting, value)
-        except Exception as ex:
-            fatal(f"Failed to parse file {project_file}: {ex}")

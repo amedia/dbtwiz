@@ -1,8 +1,9 @@
 import re
 from typing import List
 
-from dbtwiz.logging import error
-from dbtwiz.style import custom_style
+from dbtwiz.helpers.logger import error
+
+from .style import custom_style
 
 
 def name_validator():

@@ -2,8 +2,9 @@ from typing import Annotated, List
 
 import typer
 
-from dbtwiz.logging import error
-from dbtwiz.target import Target
+from dbtwiz.dbt.target import Target
+from dbtwiz.helpers.decorators import description
+from dbtwiz.helpers.logger import error
 
 
 class InvalidArgumentsError(ValueError):
@@ -14,6 +15,31 @@ app = typer.Typer()
 
 
 @app.command()
+@description(
+    """By using defer, it is good practice to routinely clean the dbt dev dataset to ensure up to date production tables are used.
+""")
+def cleandev(
+    force_delete: Annotated[
+        bool,
+        typer.Option(
+            "--force", "-f", help=("Delete without asking for confirmation first")
+        ),
+    ] = False,
+) -> None:
+    """Delete all materializations in the dbt development dataset"""
+    from .cleanup import empty_development_dataset
+
+    empty_development_dataset(force_delete)
+
+
+@app.command()
+@description(
+    """It will identify any tables/views created originally by dbt that are now outdated.
+This is identified by comparing to the related manifest (dev or prod).
+
+If using the list option, then it will only list the tables that are no longer present in the manifest.
+If not then it will also enable selection of which tables to delete.
+""")
 def orphaned(
     target: Annotated[
         Target, typer.Option("--target", "-t", help="Target")
@@ -45,21 +71,15 @@ def orphaned(
 
 
 @app.command()
-def cleandev(
-    force_delete: Annotated[
-        bool,
-        typer.Option(
-            "--force", "-f", help=("Delete without asking for confirmation first")
-        ),
-    ] = False,
-) -> None:
-    """Delete all materializations in the dbt development dataset"""
-    from .cleanup import empty_development_dataset
+@description(
+    """When run, the current partition expiration definition in BigQuery will be compared with the definition in dbt for the model:
+```
+partition_expiration_days: <number of days>
+```
+The tables with differing values will be listed, and it's then possible to select which tables to update partition expiration for.
 
-    empty_development_dataset(force_delete)
-
-
-@app.command()
+When comparing, the function uses the production manifest rather then the local version.
+""")
 def partition_expiry(
     model_names: Annotated[
         List[str],

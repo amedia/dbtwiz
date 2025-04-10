@@ -1,14 +1,13 @@
-import ast
 import json
 import os
 import subprocess
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from dbtwiz.interact import confirm
-
-from .config import project_config, user_config
-from .logging import fatal, warn
+from dbtwiz.config.project import project_config
+from dbtwiz.config.user import user_config
+from dbtwiz.helpers.logger import fatal, warn
+from dbtwiz.ui.interact import confirm
 
 CREDENTIALS_JSON = Path("gcloud", "application_default_credentials.json")
 
@@ -36,7 +35,9 @@ def ensure_app_default_auth() -> None:
                 # debug(f"GCP credentials seem to be valid until {expiry.strftime('%H:%M:%S')}.")
                 return
             else:
-                warn("GCP application-default credentials seem to expire within the next five minutes.")
+                warn(
+                    "GCP application-default credentials seem to expire within the next five minutes."
+                )
         else:
             warn(
                 f"GCP application-default credentials seem to have expired at {expiry.strftime('%Y-%m-%d %H:%M:%S')}."
@@ -50,7 +51,7 @@ def ensure_app_default_auth() -> None:
 
 def ensure_gcloud_auth() -> None:
     """Ensures gcloud authorization is active."""
-    allowed_domains = ast.literal_eval(project_config().gcp_auth_domains) or []
+    allowed_domains = project_config().user_auth_verified_domains
     # Get list of authenticated accounts
     result = subprocess.run(
         "gcloud auth list --format=json",
@@ -72,7 +73,8 @@ def ensure_gcloud_auth() -> None:
     # Check if an allowed domain account is authenticated
     for account in accounts:
         if account.get("status") == "ACTIVE" and any(
-            account.get("account").lower().endswith(f"@{domain}") for domain in allowed_domains
+            account.get("account").lower().endswith(f"@{domain}")
+            for domain in allowed_domains
         ):
             return
     warn("No valid GCP account is authenticated.")

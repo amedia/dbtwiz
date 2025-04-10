@@ -1,6 +1,6 @@
 availability: low
 confidentiality: none
-description: Python package with CLI helper tool for dbt
+description: Python package with CLI helper tool for dbt in GCP using BigQuery
 integrity: false
 name: dbtwiz
 owner: data-analyseplattform

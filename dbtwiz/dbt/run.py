@@ -1,14 +1,14 @@
 from typing import List
 
-from .config import project_config
-from .logging import debug, fatal
+from dbtwiz.config.project import project_config
+from dbtwiz.helpers.logger import debug, fatal
 
 
-def dbt_invoke(commands: List[str], **args: dict):
+def invoke(commands: List[str], **args: dict):
     """Invokes a dbt run."""
     if args.get("target", "dev") != "dev":
         args["use-colors"] = False
-        args["profiles-dir"] = project_config().pod_profiles_path
+        args["profiles-dir"] = project_config().docker_image_profiles_path
 
     dbt_args = [c for c in commands]
     for key, value in args.items():

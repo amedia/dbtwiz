@@ -1,12 +1,10 @@
 from datetime import date
 
-from dbtwiz.auth import ensure_auth
-from dbtwiz.config import project_config
-from dbtwiz.dbt import dbt_invoke
-from dbtwiz.logging import debug, error, info
-from dbtwiz.manifest import Manifest
-
-VALID_TARGETS = ["dev", "build", "prod-ci", "prod"]
+from dbtwiz.config.project import project_config
+from dbtwiz.dbt.manifest import Manifest
+from dbtwiz.dbt.run import invoke
+from dbtwiz.gcp.auth import ensure_auth
+from dbtwiz.helpers.logger import debug, error, info
 
 
 def test(
@@ -40,10 +38,10 @@ def test(
         info("Testing modified models and their downstream dependencies.")
         args["select"] = "state:modified+"
         args["defer"] = True
-        args["state"] = project_config().pod_manifest_path
+        args["state"] = project_config().docker_image_manifest_path
     else:
         # Running ALL tests means you'd have to build ALL models - not likely
         error("Selector is required with dev target.")
         return
 
-    dbt_invoke(commands, **args)
+    invoke(commands, **args)

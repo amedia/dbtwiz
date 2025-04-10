@@ -1,5 +1,6 @@
-from dbtwiz.logging import error
-from dbtwiz.manifest import Manifest
+from dbtwiz.dbt.manifest import Manifest
+from dbtwiz.dbt.project import Project
+from dbtwiz.helpers.logger import error
 
 
 def inspect_model(name: str) -> None:
@@ -14,13 +15,13 @@ def inspect_model(name: str) -> None:
 
     manifest = Manifest()
     manifest.model_by_name(name)
-    # model = manifest.model_by_name(name)
-    # print(Manifest().model_info_template().render(model=model))
 
     ancestors = sorted(
         [
             m[0].split(".")[-1]
-            for m in manifest.model_dependencies_upstream(f"model.dbt_core.{name}")
+            for m in manifest.model_dependencies_upstream(
+                f"model.{Project().name()}.{name}"
+            )
         ],
         key=manifest.model_ordering,
     )
@@ -28,7 +29,9 @@ def inspect_model(name: str) -> None:
     descendants = sorted(
         [
             m[0].split(".")[-1]
-            for m in manifest.model_dependencies_downstream(f"model.dbt_core.{name}")
+            for m in manifest.model_dependencies_downstream(
+                f"model.{Project().name()}.{name}"
+            )
         ],
         key=manifest.model_ordering,
     )
