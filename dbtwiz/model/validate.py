@@ -72,7 +72,6 @@ class YmlValidator:
             relation_name := prod_model_details.get("relation_name")
         ):
             try:
-                # Remove backticks and split
                 project, dataset, table_name = relation_name.replace("`", "").split(".")
                 columns, error = self.bq_client.fetch_table_columns(
                     project, dataset, table_name
@@ -130,11 +129,8 @@ class YmlValidator:
                         updated = True
 
                     # Add description if missing in yml
-                    if "description" in table_col and (
-                        not new_col.get("description")
-                        or new_col.get("description") == ""
-                    ):
-                        new_col["description"] = table_col["description"]
+                    if "description" not in new_col:
+                        new_col["description"] = table_col.get("description")
                         messages.append(f"Updated description for {col_name}")
                         updated = True
 
