@@ -12,7 +12,7 @@ description = "Python package with CLI helper tool for dbt in GCP using BigQuery
 readme = "README.md"
 license = {text = "MIT"}
 urls = {"Homepage" = "https://github.com/amedia/dbtwiz"}
-requires-python = ">=3.11.0"
+requires-python = ">=3.11.0,<4"
 dependencies = [
     "dbt-core>=1.9.1",
     "google-cloud-storage>=2.19.0",
@@ -61,3 +61,5 @@ isort = "^6.0.1"
 typer = "^0.15.2"
 questionary = "^2.1.0"
 pre-commit = "^4.0.1"
+# Not used directly, but seems to be a dependency. Force newer version due to https://github.com/advisories/GHSA-xrx6-fmxq-rjj2
+rsa = ">=4.7.0"
