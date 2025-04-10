@@ -101,8 +101,11 @@ class BigQueryClient:
 
     def parse_schema(self, fields, prefix=""):
         """
-        Parses the schema for a table and returns all the columns.
-        If a column is a struct then it recursively adds all nested columns.
+        Parses the schema for a table and returns all columns with their details.
+        For RECORD types, recursively adds all nested columns.
+
+        Returns:
+            List of dicts with keys: name, data_type, description (if available)
         """
         schema_details = []
 
@@ -114,9 +117,15 @@ class BigQueryClient:
                 )
                 schema_details.extend(nested_fields)
             else:
-                column = {"name": f"{prefix}{field.name}"}
-                if field.description:
-                    column["description"] = PreservedScalarString(field.description)
+                column = {
+                    "name": f"{prefix}{field.name}",
+                    "data_type": field.field_type.lower(),
+                }
+                column["description"] = (
+                    PreservedScalarString(field.description)
+                    if field.description
+                    else ""
+                )
                 schema_details.append(column)
 
         return schema_details
