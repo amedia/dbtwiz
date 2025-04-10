@@ -2,20 +2,20 @@ import json
 import os
 from datetime import date, timedelta
 
-from dbtwiz.config.project import project_dbtwiz_path
+from dbtwiz.config.project import project_config, project_dbtwiz_path
 from dbtwiz.dbt.manifest import Manifest
 from dbtwiz.dbt.run import invoke
 from dbtwiz.gcp.auth import ensure_auth
-from dbtwiz.helpers.logger import debug, error, fatal, info
+from dbtwiz.helpers.logger import debug, error, info
 
 LAST_SELECT_FILE = project_dbtwiz_path("last_select.json")
 
 
-def choose_models(select, repeat_last: bool, work=None):
+def choose_models(target: str, select, repeat_last: bool, work=None):
     """
     Determine the chosen models based on the target, selection, and repeat_last flag.
     """
-    if Manifest.can_select_directly(select):
+    if target != "dev" or Manifest.can_select_directly(select):
         chosen_models = [select]
     elif repeat_last:
         chosen_models = load_selected_models()
@@ -38,10 +38,8 @@ def build(
     repeat_last: bool,
 ) -> None:
     """Builds the given models."""
-    if target != "dev":
-        fatal("Build command is only support for use in dev.")
-
-    ensure_auth()
+    if target == "dev":
+        ensure_auth()
 
     chosen_models = choose_models(target, select, repeat_last, work)
     if chosen_models is None:
@@ -75,6 +73,11 @@ def build(
     if len(select) > 0:
         info(f"Building models matching '{select}'.")
         args["select"] = select
+    elif target != "dev":
+        info("Builing modified models and their downstream dependencies.")
+        args["select"] = "state:modified+"
+        args["defer"] = True
+        args["state"] = project_config().docker_image_manifest_path
     else:
         error("Selector is required with dev target.")
         return

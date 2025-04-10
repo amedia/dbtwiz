@@ -64,6 +64,8 @@ user_auth_verified_domains = []   # Which domains to check when identifying whet
 
 # Config for docker image used for backfill
 docker_image_url_dbt = ""         # Url for docker image
+docker_image_profiles_path = ""   # Path to profiles dir in docker image
+docker_image_manifest_path = ""   # Path to manifest in docker image
 ```
 
 ### User config
