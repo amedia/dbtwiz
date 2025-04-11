@@ -103,8 +103,6 @@ def convert_sql_to_model(file_path: str):
         with open(file_path, "w", encoding="utf-8") as f:
             f.write(new_sql)
         info(f"Updated references in {file_path}")
-    else:
-        info(f"No references replaced in {file_path}")
 
     if unresolved:
         warn("Unresolved tables:\n  - " + "\n  - ".join(unresolved))
