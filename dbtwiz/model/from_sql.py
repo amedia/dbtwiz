@@ -8,7 +8,7 @@ from dbtwiz.helpers.logger import fatal, info, warn
 def build_reference_lookup(manifest: dict) -> Dict[str, Tuple[str, str]]:
     """Build lookup dictionary from manifest."""
     lookup_dict = {}
-
+    # TODO: Move to dbt.manifest
     # Process models
     for node in manifest.models().values():
         if not node.get("unique_id").startswith("model."):
@@ -47,6 +47,7 @@ def replace_table_references(
     """Replace table references while handling all backtick cases."""
     pattern = r"(`?[^`\s]+`?)\.(`?[^`\s]+`?)\.(`?[^`\s]+`?)"
     unresolved_tables = []
+    # TODO: Move to model.validate
 
     def get_replacement(match):
         # Extract and clean each component
@@ -88,7 +89,7 @@ def convert_sql_to_model(file_path: str):
     """Converts a sql file to a dbt model by replacing full table references with ref and source."""
     if not file_path:
         fatal("Unable to convert sql to model since no file was specified.")
-
+    # TODO: Move to model.validate
     Manifest.download_prod_manifest()
     manifest_data = Manifest(Manifest.PROD_MANIFEST_PATH)
 
