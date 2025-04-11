@@ -32,7 +32,9 @@ class YmlValidator:
         yml_path = self.model_base.path.with_suffix(".yml")
         if not yml_path.exists():
             info(f"Creating missing YML file for model {self.model_base.model_name}:")
-            os.system(f"dbtwiz model create -l {self.model_base.layer} -d {self.model_base.domain} -n {self.model_base.identifier}")
+            os.system(
+                f"dbtwiz model create -l {self.model_base.layer} -d {self.model_base.domain} -n {self.model_base.identifier}"
+            )
             if not yml_path.exists():
                 return False, f"YML file not found at {yml_path}"
 
@@ -154,3 +156,59 @@ class YmlValidator:
 
         except Exception as e:
             return False, f"Error updating YML file: {str(e)}"
+
+
+class SqlValidator:
+    def __init__(self, model_path: Union[str, Path]):
+        self.model_base = ModelBasePath(path=model_path)
+
+    def convert_refs_sources(self) -> Tuple[bool, str]:
+        """Replace fully-qualified names with dbt ref()/source()"""
+        from dbtwiz.model.from_sql import convert_sql_to_model
+
+        convert_sql_to_model(file_path=self.model_base.path.with_suffix(".sql"))
+
+    def validate_formatting(self) -> Tuple[bool, str]:
+        """Validate SQL formatting using sqlfluff"""
+        try:
+            from sqlfluff import lint
+
+            self.sql_content = self.model_base.path.with_suffix(".sql").read_text(
+                encoding="utf-8"
+            )
+            result = lint(self.sql_content, dialect="bigquery")
+            print(result)
+            if result.violations:
+                return False, f"SQL formatting issues: {result.violations}"
+            return True, "SQL formatting is valid"
+        except Exception as e:
+            return False, f"SQL format validation failed: {str(e)}"
+
+    def format_file(self) -> Tuple[bool, str]:
+        """Format SQL using sqlfmt"""
+        from sqlfmt.api import Mode, run
+
+        report = run([self.model_base.path.with_suffix(".sql")], Mode())
+        report.display_report()
+
+    def full_validation(self) -> Tuple[bool, str]:
+        """Run all SQL validations"""
+        self.convert_refs_sources()
+        # self.validate_formatting()
+        self.format_file()
+
+
+class ModelValidator:
+    def __init__(self, model_path: Union[str, Path]):
+        self.model_base = ModelBasePath(path=model_path)
+
+    def validate(self) -> bool:
+        """Run complete model validation"""
+
+        # YML Validation
+        YmlValidator(model_path=self.model_base.path).validate_and_update_yml_columns()
+
+        # SQL Validation
+        SqlValidator(
+            model_path=self.model_base.path.with_suffix(".sql")
+        ).full_validation()
