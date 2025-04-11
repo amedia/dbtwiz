@@ -95,7 +95,7 @@ def select_name(context):
     if context.get("name"):
         name = context.get("name")
     else:
-        model_base_path = ModelBasePath(context.get("layer"))
+        model_base_path = ModelBasePath(layer=context.get("layer"))
         existing_models = list_domain_models(model_base_path, context.get("domain"))
         name = input_text(
             f"Name your new model (it will be prefixed by {model_base_path.get_prefix(context.get('domain'))})",
@@ -115,7 +115,7 @@ def select_name(context):
         )
 
         context["name"] = name
-        model_base_path = model_base_path.get_path(context["domain"], name)
+        model_base_path = model_base_path.get_path(name=name, domain=context["domain"])
         context["sql_path"] = model_base_path.with_suffix(".sql")
         context["yml_path"] = model_base_path.with_suffix(".sql")
 
@@ -455,7 +455,7 @@ def create_model_files(
     # Import (for performance) and configure yaml format
     from ruamel.yaml import YAML
 
-    base_path = ModelBasePath(layer).get_path(domain, name)
+    base_path = ModelBasePath(layer=layer).get_path(name=name, domain=domain)
 
     sql_path = base_path.with_suffix(".sql")
     yml_path = base_path.with_suffix(".yml")
@@ -504,11 +504,10 @@ def create_model_files(
         sql = get_stg_sql(source) if layer == "staging" else "{# SQL placeholder #}"
         with open(sql_path, "w+") as f:
             f.write(sql)
-    else:
-        info("Skippig sql file creation since it already exists")
+
     # Open files in editor
     # FIXME: Make editor user configurable with 'code' as default
-    os.system(f"code {sql_path}")
+        os.system(f"code {sql_path}")
     os.system(f"code {yml_path}")
 
 
