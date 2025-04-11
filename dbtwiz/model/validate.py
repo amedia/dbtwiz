@@ -67,7 +67,7 @@ class YmlValidator:
                     return None, f"Dev: {error}"
                 if columns:
                     return columns, None
-            except ValueError as e:
+            except ValueError:
                 # Continue to prod if relation_name format is invalid
                 pass
 
@@ -87,7 +87,7 @@ class YmlValidator:
                     return None, f"Prod: {error}"
                 if columns:
                     return columns, None
-            except ValueError as e:
+            except ValueError:
                 return None, f"Prod: Invalid relation_name format: {relation_name}"
 
         return (
