@@ -10,6 +10,7 @@ from .format import format_sql_files
 from .from_sql import convert_sql_to_model
 from .inspect import inspect_model
 from .move import move_model, update_model_references
+from .validate import ModelValidator
 
 app = typer.Typer()
 
@@ -387,3 +388,14 @@ def move(
             old_model_name=old_model_name,
             new_model_name=new_model_name,
         )
+
+
+@app.command()
+def validate(
+    model_path: Annotated[
+        str,
+        typer.Argument(help="Path to model (sql or yml) to be validated."),
+    ],
+):
+    """Validate the yml and sql files for a model."""
+    ModelValidator(model_path=model_path).validate()
