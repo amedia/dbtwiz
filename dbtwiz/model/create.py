@@ -505,10 +505,10 @@ def create_model_files(
         with open(sql_path, "w+") as f:
             f.write(sql)
 
-    # Open files in editor
-    # FIXME: Make editor user configurable with 'code' as default
         os.system(f"code {sql_path}")
     os.system(f"code {yml_path}")
+    # Open files in editor
+    # FIXME: Make editor user configurable with 'code' as default
 
 
 def create_model(
@@ -527,6 +527,7 @@ def create_model(
     service_consumers,
     access_policy: str,
 ):
+    # TODO: Handle cases when currently open file is in a subfolder. Will probably need path as a parameter.
     """Function that generates a new dbt model"""
     context = {
         "quick": quick,
