@@ -1,5 +1,7 @@
 import os
+import re
 from pathlib import Path
+from re import Match
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 from ruamel.yaml import YAML
@@ -7,7 +9,7 @@ from ruamel.yaml import YAML
 from dbtwiz.dbt.manifest import Manifest
 from dbtwiz.dbt.project import ModelBasePath
 from dbtwiz.gcp.bigquery import BigQueryClient
-from dbtwiz.helpers.logger import info
+from dbtwiz.helpers.logger import info, warn
 
 
 class YmlValidator:
@@ -162,11 +164,77 @@ class SqlValidator:
     def __init__(self, model_path: Union[str, Path]):
         self.model_base = ModelBasePath(path=model_path)
 
-    def convert_refs_sources(self) -> Tuple[bool, str]:
-        """Replace fully-qualified names with dbt ref()/source()"""
-        from dbtwiz.model.from_sql import convert_sql_to_model
+    def _get_table_replacement(
+        self, match: Match[str], lookup_dict: Dict, unresolved_tables: List[str]
+    ):
+        """Replaces a table match with a corresponding ref or source."""
+        project = match.group(1).strip("`")
+        dataset = match.group(2).strip("`")
+        table = match.group(3).strip("`")
 
-        convert_sql_to_model(file_path=self.model_base.path.with_suffix(".sql"))
+        lookup_key = f"{project.lower()}.{dataset.lower()}.{table.lower()}"
+        reference = lookup_dict.get(lookup_key)
+
+        if reference:
+            ref_type, ref_value = reference
+            if ref_type == "ref":
+                return f'{{{{ ref("{ref_value}") }}}}'
+            else:
+                source_name, table_name = ref_value
+                return f'{{{{ source("{source_name}", "{table_name}") }}}}'
+        else:
+            unresolved_tables.append(f"{project}.{dataset}.{table}")
+            return match.group(0)
+
+    def _replace_table_references(
+        self, sql_content: str, lookup_dict: dict
+    ) -> Tuple[str, List[str]]:
+        """Replace table references while handling all backtick cases."""
+        pattern = r"(`?[^`\s]+`?)\.(`?[^`\s]+`?)\.(`?[^`\s]+`?)"
+        unresolved_tables = []
+
+        new_sql = []
+        last_pos = 0
+
+        # Process content sequentially
+        for match in re.finditer(pattern, sql_content):
+            # Add text before match
+            new_sql.append(sql_content[last_pos : match.start()])
+            # Add replacement
+            new_sql.append(
+                self._get_table_replacement(
+                    match=match,
+                    lookup_dict=lookup_dict,
+                    unresolved_tables=unresolved_tables,
+                )
+            )
+            last_pos = match.end()
+
+        # Add remaining content
+        new_sql.append(sql_content[last_pos:])
+        return "".join(new_sql), list(set(unresolved_tables))
+
+    def convert_sql_to_model(self):
+        """Replace fully-qualified names with dbt ref() / source()."""
+        file_path = self.model_base.path.with_suffix(".sql")
+
+        Manifest.download_prod_manifest()
+        manifest_data = Manifest(Manifest.PROD_MANIFEST_PATH)
+
+        with open(file_path, "r", encoding="utf-8") as f:
+            sql_content = f.read()
+
+        new_sql, unresolved = self._replace_table_references(
+            sql_content=sql_content, lookup_dict=manifest_data.table_reference_lookup()
+        )
+
+        if new_sql != sql_content:
+            with open(file_path, "w", encoding="utf-8") as f:
+                f.write(new_sql)
+            info(f"Updated references in {file_path}")
+
+        if unresolved:
+            warn("Unresolved tables:\n  - " + "\n  - ".join(unresolved))
 
     def validate_formatting(self) -> Tuple[bool, str]:
         """Validate SQL formatting using sqlfluff"""
@@ -194,7 +262,7 @@ class SqlValidator:
 
     def full_validation(self) -> Tuple[bool, str]:
         """Run all SQL validations"""
-        self.convert_refs_sources()
+        self.convert_sql_to_model()
         # self.validate_formatting()
         self.format_file()
 
