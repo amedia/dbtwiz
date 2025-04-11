@@ -2,7 +2,7 @@ import functools
 import json
 import re
 from pathlib import Path
-from typing import List
+from typing import Dict, List, Tuple
 
 from jinja2 import Template
 
@@ -313,6 +313,42 @@ class Manifest:
                     source_meta=node["source_meta"],
                 )
         return sources
+
+    @functools.cache
+    def table_reference_lookup(self) -> Dict[str, Tuple[str, str]]:
+        """Lookup dictionary that maps a fully qualified table name to a ref or source."""
+        lookup_dict = {}
+        # TODO: Move to dbt.manifest
+        # Process models
+        for node in self.models().values():
+            if not node.get("unique_id").startswith("model."):
+                continue
+
+            database = node.get("database", "").lower()
+            schema = node.get("schema", "").lower()
+            name = node.get("name", "")
+            alias = node.get("alias", name)
+
+            if database and schema and name:
+                key = f"{database}.{schema}.{alias}"
+                lookup_dict[key] = ("ref", name)
+
+        # Process sources
+        for source in self.sources().values():
+            if not source.get("unique_id").startswith("source."):
+                continue
+
+            database = source.get("database", "").lower()
+            schema = source.get("schema", "").lower()
+            name = source.get("name", "")
+            identifier = source.get("identifier", name).lower()
+            source_name = source.get("source_name", "")
+
+            if database and schema and name and source_name:
+                key = f"{database}.{schema}.{identifier}"
+                lookup_dict[key] = ("source", (source_name, name))
+
+        return lookup_dict
 
 
 def model_style(name: str):
