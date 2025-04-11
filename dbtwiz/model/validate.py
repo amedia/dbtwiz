@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
@@ -6,6 +7,7 @@ from ruamel.yaml import YAML
 from dbtwiz.dbt.manifest import Manifest
 from dbtwiz.dbt.project import ModelBasePath
 from dbtwiz.gcp.bigquery import BigQueryClient
+from dbtwiz.helpers.logger import info
 
 
 class YmlValidator:
@@ -29,7 +31,10 @@ class YmlValidator:
         """
         yml_path = self.model_base.path.with_suffix(".yml")
         if not yml_path.exists():
-            return False, f"YML file not found at {yml_path}"
+            info(f"Creating missing YML file for model {self.model_base.model_name}:")
+            os.system(f"dbtwiz model create -l {self.model_base.layer} -d {self.model_base.domain} -n {self.model_base.identifier}")
+            if not yml_path.exists():
+                return False, f"YML file not found at {yml_path}"
 
         table_columns, error = self._get_table_columns(self.model_base.model_name)
         if error:
