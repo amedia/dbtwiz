@@ -318,7 +318,7 @@ class Manifest:
     def table_reference_lookup(self) -> Dict[str, Tuple[str, str]]:
         """Lookup dictionary that maps a fully qualified table name to a ref or source."""
         lookup_dict = {}
-        # TODO: Move to dbt.manifest
+
         # Process models
         for node in self.models().values():
             if not node.get("unique_id").startswith("model."):
