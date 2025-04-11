@@ -189,7 +189,7 @@ class SqlValidator:
         from sqlfmt.api import Mode, run
 
         report = run([self.model_base.path.with_suffix(".sql")], Mode())
-        if len(report.changed_results) > 0:
+        if report.number_changed > 0:
             report.display_report()
 
     def full_validation(self) -> Tuple[bool, str]:
