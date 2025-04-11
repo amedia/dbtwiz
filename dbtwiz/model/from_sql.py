@@ -1,44 +1,8 @@
 import re
-from typing import Dict, List, Tuple
+from typing import List, Tuple
 
 from dbtwiz.dbt.manifest import Manifest
 from dbtwiz.helpers.logger import fatal, info, warn
-
-
-def build_reference_lookup(manifest: dict) -> Dict[str, Tuple[str, str]]:
-    """Build lookup dictionary from manifest."""
-    lookup_dict = {}
-    # TODO: Move to dbt.manifest
-    # Process models
-    for node in manifest.models().values():
-        if not node.get("unique_id").startswith("model."):
-            continue
-
-        database = node.get("database", "").lower()
-        schema = node.get("schema", "").lower()
-        name = node.get("name", "")
-        alias = node.get("alias", name)
-
-        if database and schema and name:
-            key = f"{database}.{schema}.{alias}"
-            lookup_dict[key] = ("ref", name)
-
-    # Process sources
-    for source in manifest.sources().values():
-        if not source.get("unique_id").startswith("source."):
-            continue
-
-        database = source.get("database", "").lower()
-        schema = source.get("schema", "").lower()
-        name = source.get("name", "")
-        identifier = source.get("identifier", name).lower()
-        source_name = source.get("source_name", "")
-
-        if database and schema and name and source_name:
-            key = f"{database}.{schema}.{identifier}"
-            lookup_dict[key] = ("source", (source_name, name))
-
-    return lookup_dict
 
 
 def replace_table_references(
@@ -93,7 +57,7 @@ def convert_sql_to_model(file_path: str):
     Manifest.download_prod_manifest()
     manifest_data = Manifest(Manifest.PROD_MANIFEST_PATH)
 
-    lookup_dict = build_reference_lookup(manifest_data)
+    lookup_dict = manifest_data.table_reference_lookup()
 
     with open(file_path, "r", encoding="utf-8") as f:
         sql_content = f.read()
