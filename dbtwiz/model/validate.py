@@ -256,8 +256,7 @@ class SqlValidator:
         """Format SQL using sqlfmt"""
         from sqlfmt.api import Mode, run
 
-        mode = Mode() # TODO: read sqlfmt mode config from pyproject.toml. Ref. https://docs.sqlfmt.com/api/#apimode
-        report = run([self.model_base.path.with_suffix(".sql")], mode)
+        report = run([self.model_base.path.with_suffix(".sql")], Mode())
         if report.number_changed > 0:
             report.display_report()
 
