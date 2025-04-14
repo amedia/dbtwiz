@@ -103,13 +103,13 @@ class YmlValidator:
     ) -> Tuple[bool, str]:
         """Update YML file with current table columns (including types/descriptions)."""
         try:
+            updated = False
+
             with open(yml_path, "r", encoding="utf-8") as f:
                 yml_content = self.ruamel_yaml.load(f)
 
             if not yml_content:
                 return False, "YML file is empty or invalid"
-
-            updated = False
 
             for model_def in yml_content.get("models", []):
                 if not isinstance(model_def, dict):
@@ -145,11 +145,8 @@ class YmlValidator:
 
                 # Check for removed columns
                 removed_cols = set(yml_cols.keys()) - set(table_cols.keys())
-                if removed_cols:
-                    updated = True
-
-                if updated:
-                    model_def["columns"] = new_columns
+                updated = True if removed_cols else updated
+                model_def["columns"] = new_columns if updated else model_def["columns"]
 
             if updated:
                 with open(yml_path, "w", encoding="utf-8") as f:
