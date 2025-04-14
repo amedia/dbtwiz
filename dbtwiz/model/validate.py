@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 from ruamel.yaml import YAML
 
+from dbtwiz.config.project import ProjectConfig
 from dbtwiz.dbt.manifest import Manifest
 from dbtwiz.dbt.project import ModelBasePath
 from dbtwiz.gcp.bigquery import BigQueryClient
@@ -255,8 +256,14 @@ class SqlValidator:
     def format_file(self) -> Tuple[bool, str]:
         """Format SQL using sqlfmt"""
         from sqlfmt.api import Mode, run
+        from sqlfmt.config import load_config_file
 
-        report = run([self.model_base.path.with_suffix(".sql")], Mode())
+        # Read dbtwiz config from pyproject.toml
+        pyproject_path = ProjectConfig().root_path() / "pyproject.toml"
+        config = load_config_file([pyproject_path])
+        mode = Mode(**config)
+
+        report = run([self.model_base.path.with_suffix(".sql")], mode)
         if report.number_changed > 0:
             report.display_report()
 
