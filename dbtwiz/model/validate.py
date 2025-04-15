@@ -234,21 +234,61 @@ class SqlValidator:
         if unresolved:
             warn("Unresolved tables:\n  - " + "\n  - ".join(unresolved))
 
-    def validate_formatting(self) -> Tuple[bool, str]:
-        """Validate SQL formatting using sqlfluff"""
-        try:
-            from sqlfluff import lint
+    def format_sqlfluff_violations(self, violations: List['SQLBaseError'], file_path: Path) -> str:
+        """
+        Formats SQLFluff violations from SQLBaseError objects.
 
-            self.sql_content = self.model_base.path.with_suffix(".sql").read_text(
-                encoding="utf-8"
+        Args:
+            violations: List of SQLBaseError objects from get_violations()
+            file_path: Path to display in error messages
+
+        Returns:
+            Formatted error messages
+        """
+        messages = []
+        for violation in violations:
+            # Get basic error info
+            error_info = (
+                f"{file_path.name}:{violation.line_no}:{violation.line_pos} "
+                f"[{violation.rule_code()}] {violation.description}"
             )
-            result = lint(self.sql_content, dialect="bigquery")
-            print(result)
-            if result.violations:
-                return False, f"SQL formatting issues: {result.violations}"
-            return True, "SQL formatting is valid"
-        except Exception as e:
-            return False, f"SQL format validation failed: {str(e)}"
+
+            # For syntax errors, add the unexpected token if available
+            if hasattr(violation, 'unexpected_token'):
+                error_info += f"\nUnexpected token: {violation.unexpected_token}"
+
+            messages.append(error_info)
+
+        return "\n\n".join(messages)
+
+    def validate_and_fix_file(self) -> Tuple[bool, str]:
+        """Validate and fix SQL formatting using sqlfluff"""
+        from sqlfluff.core import FluffConfig, Linter
+        from sqlfluff.core.config.loader import load_config_at_path
+
+        self.sql_content = self.model_base.path.with_suffix(".sql").read_text(
+            encoding="utf-8"
+        )
+
+        config = FluffConfig(load_config_at_path(ProjectConfig().root_path().absolute()))
+        linter = Linter(config=config)
+        # initial results:
+        lint_results = linter.lint_string(self.sql_content, fname=self.model_base.path.with_suffix(".sql"), fix=True)
+
+        if lint_results.get_violations():
+            fixed_sql = lint_results.fix_string()[0]
+            info(f"Applying sqlfluff fixes to {self.model_base.model_name}")
+            self.model_base.path.with_suffix(".sql").write_text(fixed_sql, encoding="utf-8")
+
+            # Verify fixes were applied
+            new_lint_result = linter.lint_string(fixed_sql, fname=self.model_base.path.with_suffix(".sql"))
+
+            if new_lint_result.violations:
+                formatted_output = self.format_sqlfluff_violations(new_lint_result.get_violations(), self.model_base.path.with_suffix(".sql"))
+                warn(formatted_output)
+
+                return False, formatted_output
+        return True, "SQL formatting is valid"
 
     def format_file(self) -> Tuple[bool, str]:
         """Format SQL using sqlfmt"""
@@ -267,8 +307,8 @@ class SqlValidator:
     def full_validation(self) -> Tuple[bool, str]:
         """Run all SQL validations"""
         self.convert_sql_to_model()
-        # self.validate_formatting()
-        self.format_file()
+        self.validate_and_fix_file()
+        # self.format_file()
 
 
 class ModelValidator:
