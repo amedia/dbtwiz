@@ -143,9 +143,9 @@ class YmlValidator:
             if updated:
                 with open(yml_path, "w", encoding="utf-8") as f:
                     self.ruamel_yaml.dump(yml_content, f)
-                return True, f"updated successfully."
+                return True, "updated successfully."
 
-            return True, f"yml ok"
+            return True, "yml ok"
 
         except Exception as e:
             return False, f"yml update failed: {str(e)}"
