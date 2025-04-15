@@ -24,9 +24,11 @@ class YmlValidator:
 
     def validate_and_update_yml_columns(self) -> Tuple[bool, str]:
         """Validate and update YML columns using the initialized path."""
+        info(f"{self.model_base.model_name}: validating yml", style="yellow")
+
         yml_path = self.model_base.path.with_suffix(".yml")
         if not yml_path.exists():
-            info(f"Creating missing YML file for model {self.model_base.model_name}:")
+            warn(f"{self.model_base.model_name}: yml file missing - creating:")
             os.system(
                 f"dbtwiz model create -l {self.model_base.layer} -d {self.model_base.domain} -n {self.model_base.identifier}"
             )
@@ -143,7 +145,9 @@ class YmlValidator:
             if updated:
                 with open(yml_path, "w", encoding="utf-8") as f:
                     self.ruamel_yaml.dump(yml_content, f)
+                info(f"{self.model_base.model_name}: updated yml columns")
                 return True, f"{yml_path}: updated successfully."
+            info(f"{self.model_base.model_name}: yml ok")
             return True, f"{yml_path}: already up to date"
 
         except Exception as e:
@@ -304,7 +308,8 @@ class SqlValidator:
         report = run([self.model_base.path.with_suffix(".sql")], mode)
         if report.number_changed > 0:
             info(f"{self.model_base.model_name}: applied sqlfmt fixes")
-            report.display_report()
+        elif report.number_errored > 0:
+            warn(report.errored_results)
         else:
             info(f"{self.model_base.model_name}: sqlfmt validated ok")
 
