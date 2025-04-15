@@ -284,7 +284,7 @@ def get_source_tables() -> Tuple[
 
     dbt_source_tables = {}
     dbt_sources = []
-    for yml_file in Path("sources").iterdir():
+    for yml_file in Path("sources").rglob("*"):
         if yml_file.suffix in {".yml", ".yaml"}:
             with open(yml_file, "r") as f:
                 content = safe_load(f)
