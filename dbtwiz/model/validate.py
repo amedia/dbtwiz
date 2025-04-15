@@ -222,10 +222,13 @@ class SqlValidator:
         if new_sql != sql_content:
             with open(file_path, "w", encoding="utf-8") as f:
                 f.write(new_sql)
-            info(f"Updated references in {file_path}")
+            info(f"{self.model_base.model_name}: updated sql references")
 
         if unresolved:
-            warn("Unresolved tables:\n  - " + "\n  - ".join(unresolved))
+            warn(f"{self.model_base.model_name}: unresolved tables:\n  - " + "\n  - ".join(unresolved))
+
+        if new_sql == sql_content and not unresolved:
+            info(f"{self.model_base.model_name}: sql references ok")
 
     def format_sqlfluff_violations(
         self, violations: List, file_path: Path
@@ -267,10 +270,10 @@ class SqlValidator:
 
         if lint_results.get_violations():
             fixed_sql = lint_results.fix_string()[0]
-            info(f"Applying sqlfluff fixes to {self.model_base.model_name}")
             self.model_base.path.with_suffix(".sql").write_text(
                 fixed_sql, encoding="utf-8"
             )
+            info(f"{self.model_base.model_name}: applied sqlfluff fixes")
 
             # Verify fixes were applied
             new_lint_result = linter.lint_string(
@@ -285,6 +288,8 @@ class SqlValidator:
                 warn(formatted_output)
 
                 return False, formatted_output
+
+        info(f"{self.model_base.model_name}: sqlfluff validated ok")
         return True, "SQL formatting is valid"
 
     def format_file(self) -> Tuple[bool, str]:
@@ -298,13 +303,19 @@ class SqlValidator:
 
         report = run([self.model_base.path.with_suffix(".sql")], mode)
         if report.number_changed > 0:
+            info(f"{self.model_base.model_name}: applied sqlfmt fixes")
             report.display_report()
+        else:
+            info(f"{self.model_base.model_name}: sqlfmt validated ok")
 
     def full_validation(self) -> Tuple[bool, str]:
         """Run all SQL validations"""
+        info(f"{self.model_base.model_name}: validating sql references", style="yellow")
         self.convert_sql_to_model()
+        info(f"{self.model_base.model_name}: validating sql with sqlfmt", style="yellow")
+        self.format_file()
+        info(f"{self.model_base.model_name}: validating sql with sqlfluff", style="yellow")
         self.validate_and_fix_file()
-        # self.format_file()
 
 
 class ModelValidator:
