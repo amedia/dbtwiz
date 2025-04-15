@@ -10,7 +10,7 @@ from dbtwiz.config.project import ProjectConfig
 from dbtwiz.dbt.manifest import Manifest
 from dbtwiz.dbt.project import ModelBasePath
 from dbtwiz.gcp.bigquery import BigQueryClient
-from dbtwiz.helpers.logger import info, warn
+from dbtwiz.helpers.logger import status, warn
 
 
 class YmlValidator:
@@ -143,13 +143,12 @@ class YmlValidator:
             if updated:
                 with open(yml_path, "w", encoding="utf-8") as f:
                     self.ruamel_yaml.dump(yml_content, f)
-                info(f"{self.model_base.model_name}: updated yml columns")
-                return True, f"{yml_path}: updated successfully."
-            info(f"{self.model_base.model_name}: yml ok")
-            return True, f"{yml_path}: already up to date"
+                return True, f"updated successfully."
+
+            return True, f"yml ok"
 
         except Exception as e:
-            return False, f"Error updating YML file: {str(e)}"
+            return False, f"yml update failed: {str(e)}"
 
 
 class SqlValidator:
@@ -221,20 +220,23 @@ class SqlValidator:
             sql_content=sql_content, lookup_dict=manifest_data.table_reference_lookup()
         )
 
+        results = []
+        status = True
         if new_sql != sql_content:
             with open(file_path, "w", encoding="utf-8") as f:
                 f.write(new_sql)
-            info(f"{self.model_base.model_name}: updated sql references")
+            results.append("updated references")
 
         if unresolved:
-            warn(f"{self.model_base.model_name}: unresolved tables:\n  - " + "\n  - ".join(unresolved))
+            results.append("unresolved tables:\n  - " + "\n  - ".join(unresolved))
+            status = False
 
         if new_sql == sql_content and not unresolved:
-            info(f"{self.model_base.model_name}: sql references ok")
+            results.append("references ok")
 
-    def format_sqlfluff_violations(
-        self, violations: List, file_path: Path
-    ) -> str:
+        return status, "\n".join(results)
+
+    def sqlfluff_format_violations(self, violations: List, file_path: Path) -> str:
         """Formats SQLFluff violations from SQLBaseError objects."""
         messages = []
         for violation in violations:
@@ -252,7 +254,7 @@ class SqlValidator:
 
         return "\n\n".join(messages)
 
-    def validate_and_fix_file(self) -> Tuple[bool, str]:
+    def sqlfluff_validate_and_fix_file(self) -> Tuple[bool, str]:
         """Validate and fix SQL formatting using sqlfluff"""
         from sqlfluff.core import FluffConfig, Linter
         from sqlfluff.core.config.loader import load_config_at_path
@@ -270,12 +272,14 @@ class SqlValidator:
             self.sql_content, fname=self.model_base.path.with_suffix(".sql"), fix=True
         )
 
+        results = []
+
         if lint_results.get_violations():
             fixed_sql = lint_results.fix_string()[0]
             self.model_base.path.with_suffix(".sql").write_text(
                 fixed_sql, encoding="utf-8"
             )
-            info(f"{self.model_base.model_name}: applied sqlfluff fixes")
+            results.append("applied fixes")
 
             # Verify fixes were applied
             new_lint_result = linter.lint_string(
@@ -283,18 +287,19 @@ class SqlValidator:
             )
 
             if new_lint_result.violations:
-                formatted_output = self.format_sqlfluff_violations(
+                formatted_output = self.sqlfluff_format_violations(
                     new_lint_result.get_violations(),
                     self.model_base.path.with_suffix(".sql"),
                 )
-                warn(formatted_output)
+                results.append(formatted_output)
 
-                return False, formatted_output
+                return False, "\n".join(results)
 
-        info(f"{self.model_base.model_name}: sqlfluff validated ok")
-        return True, "SQL formatting is valid"
+        results.append("validation ok")
 
-    def format_file(self) -> Tuple[bool, str]:
+        return True, "\n".join(results)
+
+    def sqlfmt_format_file(self) -> Tuple[bool, str]:
         """Format SQL using sqlfmt"""
         from sqlfmt.api import Mode, run
         from sqlfmt.config import load_config_file
@@ -305,11 +310,11 @@ class SqlValidator:
 
         report = run([self.model_base.path.with_suffix(".sql")], mode)
         if report.number_changed > 0:
-            info(f"{self.model_base.model_name}: applied sqlfmt fixes")
+            return True, "applied fixes"
         elif report.number_errored > 0:
-            warn(report.errored_results)
+            return False, "sqlfmt failed"
         else:
-            info(f"{self.model_base.model_name}: sqlfmt validated ok")
+            return True, "validation ok"
 
 
 class ModelValidator:
@@ -325,10 +330,16 @@ class ModelValidator:
 
         # Run validation
         for func, desc in [
-            (yml_validator.validate_and_update_yml_columns, "validating yml"),
-            (sql_validator.convert_sql_to_model, "validating sql references"),
-            (sql_validator.format_file, "validating sql with sqlfmt"),
-            (sql_validator.validate_and_fix_file, "validating sql with sqlfluff")
+            (yml_validator.validate_and_update_yml_columns, "Validating yml"),
+            (sql_validator.convert_sql_to_model, "Validating sql references"),
+            (sql_validator.sqlfmt_format_file, "Validating sql with sqlfmt"),
+            (
+                sql_validator.sqlfluff_validate_and_fix_file,
+                "Validating sql with sqlfluff",
+            ),
         ]:
-            info(f"{self.model_base.model_name}: {desc}", style="yellow")
-            func()
+            status(message=desc)
+            success, result = func()
+            status(
+                message=desc, status_text=result, style="green" if success else "red"
+            )
