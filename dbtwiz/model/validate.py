@@ -24,8 +24,6 @@ class YmlValidator:
 
     def validate_and_update_yml_columns(self) -> Tuple[bool, str]:
         """Validate and update YML columns using the initialized path."""
-        info(f"{self.model_base.model_name}: validating yml", style="yellow")
-
         yml_path = self.model_base.path.with_suffix(".yml")
         if not yml_path.exists():
             warn(f"{self.model_base.model_name}: yml file missing - creating:")
@@ -313,15 +311,6 @@ class SqlValidator:
         else:
             info(f"{self.model_base.model_name}: sqlfmt validated ok")
 
-    def full_validation(self) -> Tuple[bool, str]:
-        """Run all SQL validations"""
-        info(f"{self.model_base.model_name}: validating sql references", style="yellow")
-        self.convert_sql_to_model()
-        info(f"{self.model_base.model_name}: validating sql with sqlfmt", style="yellow")
-        self.format_file()
-        info(f"{self.model_base.model_name}: validating sql with sqlfluff", style="yellow")
-        self.validate_and_fix_file()
-
 
 class ModelValidator:
     def __init__(self, model_path: Union[str, Path]):
@@ -330,10 +319,16 @@ class ModelValidator:
 
     def validate(self) -> bool:
         """Run complete model validation"""
-        # YML Validation
-        YmlValidator(model_path=self.model_base.path).validate_and_update_yml_columns()
+        # Initialize validators
+        yml_validator = YmlValidator(model_path=self.model_base.path)
+        sql_validator = SqlValidator(model_path=self.model_base.path)
 
-        # SQL Validation
-        SqlValidator(
-            model_path=self.model_base.path.with_suffix(".sql")
-        ).full_validation()
+        # Run validation
+        for func, desc in [
+            (yml_validator.validate_and_update_yml_columns, "validating yml"),
+            (sql_validator.convert_sql_to_model, "validating sql references"),
+            (sql_validator.format_file, "validating sql with sqlfmt"),
+            (sql_validator.validate_and_fix_file, "validating sql with sqlfluff")
+        ]:
+            info(f"{self.model_base.model_name}: {desc}", style="yellow")
+            func()
