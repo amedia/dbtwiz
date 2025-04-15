@@ -15,10 +15,7 @@ from dbtwiz.helpers.logger import info, warn
 
 class YmlValidator:
     def __init__(self, model_path: Union[str, Path]):
-        """
-        Initialize with:
-        - model_path: Path to model file (either .sql or .yml)
-        """
+        """Init function for yml validator."""
         self.bq_client = BigQueryClient()
         self.model_base = ModelBasePath(path=model_path)
         self.ruamel_yaml = YAML()
@@ -26,12 +23,7 @@ class YmlValidator:
         self.ruamel_yaml.indent(mapping=2, sequence=4, offset=2)
 
     def validate_and_update_yml_columns(self) -> Tuple[bool, str]:
-        """
-        Validate and update YML columns using the initialized path.
-
-        Returns:
-            Tuple of (success: bool, message: str)
-        """
+        """Validate and update YML columns using the initialized path."""
         yml_path = self.model_base.path.with_suffix(".yml")
         if not yml_path.exists():
             info(f"Creating missing YML file for model {self.model_base.model_name}:")
@@ -160,6 +152,7 @@ class YmlValidator:
 
 class SqlValidator:
     def __init__(self, model_path: Union[str, Path]):
+        """Init function for sql validator."""
         self.model_base = ModelBasePath(path=model_path)
 
     def _get_table_replacement(
@@ -234,17 +227,10 @@ class SqlValidator:
         if unresolved:
             warn("Unresolved tables:\n  - " + "\n  - ".join(unresolved))
 
-    def format_sqlfluff_violations(self, violations: List['SQLBaseError'], file_path: Path) -> str:
-        """
-        Formats SQLFluff violations from SQLBaseError objects.
-
-        Args:
-            violations: List of SQLBaseError objects from get_violations()
-            file_path: Path to display in error messages
-
-        Returns:
-            Formatted error messages
-        """
+    def format_sqlfluff_violations(
+        self, violations: List, file_path: Path
+    ) -> str:
+        """Formats SQLFluff violations from SQLBaseError objects."""
         messages = []
         for violation in violations:
             # Get basic error info
@@ -254,7 +240,7 @@ class SqlValidator:
             )
 
             # For syntax errors, add the unexpected token if available
-            if hasattr(violation, 'unexpected_token'):
+            if hasattr(violation, "unexpected_token"):
                 error_info += f"\nUnexpected token: {violation.unexpected_token}"
 
             messages.append(error_info)
@@ -270,21 +256,32 @@ class SqlValidator:
             encoding="utf-8"
         )
 
-        config = FluffConfig(load_config_at_path(ProjectConfig().root_path().absolute()))
+        config = FluffConfig(
+            load_config_at_path(ProjectConfig().root_path().absolute())
+        )
         linter = Linter(config=config)
         # initial results:
-        lint_results = linter.lint_string(self.sql_content, fname=self.model_base.path.with_suffix(".sql"), fix=True)
+        lint_results = linter.lint_string(
+            self.sql_content, fname=self.model_base.path.with_suffix(".sql"), fix=True
+        )
 
         if lint_results.get_violations():
             fixed_sql = lint_results.fix_string()[0]
             info(f"Applying sqlfluff fixes to {self.model_base.model_name}")
-            self.model_base.path.with_suffix(".sql").write_text(fixed_sql, encoding="utf-8")
+            self.model_base.path.with_suffix(".sql").write_text(
+                fixed_sql, encoding="utf-8"
+            )
 
             # Verify fixes were applied
-            new_lint_result = linter.lint_string(fixed_sql, fname=self.model_base.path.with_suffix(".sql"))
+            new_lint_result = linter.lint_string(
+                fixed_sql, fname=self.model_base.path.with_suffix(".sql")
+            )
 
             if new_lint_result.violations:
-                formatted_output = self.format_sqlfluff_violations(new_lint_result.get_violations(), self.model_base.path.with_suffix(".sql"))
+                formatted_output = self.format_sqlfluff_violations(
+                    new_lint_result.get_violations(),
+                    self.model_base.path.with_suffix(".sql"),
+                )
                 warn(formatted_output)
 
                 return False, formatted_output
@@ -295,7 +292,6 @@ class SqlValidator:
         from sqlfmt.api import Mode, run
         from sqlfmt.config import load_config_file
 
-        # Read dbtwiz config from pyproject.toml
         pyproject_path = ProjectConfig().root_path() / "pyproject.toml"
         config = load_config_file([pyproject_path])
         mode = Mode(**config)
@@ -313,11 +309,11 @@ class SqlValidator:
 
 class ModelValidator:
     def __init__(self, model_path: Union[str, Path]):
+        """Init function for model validator."""
         self.model_base = ModelBasePath(path=model_path)
 
     def validate(self) -> bool:
         """Run complete model validation"""
-
         # YML Validation
         YmlValidator(model_path=self.model_base.path).validate_and_update_yml_columns()
 
