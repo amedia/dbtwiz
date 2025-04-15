@@ -147,6 +147,9 @@ def select_group(context):
             valid_groups,
             must_exist=True,
             allow_blank=True,
+            validate=(lambda string: (string is not None and string != "")
+                or "You must select a group"
+                )
         )
 
 
