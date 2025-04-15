@@ -293,7 +293,7 @@ class SqlValidator:
             else:
                 return True, "applied fixes"
 
-        return True, "\n".join("validation ok")
+        return True, "validation ok"
 
     def sqlfmt_format_file(self) -> Tuple[bool, str]:
         """Format SQL using sqlfmt"""
