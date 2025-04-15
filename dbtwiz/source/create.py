@@ -155,7 +155,9 @@ def configure_missing_source(context):
             "project": context["project_name"],
             "dataset": context["dataset_name"],
             "tables": [],
-            "file": Path("sources") / f"{context['source_name']}__sources.yml",
+            "file": Path("sources")
+            / context["project_name"].replace("-", "_")
+            / f"{context['source_name']}.yml",
         }
 
 
