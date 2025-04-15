@@ -272,14 +272,11 @@ class SqlValidator:
             self.sql_content, fname=self.model_base.path.with_suffix(".sql"), fix=True
         )
 
-        results = []
-
         if lint_results.get_violations():
             fixed_sql = lint_results.fix_string()[0]
             self.model_base.path.with_suffix(".sql").write_text(
                 fixed_sql, encoding="utf-8"
             )
-            results.append("applied fixes")
 
             # Verify fixes were applied
             new_lint_result = linter.lint_string(
@@ -291,13 +288,12 @@ class SqlValidator:
                     new_lint_result.get_violations(),
                     self.model_base.path.with_suffix(".sql"),
                 )
-                results.append(formatted_output)
 
-                return False, "\n".join(results)
+                return False, f"unfixable issues: \n{formatted_output}"
+            else:
+                return True, "applied fixes"
 
-        results.append("validation ok")
-
-        return True, "\n".join(results)
+        return True, "\n".join("validation ok")
 
     def sqlfmt_format_file(self) -> Tuple[bool, str]:
         """Format SQL using sqlfmt"""
