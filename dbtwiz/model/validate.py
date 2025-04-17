@@ -9,6 +9,7 @@ from ruamel.yaml import YAML
 from dbtwiz.config.project import ProjectConfig
 from dbtwiz.dbt.manifest import Manifest
 from dbtwiz.dbt.project import ModelBasePath
+from dbtwiz.gcp.auth import ensure_app_default_auth
 from dbtwiz.gcp.bigquery import BigQueryClient
 from dbtwiz.helpers.logger import status, warn
 
@@ -16,6 +17,7 @@ from dbtwiz.helpers.logger import status, warn
 class YmlValidator:
     def __init__(self, model_path: Union[str, Path]):
         """Init function for yml validator."""
+        ensure_app_default_auth()
         self.bq_client = BigQueryClient()
         self.model_base = ModelBasePath(path=model_path)
         self.ruamel_yaml = YAML()
