@@ -6,7 +6,7 @@ from pathlib import Path
 
 from ruamel.yaml import YAML
 
-from dbtwiz.helpers.logger import error, info
+from dbtwiz.helpers.logger import error, info, status
 
 
 def _write_file(file_path, file_content):
@@ -46,6 +46,10 @@ def move_model(
     Otherwise, the old model is deleted.
     """
     try:
+        status(
+            message=f"Migrating model {old_model_name} to [bold]{new_model_name}[/bold]"
+        )
+
         old_folder_path = Path(old_folder_path)
         new_folder_path = Path(new_folder_path)
         # Define old and new file paths
@@ -129,7 +133,10 @@ def move_model(
             _safe_delete_file(old_yml_file)
             info(f"Deleted old dbt files for {old_model_name}", style="yellow")
 
-        info(f"Successfully migrated model {old_model_name} to {new_model_name}")
+        status(
+                message=f"Migrating model {old_model_name} to [bold]{new_model_name}[/bold]",
+                status_text="done", style="green"
+            )
 
     except Exception as e:
         error(f"Error updating dbt files for model {old_model_name}: {e}")
