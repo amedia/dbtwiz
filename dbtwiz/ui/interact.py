@@ -160,8 +160,7 @@ def confirm(question: str) -> bool:
         answer = questionary_confirm(question, style=custom_style()).unsafe_ask()
         return answer
     except KeyboardInterrupt:
-        print("\nOperation cancelled by user", file=sys.stderr)
         sys.exit(1)
-    except Exception as e:  # Catches questionary's ValidationError and others
+    except Exception as e:
         print(f"\nError: {str(e)}", file=sys.stderr)
         sys.exit(1)
