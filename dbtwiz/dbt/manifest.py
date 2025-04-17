@@ -50,9 +50,9 @@ class Manifest:
 
     @classmethod
     def get_local_manifest_age(cls, manifest_path):
-        """Returns the age of the manifest in hours. If it doesn't exist, 999 is returned."""
+        """Returns the age of the manifest in hours. If it doesn't exist or is empty, 999 is returned."""
         manifest_file = Path(manifest_path)
-        if manifest_file.is_file():
+        if manifest_file.is_file() and manifest_file.stat().st_size > 0:
             from datetime import datetime
 
             modified_time_float = manifest_file.stat().st_mtime
@@ -70,10 +70,10 @@ class Manifest:
             force
             or cls.get_local_manifest_age(manifest_path=cls.PROD_MANIFEST_PATH) >= 2
         ):
+            ensure_app_default_auth()
+
             info("Fetching production manifest")
             from google.cloud import storage  # Only when used
-
-            ensure_app_default_auth()
 
             gcs = storage.Client(project=project_config().bucket_state_project)
             blob = gcs.bucket(project_config().bucket_state_identifier).blob(
