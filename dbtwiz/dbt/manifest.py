@@ -2,7 +2,7 @@ import functools
 import json
 import re
 from pathlib import Path
-from typing import List
+from typing import Dict, List, Tuple
 
 from jinja2 import Template
 
@@ -50,9 +50,9 @@ class Manifest:
 
     @classmethod
     def get_local_manifest_age(cls, manifest_path):
-        """Returns the age of the manifest in hours. If it doesn't exist, 999 is returned."""
+        """Returns the age of the manifest in hours. If it doesn't exist or is empty, 999 is returned."""
         manifest_file = Path(manifest_path)
-        if manifest_file.is_file():
+        if manifest_file.is_file() and manifest_file.stat().st_size > 0:
             from datetime import datetime
 
             modified_time_float = manifest_file.stat().st_mtime
@@ -70,10 +70,10 @@ class Manifest:
             force
             or cls.get_local_manifest_age(manifest_path=cls.PROD_MANIFEST_PATH) >= 2
         ):
+            ensure_app_default_auth()
+
             info("Fetching production manifest")
             from google.cloud import storage  # Only when used
-
-            ensure_app_default_auth()
 
             gcs = storage.Client(project=project_config().bucket_state_project)
             blob = gcs.bucket(project_config().bucket_state_identifier).blob(
@@ -313,6 +313,42 @@ class Manifest:
                     source_meta=node["source_meta"],
                 )
         return sources
+
+    @functools.cache
+    def table_reference_lookup(self) -> Dict[str, Tuple[str, str]]:
+        """Lookup dictionary that maps a fully qualified table name to a ref or source."""
+        lookup_dict = {}
+
+        # Process models
+        for node in self.models().values():
+            if not node.get("unique_id").startswith("model."):
+                continue
+
+            database = node.get("database", "").lower()
+            schema = node.get("schema", "").lower()
+            name = node.get("name", "")
+            alias = node.get("alias", name)
+
+            if database and schema and name:
+                key = f"{database}.{schema}.{alias}"
+                lookup_dict[key] = ("ref", name)
+
+        # Process sources
+        for source in self.sources().values():
+            if not source.get("unique_id").startswith("source."):
+                continue
+
+            database = source.get("database", "").lower()
+            schema = source.get("schema", "").lower()
+            name = source.get("name", "")
+            identifier = source.get("identifier", name).lower()
+            source_name = source.get("source_name", "")
+
+            if database and schema and name and source_name:
+                key = f"{database}.{schema}.{identifier}"
+                lookup_dict[key] = ("source", (source_name, name))
+
+        return lookup_dict
 
 
 def model_style(name: str):

@@ -40,3 +40,14 @@ def fatal(message: str, exit_code=1):
     """Log an error message then quit the application"""
     error(message)
     raise typer.Exit(code=exit_code)
+
+
+def status(message: str, status_text: str = "", style: str = "yellow"):
+    """Log a status message that can be updated"""
+    if status_text:
+        log_console.print(f"{message}: [bold {style}]{status_text}[/]", end="\r")
+    else:
+        log_console.print(f"{message}: ...", end="\r")
+    # If this is a completion (status_text provided), move to next line
+    if status_text:
+        log_console.print()

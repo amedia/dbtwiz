@@ -1,7 +1,8 @@
 import re
+import sys
 from typing import List
 
-from dbtwiz.helpers.logger import error
+from dbtwiz.helpers.logger import error, warn
 
 from .style import custom_style
 
@@ -151,8 +152,15 @@ def autocomplete_from_list(
         error(f"Choice {choice} is not in the list of allowed values.")
 
 
-def confirm(question: str):
-    """Ask user for confirmation"""
-    from questionary import confirm  # Lazy import for improved performance
+def confirm(question: str) -> bool:
+    """Ask user for confirmation. Exits completely on cancellation."""
+    from questionary import confirm as questionary_confirm  # Avoid name collision
 
-    return confirm(question, style=custom_style()).ask()
+    try:
+        answer = questionary_confirm(question, style=custom_style()).unsafe_ask()
+        return answer
+    except KeyboardInterrupt:
+        sys.exit(1)
+    except Exception as e:
+        print(f"\nError: {str(e)}", file=sys.stderr)
+        sys.exit(1)
