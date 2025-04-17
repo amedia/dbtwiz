@@ -163,6 +163,10 @@ def update_model_references(old_model_name: str, new_model_name: str) -> None:
         )
 
         # Walk through the dbt project directory to find all SQL files
+        status(
+            message=f"Updating references from {old_model_name} to [bold]{new_model_name}[/bold]"
+        )
+        reference_changes = 0
         for root, _, files in os.walk(Path("models")):
             for file in files:
                 if file.endswith(".sql"):
@@ -173,13 +177,17 @@ def update_model_references(old_model_name: str, new_model_name: str) -> None:
                     updated_content, replacements = ref_pattern.subn(
                         f'{{{{ ref("{new_model_name}") }}}}', content
                     )
+                    reference_changes += replacements
 
                     # If replacements were made, write the updated content back to the file
                     if replacements > 0:
                         _write_file(file_path, updated_content)
-                        info(f"Updated {replacements} references in {file_path}")
 
-        info(f"Completed updating references from {old_model_name} to {new_model_name}")
+        change_suffix = "" if reference_changes == 1 else "s"
+        status(
+            message=f"Updating references from {old_model_name} to [bold]{new_model_name}[/bold]",
+            status_text=f"done ({reference_changes} change{change_suffix})", style="green"
+        )
 
     except Exception as e:
         error(f"Error updating references in dbt files: {e}")
