@@ -415,7 +415,11 @@ class BigQueryClient:
             else:
                 raise ValueError(f"Unsupported table type: {old_table.table_type}")
 
-            status(message=f"Creating copy [bold]{new_table_id}[/bold]", status_text="done", style="green")
+            status(
+                message=f"Creating copy [bold]{new_table_id}[/bold]",
+                status_text="done",
+                style="green",
+            )
 
             # Replicate grants from the old table/view to the new table/view
             client.set_iam_policy(new_table_id, old_iam_policy)
@@ -461,7 +465,9 @@ class BigQueryClient:
             old_table_name = old_table_id.split(".")[-1]
             backup_table_name = backup_table_id.split(".")[-1]
 
-            status(message=f"Renaming [bold]{old_table_id}[/bold] to [bold]{backup_table_name}[/bold]")
+            status(
+                message=f"Renaming [bold]{old_table_id}[/bold] to [bold]{backup_table_name}[/bold]"
+            )
             # Handle tables and views differently
             if old_table.table_type == "TABLE":
                 # Remove constraints before renaming
@@ -508,7 +514,11 @@ class BigQueryClient:
             else:
                 raise ValueError(f"Unsupported table type: {old_table.table_type}")
 
-            status(message=f"Renaming [bold]{old_table_id}[/bold] to [bold]{backup_table_name}[/bold]", status_text="done", style="green")
+            status(
+                message=f"Renaming [bold]{old_table_id}[/bold] to [bold]{backup_table_name}[/bold]",
+                status_text="done",
+                style="green",
+            )
 
             # Create a view at the original table/view location
             view_id = (
@@ -532,7 +542,11 @@ class BigQueryClient:
                 should_update=old_table.table_constraints is not None,
             )
 
-            status(message=f"Creating view [bold]{view_id}[/bold]", status_text="done", style="green")
+            status(
+                message=f"Creating view [bold]{view_id}[/bold]",
+                status_text="done",
+                style="green",
+            )
 
             # Replicate grants from the old table/view to the view
             client.set_iam_policy(view_id, old_iam_policy)
