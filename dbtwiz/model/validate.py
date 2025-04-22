@@ -139,7 +139,9 @@ class YmlValidator:
         """Validates that the yml exists, or triggers yml creation if not."""
         yml_path = self.model_base.path.with_suffix(".yml")
         if not yml_path.exists():
-            warn(f"{self.model_base.model_name}: yml file missing - [bold]creating[/bold]")
+            warn(
+                f"{self.model_base.model_name}: yml file missing - [italic]creating[/italic]"
+            )
             os.system(
                 f"dbtwiz model create -l {self.model_base.layer} -d {self.model_base.domain} -n {self.model_base.identifier}"
             )
@@ -149,8 +151,71 @@ class YmlValidator:
                 return False, f"yml file not found: {yml_path.name}"
         return True, "yml file ok"
 
+    def validate_yml_definition(self) -> Tuple[bool, str]:
+        """Validates YML definition (currently only the model name)."""
+        yml_path = self.model_base.path.with_suffix(".yml")
 
-    def validate_and_update_yml_columns(self) -> Tuple[bool, str]:
+        # Load YML content
+        with open(yml_path, "r", encoding="utf-8") as f:
+            yml_content = self.ruamel_yaml.load(f)
+
+        if not yml_content or "models" not in yml_content:
+            return False, "yml file is empty or missing 'models' key"
+
+        validation_errors = []
+
+        for model_def in yml_content.get("models", []):
+            if not isinstance(model_def, dict):
+                continue
+
+            current_name = model_def.get("name", "")
+
+            # Check 1: YML filename matches model name
+            if current_name != self.model_base.path.stem:
+                validation_errors.append(
+                    f"model name [italic]{current_name}[/italic] doesn't match yml filename [italic]{self.model_base.path.stem}[/italic]"
+                )
+
+            # Check 2: Model name matches folder structure
+            name_parts = current_name.split("__")
+            if len(name_parts) != 2:
+                validation_errors.append(
+                    f"model name [italic]{current_name}[/italic] doesn't follow <layer>_<domain>__<identifier> convention"
+                )
+                continue
+
+            current_prefix, _ = name_parts
+
+            # Check layer (first part of prefix)
+            current_layer_abbr = current_prefix.split("_")[0]
+            expected_layer_abbr = self.model_base.layer_abbreviation
+
+            # Check domain (second part of prefix)
+            current_domain = "_".join(current_prefix.split("_")[1:])
+            expected_domain = self.model_base.domain
+
+            # Build detailed mismatch messages
+            if current_layer_abbr != expected_layer_abbr:
+                validation_errors.append(
+                    f"prefix [italic]{current_prefix}[/italic] suggests layer [italic]{current_layer_abbr}[/italic] "
+                    f"but model is in [italic]{expected_layer_abbr}[/italic] layer folder"
+                )
+
+            if current_domain != expected_domain:
+                validation_errors.append(
+                    f"prefix [italic]{current_prefix}[/italic] suggests domain [italic]{current_domain}[/italic] "
+                    f"but model is in [italic]{expected_domain}[/italic] domain folder"
+                )
+
+        if validation_errors:
+            error_msg = "validation failed:\n" + "\n".join(
+                f"• {e}" for e in validation_errors
+            )
+            return False, error_msg
+
+        return True, "yml file name ok"
+
+    def validate_yml_columns(self) -> Tuple[bool, str]:
         """Validate and update YML columns using the initialized path."""
         yml_path = self.model_base.path.with_suffix(".yml")
         table_columns, error = self._get_table_columns(self.model_base.model_name)
@@ -298,7 +363,10 @@ class SqlValidator:
                     self.model_base.path.with_suffix(".sql"),
                 )
 
-                return False, f"attempted fixes, but issues remain: \n{formatted_output}"
+                return (
+                    False,
+                    f"attempted fixes, but issues remain: \n{formatted_output}",
+                )
             else:
                 return True, "applied fixes"
 
@@ -336,7 +404,8 @@ class ModelValidator:
         # Run validation
         for func, desc in [
             (yml_validator.validate_yml_exists, "Validating yml exists"),
-            (yml_validator.validate_and_update_yml_columns, "Validating yml columns"),
+            (yml_validator.validate_yml_definition, "Validating yml definition"),
+            (yml_validator.validate_yml_columns, "Validating yml columns"),
             (sql_validator.convert_sql_to_model, "Validating sql references"),
             (sql_validator.sqlfmt_format_file, "Validating sql with sqlfmt"),
             (
