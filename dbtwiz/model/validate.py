@@ -297,7 +297,7 @@ class SqlValidator:
         if new_sql != sql_content:
             with open(file_path, "w", encoding="utf-8") as f:
                 f.write(new_sql)
-            results.append("updated references")
+            results.append("updated all references")
 
         if unresolved:
             results.append("unresolved tables:\n  - " + "\n  - ".join(unresolved))
