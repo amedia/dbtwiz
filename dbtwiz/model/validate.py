@@ -24,23 +24,6 @@ class YmlValidator:
         self.ruamel_yaml.preserve_quotes = True
         self.ruamel_yaml.indent(mapping=2, sequence=4, offset=2)
 
-    def validate_and_update_yml_columns(self) -> Tuple[bool, str]:
-        """Validate and update YML columns using the initialized path."""
-        yml_path = self.model_base.path.with_suffix(".yml")
-        if not yml_path.exists():
-            warn(f"{self.model_base.model_name}: yml file missing - creating:")
-            os.system(
-                f"dbtwiz model create -l {self.model_base.layer} -d {self.model_base.domain} -n {self.model_base.identifier}"
-            )
-            if not yml_path.exists():
-                return False, f"YML file not found at {yml_path}"
-
-        table_columns, error = self._get_table_columns(self.model_base.model_name)
-        if error:
-            return False, error
-
-        return self._update_yml_columns(yml_path, table_columns)
-
     def _get_table_columns(
         self, model_name: str
     ) -> Tuple[Optional[List[str]], Optional[str]]:
@@ -145,12 +128,36 @@ class YmlValidator:
             if updated:
                 with open(yml_path, "w", encoding="utf-8") as f:
                     self.ruamel_yaml.dump(yml_content, f)
-                return True, "updated successfully."
+                return True, "updated columns successfully"
 
             return True, "yml ok"
 
         except Exception as e:
             return False, f"yml update failed: {str(e)}"
+
+    def validate_yml_exists(self) -> Tuple[bool, str]:
+        """Validates that the yml exists, or triggers yml creation if not."""
+        yml_path = self.model_base.path.with_suffix(".yml")
+        if not yml_path.exists():
+            warn(f"{self.model_base.model_name}: yml file missing - [bold]creating[/bold]")
+            os.system(
+                f"dbtwiz model create -l {self.model_base.layer} -d {self.model_base.domain} -n {self.model_base.identifier}"
+            )
+            if yml_path.exists():
+                return True, f"yml file created successfully: {yml_path.name}"
+            if not yml_path.exists():
+                return False, f"yml file not found: {yml_path.name}"
+        return True, "yml file ok"
+
+
+    def validate_and_update_yml_columns(self) -> Tuple[bool, str]:
+        """Validate and update YML columns using the initialized path."""
+        yml_path = self.model_base.path.with_suffix(".yml")
+        table_columns, error = self._get_table_columns(self.model_base.model_name)
+        if error:
+            return False, error
+
+        return self._update_yml_columns(yml_path, table_columns)
 
 
 class SqlValidator:
@@ -291,7 +298,7 @@ class SqlValidator:
                     self.model_base.path.with_suffix(".sql"),
                 )
 
-                return False, f"unfixable issues: \n{formatted_output}"
+                return False, f"attempted fixes, but issues remain: \n{formatted_output}"
             else:
                 return True, "applied fixes"
 
@@ -328,7 +335,8 @@ class ModelValidator:
 
         # Run validation
         for func, desc in [
-            (yml_validator.validate_and_update_yml_columns, "Validating yml"),
+            (yml_validator.validate_yml_exists, "Validating yml exists"),
+            (yml_validator.validate_and_update_yml_columns, "Validating yml columns"),
             (sql_validator.convert_sql_to_model, "Validating sql references"),
             (sql_validator.sqlfmt_format_file, "Validating sql with sqlfmt"),
             (
