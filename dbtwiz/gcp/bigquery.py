@@ -376,7 +376,7 @@ class BigQueryClient:
             old_iam_policy = client.get_iam_policy(old_table_id)
 
             # Check if the source object is a table or a view
-            status(message=f"Creating copy [bold]{new_table_id}[/bold]")
+            status(message=r"\[bigquery] " + f"Creating copy [bold]{new_table_id}[/bold]")
             if old_table.table_type == "TABLE":
                 # Create a new table with the same definition as the source table
                 new_table = bigquery.Table(new_table_id)
@@ -416,7 +416,7 @@ class BigQueryClient:
                 raise ValueError(f"Unsupported table type: {old_table.table_type}")
 
             status(
-                message=f"Creating copy [bold]{new_table_id}[/bold]",
+                message=r"\[bigquery] " + f"Creating copy [bold]{new_table_id}[/bold]",
                 status_text="done",
                 style="green",
             )
@@ -466,7 +466,7 @@ class BigQueryClient:
             backup_table_name = backup_table_id.split(".")[-1]
 
             status(
-                message=f"Renaming [bold]{old_table_id}[/bold] to [bold]{backup_table_name}[/bold]"
+                message=r"\[bigquery] " + f"Renaming [bold]{old_table_id}[/bold] to [bold]{backup_table_name}[/bold]"
             )
             # Handle tables and views differently
             if old_table.table_type == "TABLE":
@@ -515,7 +515,7 @@ class BigQueryClient:
                 raise ValueError(f"Unsupported table type: {old_table.table_type}")
 
             status(
-                message=f"Renaming [bold]{old_table_id}[/bold] to [bold]{backup_table_name}[/bold]",
+                message=r"\[bigquery] " + f"Renaming [bold]{old_table_id}[/bold] to [bold]{backup_table_name}[/bold]",
                 status_text="done",
                 style="green",
             )
@@ -524,7 +524,7 @@ class BigQueryClient:
             view_id = (
                 old_table_id  # View will have the same ID as the original table/view
             )
-            status(message=f"Creating view [bold]{view_id}[/bold]")
+            status(message=r"\[bigquery] " + f"Creating view [bold]{view_id}[/bold]")
 
             view = bigquery.Table(view_id)
             view.view_query = f"select * from `{new_table_id}`"
@@ -543,7 +543,7 @@ class BigQueryClient:
             )
 
             status(
-                message=f"Creating view [bold]{view_id}[/bold]",
+                message=r"\[bigquery] " + f"Creating view [bold]{view_id}[/bold]",
                 status_text="done",
                 style="green",
             )
