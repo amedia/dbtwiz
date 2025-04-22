@@ -354,11 +354,22 @@ def move(
 
 
 @app.command()
+@examples(
+    """Example output when all is ok:
+```
+Validating yml exists: yml file ok
+Validating yml definition: yml file name ok
+Validating yml columns: yml ok
+Validating sql references: references ok
+Validating sql with sqlfmt: validation ok
+Validating sql with sqlfluff: validation ok
+```
+""")
 def validate(
     model_path: Annotated[
         str,
         typer.Argument(help="Path to model (sql or yml) to be validated."),
     ],
 ):
-    """Validate the yml and sql files for a model."""
+    """Validates the yml and sql files for a model."""
     ModelValidator(model_path=model_path).validate()

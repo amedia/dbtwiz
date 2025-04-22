@@ -22,7 +22,7 @@ You can also run `dbtwiz --help`/`dbtwiz -h`, which will list the commands with 
   - [`lint`](docs/model_lint.md) - Run sqlfmt --diff and sqlfluff lint for staged and/or defined sql files.
   - [`move`](docs/model_move.md) - Moves a model by copying to a new location with a new name,
 and/or by updating the references to the model by other dbt models.
-  - [`validate`](docs/model_validate.md) - Validate the yml and sql files for a model.
+  - [`validate`](docs/model_validate.md) - Validates the yml and sql files for a model.
 - `source` - Commands for a dbt source
   - [`create`](docs/source_create.md) - Create new dbt source
 - [`build`](docs/build.md) - Build one or more dbt models, using interactive selection with fuzzy-matching,
