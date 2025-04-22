@@ -208,9 +208,7 @@ class YmlValidator:
                 )
 
         if validation_errors:
-            error_msg = "validation failed:\n" + "\n".join(
-                f"• {e}" for e in validation_errors
-            )
+            error_msg = "failed\n" + "\n".join(f"• {e}" for e in validation_errors)
             return False, error_msg
 
         return True, "yml file name ok"
@@ -342,9 +340,31 @@ class SqlValidator:
         )
         linter = Linter(config=config)
         # initial results:
-        lint_results = linter.lint_string(
-            self.sql_content, fname=self.model_base.path.with_suffix(".sql"), fix=True
-        )
+        try:
+            lint_results = linter.lint_string(
+                self.sql_content,
+                fname=self.model_base.path.with_suffix(".sql"),
+                fix=True,
+            )
+        except Exception as e:
+            if "DuplicateResourceNameError" in str(e):
+                # Parse the dbt error message for duplicate paths
+                error_msg = str(e)
+                duplicates = []
+                current_line = ""
+
+                # Process the error message line by line
+                for line in error_msg.split("\n"):
+                    if line.strip().startswith("- "):
+                        duplicates.append(line.strip()[2:])
+                    elif "dbt found" in line and "models with the name" in line:
+                        current_line = line.strip()
+
+                if duplicates:
+                    formatted_duplicates = "\n".join(f"• {dup}" for dup in duplicates)
+                    return False, (f"failed\n{current_line}\n{formatted_duplicates}")
+                return False, f"duplicate models detected: {error_msg}"
+            return False, f"validation failed with error {e}"
 
         if lint_results.get_violations():
             fixed_sql = lint_results.fix_string()[0]
