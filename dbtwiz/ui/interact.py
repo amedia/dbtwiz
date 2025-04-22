@@ -2,7 +2,7 @@ import re
 import sys
 from typing import List
 
-from dbtwiz.helpers.logger import error, warn
+from dbtwiz.helpers.logger import error
 
 from .style import custom_style
 
