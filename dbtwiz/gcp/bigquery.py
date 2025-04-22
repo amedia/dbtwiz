@@ -376,7 +376,9 @@ class BigQueryClient:
             old_iam_policy = client.get_iam_policy(old_table_id)
 
             # Check if the source object is a table or a view
-            status(message=r"\[bigquery] " + f"Creating copy [bold]{new_table_id}[/bold]")
+            status(
+                message=r"\[bigquery] " + f"Creating copy [bold]{new_table_id}[/bold]"
+            )
             if old_table.table_type == "TABLE":
                 # Create a new table with the same definition as the source table
                 new_table = bigquery.Table(new_table_id)
@@ -466,7 +468,8 @@ class BigQueryClient:
             backup_table_name = backup_table_id.split(".")[-1]
 
             status(
-                message=r"\[bigquery] " + f"Renaming [bold]{old_table_id}[/bold] to [bold]{backup_table_name}[/bold]"
+                message=r"\[bigquery] "
+                + f"Renaming [bold]{old_table_id}[/bold] to [bold]{backup_table_name}[/bold]"
             )
             # Handle tables and views differently
             if old_table.table_type == "TABLE":
@@ -515,7 +518,8 @@ class BigQueryClient:
                 raise ValueError(f"Unsupported table type: {old_table.table_type}")
 
             status(
-                message=r"\[bigquery] " + f"Renaming [bold]{old_table_id}[/bold] to [bold]{backup_table_name}[/bold]",
+                message=r"\[bigquery] "
+                + f"Renaming [bold]{old_table_id}[/bold] to [bold]{backup_table_name}[/bold]",
                 status_text="done",
                 style="green",
             )

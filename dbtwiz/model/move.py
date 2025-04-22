@@ -47,7 +47,8 @@ def move_model(
     """
     try:
         status(
-            message=r"\[dbt] " + f"Migrating model [italic]{old_model_name}[/italic] to [bold]{new_model_name}[/bold]"
+            message=r"\[dbt] "
+            + f"Migrating model [italic]{old_model_name}[/italic] to [bold]{new_model_name}[/bold]"
         )
 
         old_folder_path = Path(old_folder_path)
@@ -134,7 +135,8 @@ def move_model(
             info(f"Deleted old dbt files for {old_model_name}", style="yellow")
 
         status(
-            message=r"\[dbt] " + f"Migrating model [italic]{old_model_name}[/italic] to [bold]{new_model_name}[/bold]",
+            message=r"\[dbt] "
+            + f"Migrating model [italic]{old_model_name}[/italic] to [bold]{new_model_name}[/bold]",
             status_text="done",
             style="green",
         )
@@ -164,7 +166,8 @@ def update_model_references(old_model_name: str, new_model_name: str) -> None:
         )
 
         status(
-            message=r"\[dbt] " + f"Updating references from [italic]{old_model_name}[/italic] to [bold]{new_model_name}[/bold]"
+            message=r"\[dbt] "
+            + f"Updating references from [italic]{old_model_name}[/italic] to [bold]{new_model_name}[/bold]"
         )
         reference_changes = 0
         # Walk through the dbt project directory to find all SQL files
@@ -186,7 +189,8 @@ def update_model_references(old_model_name: str, new_model_name: str) -> None:
 
         change_suffix = "" if reference_changes == 1 else "s"
         status(
-            message=r"\[dbt] " + f"Updating references from [italic]{old_model_name}[/italic] to [bold]{new_model_name}[/bold]",
+            message=r"\[dbt] "
+            + f"Updating references from [italic]{old_model_name}[/italic] to [bold]{new_model_name}[/bold]",
             status_text=f"done ({reference_changes} change{change_suffix})",
             style="green",
         )
