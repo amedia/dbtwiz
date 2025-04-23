@@ -45,9 +45,6 @@ def fatal(message: str, exit_code=1):
 def status(message: str, status_text: str = "", style: str = "yellow"):
     """Log a status message that can be updated"""
     if status_text:
-        log_console.print(f"{message}: [bold {style}]{status_text}[/]", end="\r")
+        log_console.print(f"{message}: [bold {style}]{status_text}[/]")
     else:
         log_console.print(f"{message}: ...", end="\r")
-    # If this is a completion (status_text provided), move to next line
-    if status_text:
-        log_console.print()
