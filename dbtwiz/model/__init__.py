@@ -364,7 +364,8 @@ Validating sql references: references ok
 Validating sql with sqlfmt: validation ok
 Validating sql with sqlfluff: validation ok
 ```
-""")
+"""
+)
 def validate(
     model_path: Annotated[
         str,

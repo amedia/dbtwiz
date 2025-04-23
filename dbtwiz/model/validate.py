@@ -154,7 +154,7 @@ class YmlValidator:
     def _validate_model_name(self, model_def: dict) -> List[str]:
         """Validates that the model has a correct name, and returns identified errors."""
         validation_errors = []
-        
+
         current_name = model_def.get("name", "")
 
         # Check 1: YML filename matches model name
@@ -204,12 +204,18 @@ class YmlValidator:
         with open(yml_path, "r", encoding="utf-8") as f:
             yml_content = self.ruamel_yaml.load(f)
 
-        if not yml_content or "models" not in yml_content or len(yml_content.get("models", [])) == 0:
+        if (
+            not yml_content
+            or "models" not in yml_content
+            or len(yml_content.get("models", [])) == 0
+        ):
             return False, "yml file is empty or missing 'models' key"
         elif len(yml_content.get("models", [])) > 1:
             return False, "yml file contains more than one model definition"
 
-        validation_errors = self._validate_model_name(model_def=yml_content.get("models")[0])
+        validation_errors = self._validate_model_name(
+            model_def=yml_content.get("models")[0]
+        )
 
         if validation_errors:
             error_msg = "failed\n" + "\n".join(f"• {e}" for e in validation_errors)
