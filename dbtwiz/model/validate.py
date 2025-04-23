@@ -151,6 +151,51 @@ class YmlValidator:
                 return False, f"yml file not found: {yml_path.name}"
         return True, "yml file ok"
 
+    def _validate_model_name(self, model_def: dict) -> List[str]:
+        """Validates that the model has a correct name, and returns identified errors."""
+        validation_errors = []
+        
+        current_name = model_def.get("name", "")
+
+        # Check 1: YML filename matches model name
+        if current_name != self.model_base.path.stem:
+            validation_errors.append(
+                f"model name [italic]{current_name}[/italic] doesn't match yml filename [italic]{self.model_base.path.stem}[/italic]"
+            )
+
+        # Check 2: Model name matches folder structure
+        name_parts = current_name.split("__")
+        if len(name_parts) != 2:
+            validation_errors.append(
+                f"model name [italic]{current_name}[/italic] doesn't follow <layer>_<domain>__<identifier> convention"
+            )
+            return validation_errors
+
+        current_prefix, _ = name_parts
+
+        # Check layer (first part of prefix)
+        current_layer_abbr = current_prefix.split("_")[0]
+        expected_layer_abbr = self.model_base.layer_abbreviation
+
+        # Check domain (second part of prefix)
+        current_domain = "_".join(current_prefix.split("_")[1:])
+        expected_domain = self.model_base.domain
+
+        # Build detailed mismatch messages
+        if current_layer_abbr != expected_layer_abbr:
+            validation_errors.append(
+                f"prefix [italic]{current_prefix}[/italic] suggests layer [italic]{current_layer_abbr}[/italic] "
+                f"but model is in [italic]{expected_layer_abbr}[/italic] layer folder"
+            )
+
+        if current_domain != expected_domain:
+            validation_errors.append(
+                f"prefix [italic]{current_prefix}[/italic] suggests domain [italic]{current_domain}[/italic] "
+                f"but model is in [italic]{expected_domain}[/italic] domain folder"
+            )
+
+        return validation_errors
+
     def validate_yml_definition(self) -> Tuple[bool, str]:
         """Validates YML definition (currently only the model name)."""
         yml_path = self.model_base.path.with_suffix(".yml")
@@ -159,58 +204,16 @@ class YmlValidator:
         with open(yml_path, "r", encoding="utf-8") as f:
             yml_content = self.ruamel_yaml.load(f)
 
-        if not yml_content or "models" not in yml_content:
+        if not yml_content or "models" not in yml_content or len(yml_content.get("models", [])) == 0:
             return False, "yml file is empty or missing 'models' key"
+        elif len(yml_content.get("models", [])) > 1:
+            return False, "yml file contains more than one model definition"
 
-        validation_errors = []
-
-        for model_def in yml_content.get("models", []):
-            if not isinstance(model_def, dict):
-                continue
-
-            current_name = model_def.get("name", "")
-
-            # Check 1: YML filename matches model name
-            if current_name != self.model_base.path.stem:
-                validation_errors.append(
-                    f"model name [italic]{current_name}[/italic] doesn't match yml filename [italic]{self.model_base.path.stem}[/italic]"
-                )
-
-            # Check 2: Model name matches folder structure
-            name_parts = current_name.split("__")
-            if len(name_parts) != 2:
-                validation_errors.append(
-                    f"model name [italic]{current_name}[/italic] doesn't follow <layer>_<domain>__<identifier> convention"
-                )
-                continue
-
-            current_prefix, _ = name_parts
-
-            # Check layer (first part of prefix)
-            current_layer_abbr = current_prefix.split("_")[0]
-            expected_layer_abbr = self.model_base.layer_abbreviation
-
-            # Check domain (second part of prefix)
-            current_domain = "_".join(current_prefix.split("_")[1:])
-            expected_domain = self.model_base.domain
-
-            # Build detailed mismatch messages
-            if current_layer_abbr != expected_layer_abbr:
-                validation_errors.append(
-                    f"prefix [italic]{current_prefix}[/italic] suggests layer [italic]{current_layer_abbr}[/italic] "
-                    f"but model is in [italic]{expected_layer_abbr}[/italic] layer folder"
-                )
-
-            if current_domain != expected_domain:
-                validation_errors.append(
-                    f"prefix [italic]{current_prefix}[/italic] suggests domain [italic]{current_domain}[/italic] "
-                    f"but model is in [italic]{expected_domain}[/italic] domain folder"
-                )
+        validation_errors = self._validate_model_name(model_def=yml_content.get("models")[0])
 
         if validation_errors:
             error_msg = "failed\n" + "\n".join(f"• {e}" for e in validation_errors)
             return False, error_msg
-
         return True, "yml file name ok"
 
     def validate_yml_columns(self) -> Tuple[bool, str]:
