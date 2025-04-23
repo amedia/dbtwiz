@@ -7,9 +7,9 @@ from dbtwiz.helpers.decorators import description, examples
 
 from .create import create_model
 from .format import format_sql_files
-from .from_sql import convert_sql_to_model
 from .inspect import inspect_model
 from .move import move_model, update_model_references
+from .validate import ModelValidator
 
 app = typer.Typer()
 
@@ -203,42 +203,6 @@ def fix(
 
 @app.command()
 @examples(
-    """If you have a sql file opened where you have pasted a query from BigQuery, e.g.
-```
-select * from `amedia-adp-marts.adplogger.adplogger_pageviews_view`
-union all
-select * from `amedia-adp-prod`.arcalis_raw.arcalis_events_raw
-union all
-select * from amedia-data-restricted.memento.`user_mapping`
-union all
-select * from amedia-analytics-eu.dfp.p_NetworkImpressions_56257416
-```
-
-You can then run `dbtwiz model from-sql test.sql`.
-
-When run, the command will replace the table names with either `ref` or `source`, if that table is a current model or source:
-```
-select * from {{ ref("mrt_adplogger__adplogger_pageviews_view") }}
-union all
-select * from {{ source("arcalis_raw", "arcalis_events_raw") }}
-union all
-select * from {{ source("memento", "user_mapping") }}
-union all
-select * from {{ source("dfp", "NetworkImpressions") }}
-```"""
-)
-def from_sql(
-    file_path: Annotated[
-        str,
-        typer.Argument(help="File path for sql file"),
-    ],
-):
-    """Convert a sql file to a dbt model by replacing table references with source and ref."""
-    convert_sql_to_model(file_path=file_path)
-
-
-@app.command()
-@examples(
     """Run the following command to inspect a given model:
 ```
 dbtwiz model inspect mrt_siteconfig__site_groups
@@ -387,3 +351,26 @@ def move(
             old_model_name=old_model_name,
             new_model_name=new_model_name,
         )
+
+
+@app.command()
+@examples(
+    """Example output when all is ok:
+```
+Validating yml exists: yml file ok
+Validating yml definition: yml file name ok
+Validating yml columns: yml ok
+Validating sql references: references ok
+Validating sql with sqlfmt: validation ok
+Validating sql with sqlfluff: validation ok
+```
+"""
+)
+def validate(
+    model_path: Annotated[
+        str,
+        typer.Argument(help="Path to model (sql or yml) to be validated."),
+    ],
+):
+    """Validates the yml and sql files for a model."""
+    ModelValidator(model_path=model_path).validate()

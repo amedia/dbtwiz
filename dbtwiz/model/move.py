@@ -6,7 +6,7 @@ from pathlib import Path
 
 from ruamel.yaml import YAML
 
-from dbtwiz.helpers.logger import error, info
+from dbtwiz.helpers.logger import error, info, status
 
 
 def _write_file(file_path, file_content):
@@ -46,6 +46,11 @@ def move_model(
     Otherwise, the old model is deleted.
     """
     try:
+        status(
+            message=r"\[dbt] "
+            + f"Migrating model [italic]{old_model_name}[/italic] to [bold]{new_model_name}[/bold]"
+        )
+
         old_folder_path = Path(old_folder_path)
         new_folder_path = Path(new_folder_path)
         # Define old and new file paths
@@ -129,7 +134,12 @@ def move_model(
             _safe_delete_file(old_yml_file)
             info(f"Deleted old dbt files for {old_model_name}", style="yellow")
 
-        info(f"Successfully migrated model {old_model_name} to {new_model_name}")
+        status(
+            message=r"\[dbt] "
+            + f"Migrating model [italic]{old_model_name}[/italic] to [bold]{new_model_name}[/bold]",
+            status_text="done",
+            style="green",
+        )
 
     except Exception as e:
         error(f"Error updating dbt files for model {old_model_name}: {e}")
@@ -155,6 +165,11 @@ def update_model_references(old_model_name: str, new_model_name: str) -> None:
             re.IGNORECASE,
         )
 
+        status(
+            message=r"\[dbt] "
+            + f"Updating references from [italic]{old_model_name}[/italic] to [bold]{new_model_name}[/bold]"
+        )
+        reference_changes = 0
         # Walk through the dbt project directory to find all SQL files
         for root, _, files in os.walk(Path("models")):
             for file in files:
@@ -166,13 +181,19 @@ def update_model_references(old_model_name: str, new_model_name: str) -> None:
                     updated_content, replacements = ref_pattern.subn(
                         f'{{{{ ref("{new_model_name}") }}}}', content
                     )
+                    reference_changes += replacements
 
                     # If replacements were made, write the updated content back to the file
                     if replacements > 0:
                         _write_file(file_path, updated_content)
-                        info(f"Updated {replacements} references in {file_path}")
 
-        info(f"Completed updating references from {old_model_name} to {new_model_name}")
+        change_suffix = "" if reference_changes == 1 else "s"
+        status(
+            message=r"\[dbt] "
+            + f"Updating references from [italic]{old_model_name}[/italic] to [bold]{new_model_name}[/bold]",
+            status_text=f"done ({reference_changes} change{change_suffix})",
+            style="green",
+        )
 
     except Exception as e:
         error(f"Error updating references in dbt files: {e}")
