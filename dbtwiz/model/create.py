@@ -2,9 +2,9 @@ import os
 from io import StringIO
 from pathlib import Path
 
+from dbtwiz.dbt.model import ModelBasePath
 from dbtwiz.dbt.project import (
     Group,
-    ModelBasePath,
     Project,
     access_choices,
     domains_for_layer,
