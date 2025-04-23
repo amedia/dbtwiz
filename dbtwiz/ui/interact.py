@@ -1,8 +1,7 @@
 import re
-import sys
 from typing import List
 
-from dbtwiz.helpers.logger import error
+from dbtwiz.helpers.logger import error, fatal
 
 from .style import custom_style
 
@@ -160,7 +159,6 @@ def confirm(question: str) -> bool:
         answer = questionary_confirm(question, style=custom_style()).unsafe_ask()
         return answer
     except KeyboardInterrupt:
-        sys.exit(1)
+        fatal("Cancelling")
     except Exception as e:
-        print(f"\nError: {str(e)}", file=sys.stderr)
-        sys.exit(1)
+        fatal(f"\nError: {str(e)}")
