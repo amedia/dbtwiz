@@ -30,15 +30,6 @@ variable and will be picked up by the `start_date()` macro by the models.
 This option is only relevant for backfilling, and is set by Cloud Run to
 offset the date for partitioned models relative to the start date.
 
-### `--save-state`
-
-For production runs, this option will cause the resulting manifest to be copied over
-to the state bucket after the build has successfully completed. This is only relevant
-when running with target `prod`, and should not be used elsewhere.
-
-The state bucket is set in the project's _pyproject.toml_ file in the
-section `[tool.dbtwiz.project]` and the setting `bucket_state_identifier`.
-
 ### `--full-refresh`, `-f`
 
 Build the model with full refresh, which causes existing tables to be deleted and
