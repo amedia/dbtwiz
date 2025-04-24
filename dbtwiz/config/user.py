@@ -56,6 +56,44 @@ class UserConfig:
         ),
     )
 
+    SECTIONS = [
+        {
+            "name": "general",
+            "description": "General settings",
+            "settings": [
+                ("auth_check", bool, True, ""),
+                ("editor", str, "code", "Command used to open a file for editing"),
+                ("theme", str, "light", "Colour theme for model information"),
+            ],
+        },
+        {
+            "name": "model_info",
+            "description": "Settings relating to model information output",
+            "settings": [
+                ("formatter", str, "fmt -s", "Command used to format model information text"),
+            ],
+        },
+        {
+            "name": "theme",
+            "description": "ANSI colour codes for highlighting",
+            "settings": [
+                ("name", int, 30, "Model name"),
+                ("path", int, 27, "Model file path"),
+                ("tags", int, 28, "Model tag list"),
+                ("group", int, 94, "Model group list"),
+                ("materialized", int, 54, "Model materialization type"),
+                ("owner", int, 136, "Model owner"),
+                ("policy", int, 136, "Model policies"),
+                ("dep_stg", int, 34, "Model dependencies (staging)"),
+                ("dep_int", int, 24, "Model dependencies (intermediate)"),
+                ("dep_mart", int, 20, "Model dependencies (marts)"),
+                ("description", int, 102, "Model description"),
+                ("deprecated", int, 124, "Model description for deprecated models"),
+            ]
+        },
+    ]
+
+
     def __init__(self):
         """Get the configuration, from file if it exists or create a new one with defaults"""
         self.parser = configparser.ConfigParser()
