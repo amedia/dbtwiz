@@ -59,18 +59,6 @@ variable and will be picked up by the `start_date()` macro by the models.""",
 offset the date for partitioned models relative to the start date.""",
         ),
     ] = False,
-    save_state: Annotated[
-        bool,
-        typer.Option(
-            "--save-state",
-            help="""For production runs, this option will cause the resulting manifest to be copied over
-to the state bucket after the build has successfully completed. This is only relevant
-when running with target `prod`, and should not be used elsewhere.
-
-The state bucket is set in the project's _pyproject.toml_ file in the
-section `[tool.dbtwiz.project]` and the setting `bucket_state_identifier`.""",
-        ),
-    ] = False,
     full_refresh: Annotated[
         bool,
         typer.Option(
@@ -133,16 +121,15 @@ Pass this option to rebuild the same models that you most recently built.""",
         raise InvalidArgumentsError("Date must be on the YYYY-mm-dd format.")
     # Dispatch
     command_build(
-        target.value,
-        select,
-        run_date,
-        use_task_index,
-        save_state,
-        full_refresh,
-        upstream,
-        downstream,
-        work,
-        repeat_last,
+        target=target.value,
+        select=select,
+        date=run_date,
+        use_task_index=use_task_index,
+        full_refresh=full_refresh,
+        upstream=upstream,
+        downstream=downstream,
+        work=work,
+        repeat_last=repeat_last,
     )
 
 
