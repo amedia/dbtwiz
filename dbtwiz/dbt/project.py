@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import Dict, List, Tuple, Union
 
 from dbtwiz.config.project import project_path
+from .model import ModelBasePath
 
 
 class Group:
@@ -75,42 +76,6 @@ class Project:
             for key, value in self.data.get("vars", {}).items()
             if key.endswith("-data-expiration")
         ]
-
-
-class ModelBasePath:
-    """Path to model files (without suffix)"""
-
-    def __init__(self, layer: str):
-        """Initialize the class with layer details and abbreviations."""
-        self.layer = layer
-        self.layer_folder, self.layer_abbreviation = self.get_layer_details(layer)
-
-    def get_layer_details(self, layer: str):
-        """Retrieve folder and abbreviation details for the specified layer."""
-        layer_details = {
-            "staging": ("1_staging", "stg"),
-            "intermediate": ("2_intermediate", "int"),
-            "marts": ("3_marts", "mrt"),
-            "bespoke": ("4_bespoke", "bsp"),
-        }
-        if layer not in layer_details:
-            raise ValueError(f"Invalid layer: {layer}")
-        return layer_details[layer]
-
-    def get_prefix(self, domain: str) -> str:
-        """Generate and return the prefix for the specified domain."""
-        prefix = f"{self.layer_abbreviation}_{domain}__"
-        return prefix
-
-    def get_domain_path(self, domain: str) -> Path:
-        """Construct and return the path to the domain folder."""
-        path = project_path() / "models" / self.layer_folder / domain
-        return path
-
-    def get_path(self, domain: str, name: str) -> Path:
-        """Construct and return the full path for the specified domain and model name."""
-        path = self.get_domain_path(domain) / f"{self.get_prefix(domain)}{name}"
-        return path
 
 
 def layer_choices() -> List[Dict[str, str]]:

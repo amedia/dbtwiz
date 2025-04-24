@@ -91,7 +91,9 @@ def _generate_markdown(
     ]
 
     # command_path_str = " ".join([app_name] + full_command_path)
-    command_path_str = " ".join([app_name] + [cmd.replace("_", "-") for cmd in full_command_path])
+    command_path_str = " ".join(
+        [app_name] + [cmd.replace("_", "-") for cmd in full_command_path]
+    )
     safe_filename = "_".join(
         full_command_path
     ).lower()  # Removed app_name from filename

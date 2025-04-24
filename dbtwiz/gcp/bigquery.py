@@ -2,7 +2,7 @@ from typing import Dict, List, Tuple
 
 from ruamel.yaml.scalarstring import PreservedScalarString
 
-from dbtwiz.helpers.logger import error, info
+from dbtwiz.helpers.logger import error, info, status
 
 MILLISECONDS_PER_DAY = 1000 * 60 * 60 * 24
 DEPRECATION_MESSAGE = "THIS OBJECT IS DEPRECATED"
@@ -101,8 +101,11 @@ class BigQueryClient:
 
     def parse_schema(self, fields, prefix=""):
         """
-        Parses the schema for a table and returns all the columns.
-        If a column is a struct then it recursively adds all nested columns.
+        Parses the schema for a table and returns all columns with their details.
+        For RECORD types, recursively adds all nested columns.
+
+        Returns:
+            List of dicts with keys: name, data_type, description (if available)
         """
         schema_details = []
 
@@ -114,9 +117,15 @@ class BigQueryClient:
                 )
                 schema_details.extend(nested_fields)
             else:
-                column = {"name": f"{prefix}{field.name}"}
-                if field.description:
-                    column["description"] = PreservedScalarString(field.description)
+                column = {
+                    "name": f"{prefix}{field.name}",
+                    "data_type": field.field_type.lower(),
+                }
+                column["description"] = (
+                    PreservedScalarString(field.description)
+                    if field.description
+                    else ""
+                )
                 schema_details.append(column)
 
         return schema_details
@@ -367,6 +376,9 @@ class BigQueryClient:
             old_iam_policy = client.get_iam_policy(old_table_id)
 
             # Check if the source object is a table or a view
+            status(
+                message=r"\[bigquery] " + f"Creating copy [bold]{new_table_id}[/bold]"
+            )
             if old_table.table_type == "TABLE":
                 # Create a new table with the same definition as the source table
                 new_table = bigquery.Table(new_table_id)
@@ -388,7 +400,6 @@ class BigQueryClient:
                 job_config = bigquery.CopyJobConfig()
                 job = client.copy_table(old_table, new_table, job_config=job_config)
                 job.result()  # Wait for the job to complete
-                info(f"Created new table: {new_table_id}")
 
             elif old_table.table_type == "VIEW":
                 # Create a new view with the same definition as the source view
@@ -402,10 +413,15 @@ class BigQueryClient:
                 new_table = client.create_table(new_table)
                 new_table.schema = old_table.schema
                 new_table = client.update_table(new_table, ["schema"])
-                info(f"Created new view {new_table_id}")
 
             else:
                 raise ValueError(f"Unsupported table type: {old_table.table_type}")
+
+            status(
+                message=r"\[bigquery] " + f"Creating copy [bold]{new_table_id}[/bold]",
+                status_text="done",
+                style="green",
+            )
 
             # Replicate grants from the old table/view to the new table/view
             client.set_iam_policy(new_table_id, old_iam_policy)
@@ -451,6 +467,10 @@ class BigQueryClient:
             old_table_name = old_table_id.split(".")[-1]
             backup_table_name = backup_table_id.split(".")[-1]
 
+            status(
+                message=r"\[bigquery] "
+                + f"Renaming [bold]{old_table_id}[/bold] to [bold]{backup_table_name}[/bold]"
+            )
             # Handle tables and views differently
             if old_table.table_type == "TABLE":
                 # Remove constraints before renaming
@@ -476,7 +496,6 @@ class BigQueryClient:
                     table_constraints=old_table.table_constraints,
                     should_update=old_table.table_constraints is not None,
                 )
-                info(f"Renamed table {old_table_id} to {backup_table_name}")
 
             elif old_table.table_type == "VIEW":
                 # For views, create a new view with the same definition
@@ -491,7 +510,6 @@ class BigQueryClient:
                 bck_view = client.create_table(bck_view)
                 bck_view.schema = old_table.schema
                 bck_view = client.update_table(bck_view, ["schema"])
-                info(f"Created new view {backup_table_id} as copy of {old_table_id}")
 
                 # Delete the original view
                 client.delete_table(old_table_id)
@@ -499,10 +517,19 @@ class BigQueryClient:
             else:
                 raise ValueError(f"Unsupported table type: {old_table.table_type}")
 
+            status(
+                message=r"\[bigquery] "
+                + f"Renaming [bold]{old_table_id}[/bold] to [bold]{backup_table_name}[/bold]",
+                status_text="done",
+                style="green",
+            )
+
             # Create a view at the original table/view location
             view_id = (
                 old_table_id  # View will have the same ID as the original table/view
             )
+            status(message=r"\[bigquery] " + f"Creating view [bold]{view_id}[/bold]")
+
             view = bigquery.Table(view_id)
             view.view_query = f"select * from `{new_table_id}`"
             self._copy_properties(
@@ -518,7 +545,12 @@ class BigQueryClient:
                 table_constraints=old_table.table_constraints,
                 should_update=old_table.table_constraints is not None,
             )
-            info(f"Created view {view_id}")
+
+            status(
+                message=r"\[bigquery] " + f"Creating view [bold]{view_id}[/bold]",
+                status_text="done",
+                style="green",
+            )
 
             # Replicate grants from the old table/view to the view
             client.set_iam_policy(view_id, old_iam_policy)
