@@ -309,7 +309,11 @@ class SqlValidator:
             results.append("updated all references")
 
         if unresolved:
-            results.append("found potential table references that don't match known models/sources:\n  - " + "\n  - ".join(unresolved) + "\n-> this may be expected (e.g., struct fields)")
+            results.append(
+                "found potential table references that don't match known models/sources:\n  - "
+                + "\n  - ".join(unresolved)
+                + "\n-> this may be expected (e.g., struct fields)"
+            )
             status = False
 
         if new_sql == sql_content and not unresolved:
