@@ -36,7 +36,7 @@ class ModelBasePath:
                 # Extract folder structure
                 layer_folder = parts[models_pos + 1]
                 self._domain = parts[models_pos + 2]
-                self._model_name = "_".join(parts[models_pos + 3 :])
+                self._model_name = path.name
 
                 # Set layer info
                 self._layer, self._layer_abbreviation = next(
