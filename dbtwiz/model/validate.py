@@ -262,8 +262,8 @@ class SqlValidator:
     def _replace_table_references(
         self, sql_content: str, lookup_dict: dict
     ) -> Tuple[str, List[str]]:
-        """Replace table references while handling all backtick cases."""
-        pattern = r"(`?[^`\s]+`?)\.(`?[^`\s]+`?)\.(`?[^`\s]+`?)"
+        """Replace table references while handling backticks."""
+        pattern = r"(`?[a-zA-Z0-9_-]+`?)\.(`?[a-zA-Z0-9_-]+`?)\.(`?[a-zA-Z0-9_-]+`?)"
         unresolved_tables = []
 
         new_sql = []
@@ -309,7 +309,11 @@ class SqlValidator:
             results.append("updated all references")
 
         if unresolved:
-            results.append("unresolved tables:\n  - " + "\n  - ".join(unresolved))
+            results.append(
+                "found potential table references that don't match known models/sources:\n  - "
+                + "\n  - ".join(unresolved)
+                + "\n-> this may be expected (e.g., struct fields)"
+            )
             status = False
 
         if new_sql == sql_content and not unresolved:
