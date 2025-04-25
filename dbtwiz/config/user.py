@@ -36,8 +36,6 @@ class UserConfig:
     CONFIG_PATH = Path(typer.get_app_dir("dbtwiz"))
     CONFIG_FILE = CONFIG_PATH / "config.ini"
 
-    SECTIONS = ["general", "model_info", "theme"]
-
     THEMES: Dict[str, Any] = dict(
         names=["light", "dark"],
         colors=dict(
