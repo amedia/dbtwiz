@@ -65,9 +65,8 @@ def build_data_structure(manifest_models, client):
         info(f"Fetching datasets and tables for project {project}")
         query = f"""
             select table_schema, array_agg(table_name) as tables
-            from region-eu.INFORMATION_SCHEMA.TABLES
-            where table_catalog = '{project}'
-                and table_name not like '%__dbt_tmp_%'
+            from {project}.`region-eu`.INFORMATION_SCHEMA.TABLES
+            where table_name not like '%__dbt_tmp_%'
             group by table_schema
         """
         result = client.run_query(query).result()
