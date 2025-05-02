@@ -509,7 +509,6 @@ class BigQueryClient:
 
             # Get table metadata and iam policy
             old_table = client.get_table(old_table_id)
-            old_iam_policy = client.get_iam_policy(old_table_id)
 
             old_table_name = old_table_id.split(".")[-1]
             backup_table_name = backup_table_id.split(".")[-1]
@@ -600,7 +599,7 @@ class BigQueryClient:
             )
 
             # Replicate grants from the old table/view to the view
-            client.set_iam_policy(view_id, old_iam_policy)
+            self._copy_iam_policy(source_table_id=old_table_id, target_table_id=view_id)
 
         except Exception as e:
             error(f"Error renaming table/view or creating view: {e}")
