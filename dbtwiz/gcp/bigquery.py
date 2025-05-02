@@ -2,7 +2,7 @@ from typing import Dict, List, Tuple
 
 from ruamel.yaml.scalarstring import PreservedScalarString
 
-from dbtwiz.helpers.logger import error, info, status
+from dbtwiz.helpers.logger import error, fatal, info, status
 
 MILLISECONDS_PER_DAY = 1000 * 60 * 60 * 24
 DEPRECATION_MESSAGE = "THIS OBJECT IS DEPRECATED"
@@ -163,6 +163,28 @@ class BigQueryClient:
             return f"Error: You do not have access to the project '{project}'."
         except Exception as e:
             return f"Error: Failed to verify project '{project}': {e}"
+
+    def ensure_dataset_exists(self, table_id):
+        """Ensures a BigQuery dataset exists, and creates it if not."""
+        try:
+            # Split into project and dataset components
+            project_id, dataset_name, _ = table_id.split(".")
+            dataset_id = f"{project_id}.{dataset_name}"
+            
+            # Check if dataset exists
+            try:
+                dataset = self.get_client().get_dataset(dataset_id)
+                return dataset
+            except self.NotFound:
+                # Dataset doesn't exist - create it
+                dataset = self.get_bigquery().Dataset(dataset_id)
+                dataset.location = "EU"
+                dataset = self.get_client().create_dataset(dataset)
+                info(f"Created dataset {dataset_id}")
+                return dataset
+            
+        except Exception as e:
+            fatal(f"Error ensuring dataset {dataset_id} exists: {e}")
 
     def run_query(self, query):
         """Runs a query in bigquery"""
@@ -348,6 +370,21 @@ class BigQueryClient:
             return False
         return True
 
+    def _copy_iam_policy(self, source_table_id, target_table_id):
+        """Safely copies IAM policies"""
+        client = self.get_client()
+
+        source_policy = client.get_iam_policy(source_table_id)
+        target_policy = client.get_iam_policy(target_table_id)
+        
+        # Merge policies (preserve existing target permissions)
+        target_policy.bindings.extend(
+            b for b in source_policy.bindings 
+            if b not in target_policy.bindings
+        )
+        
+        client.set_iam_policy(target_table_id, target_policy)
+
     def create_table_copy(self, old_table_id: str, new_table_id: str) -> None:
         """
         Creates a copy of a BigQuery table or view with the new table id.
@@ -371,9 +408,12 @@ class BigQueryClient:
             if not table_state_check:
                 return
 
+            # If copying to other dataset, ensure it exists
+            if old_table_id.split('.')[:2] != new_table_id.split('.')[:2]:
+                self.ensure_dataset_exists(new_table_id)
+
             # Get table metadata and iam policy
             old_table = client.get_table(old_table_id)
-            old_iam_policy = client.get_iam_policy(old_table_id)
 
             # Check if the source object is a table or a view
             status(
@@ -424,7 +464,7 @@ class BigQueryClient:
             )
 
             # Replicate grants from the old table/view to the new table/view
-            client.set_iam_policy(new_table_id, old_iam_policy)
+            self._copy_iam_policy(source_table_id=old_table_id, target_table_id=new_table_id)
 
         except Exception as e:
             error(f"Error copying table/view {old_table_id} to {new_table_id}: {e}")
@@ -459,6 +499,13 @@ class BigQueryClient:
             )
             if not table_state_check:
                 return
+
+            # If backup table dataset is different from old or new, verify dataset exists
+            if backup_table_id.split('.')[:2] not in (
+                new_table_id.split('.')[:2],
+                old_table_id.split('.')[:2]
+                ):
+                self.ensure_dataset_exists(new_table_id)
 
             # Get table metadata and iam policy
             old_table = client.get_table(old_table_id)
