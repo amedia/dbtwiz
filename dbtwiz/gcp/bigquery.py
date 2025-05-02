@@ -2,7 +2,7 @@ from typing import Dict, List, Tuple
 
 from ruamel.yaml.scalarstring import PreservedScalarString
 
-from dbtwiz.helpers.logger import error, info, status
+from dbtwiz.helpers.logger import error, fatal, info, status
 
 MILLISECONDS_PER_DAY = 1000 * 60 * 60 * 24
 DEPRECATION_MESSAGE = "THIS OBJECT IS DEPRECATED"
@@ -174,19 +174,17 @@ class BigQueryClient:
             # Check if dataset exists
             try:
                 dataset = self.get_client().get_dataset(dataset_id)
-                print(f"Dataset {dataset_id} already exists")
                 return dataset
             except self.NotFound:
                 # Dataset doesn't exist - create it
                 dataset = self.get_bigquery().Dataset(dataset_id)
                 dataset.location = "EU"
                 dataset = self.get_client().create_dataset(dataset)
-                print(f"Created dataset {dataset_id}")
+                info(f"Created dataset {dataset_id}")
                 return dataset
             
         except Exception as e:
-            print(f"Error ensuring dataset {dataset_id} exists: {e}")
-            raise
+            fatal(f"Error ensuring dataset {dataset_id} exists: {e}")
 
     def run_query(self, query):
         """Runs a query in bigquery"""
