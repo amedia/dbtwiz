@@ -373,7 +373,7 @@ class BigQueryClient:
         return True
 
     def _copy_iam_policy(self, source_table_id, target_table_id):
-        """Safely copies IAM policies with retry logic"""
+        """Safely copies IAM policies"""
         client = self.get_client()
 
         source_policy = client.get_iam_policy(source_table_id)
