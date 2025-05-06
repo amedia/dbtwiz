@@ -80,21 +80,25 @@ If dbtwiz looks up a user config file and it doesn't exist, it will be created w
 the following default settings:
 
 ```toml
-auth_check = true            # When true, check for existing GCP auth token, and ask
-                             # for automatic reauthentication if needed.
+# When true, check for existing GCP auth token, and ask for
+# automatic reauthentication if needed.
+auth_check = true
 
-editor = "code"              # Command for opening model source files in editor
+# Command for opening model source files in editor
+editor = "code"
 
-model_formatter = "fmt -s"   # Command for showing prerendered model info files in
-                             # the interactive fzf-based selector. The default should
-							 # work in GitHub Codespaces, on Linux or on MacOS with
-							 # GNU coreutils installed. Here are some alternatives:
-							 # MacOS without GNU coreutils: "cat -s"
-							 # Windows using PowerShell: "cat" or "Get-Content"
-							 # Windows using cmd.exe in Terminal: "type"
+# Command for showing prerendered model info files in the interactive
+# fzf-based selector. The default should work in GitHub Codespaces,
+# on Linux or on MacOS with GNU coreutils installed.
+# Here are some alternatives:
+# - MacOS without GNU coreutils: "cat -s"
+# - Windows using PowerShell: "cat" or "Get-Content"
+# - Windows using cmd.exe in Terminal: "type"
+model_formatter = "fmt -s"
 
-theme = "light"              # Use a color scheme suitable for a light background, set
-                             # to "dark" for better contrasts against a dark background.
+# Set to "light" to use a color scheme suitable for a light background,
+# or to "dark" for better contrasts against a dark background.
+theme = "light"
 ```
 
 ## Development
