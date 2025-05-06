@@ -79,7 +79,9 @@ the file is located at `~/.config/dbtwiz/config.toml`.
 If you're using a dark background colour in your terminal, you should configure _dbtwiz_ to
 use bright colours for highlighting in previews and elsewhere to make the text more readable.
 
-Edit the config file to include `theme = dark` to achieve this.
+Edit the config file to include `theme = dark` to achieve this. You will also need to
+delete the contents of the `.dbtwiz/models` directory within the project to rebuild the model
+info after changing theme.
 
 #### Preview formatter
 

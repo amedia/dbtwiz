@@ -11,6 +11,7 @@ from dbtwiz.config.user import user_config
 from dbtwiz.config.theme import Theme
 from dbtwiz.gcp.auth import ensure_app_default_auth
 from dbtwiz.helpers.logger import debug, error, info
+from dbtwiz.templates import path_to_template
 
 from .run import invoke
 from .support import models_with_local_changes
@@ -182,7 +183,8 @@ class Manifest:
     def model_info_template(self, clear=False) -> Template:
         """Generate and return the model information template with optional clearing."""
         theme = Theme.by_name(user_config().theme)
-        with open(Path(__file__).parent / "templates" / "model_info.tpl", "r+") as f:
+        debug(theme)
+        with open(path_to_template("model_info"), "r+") as f:
             template = f.read()
         if clear:
             template = "\033[2J\033[H" + template
@@ -190,7 +192,8 @@ class Manifest:
         template = template.replace("[/]", "\033[0m")
         # template = re.sub(r"\[c(\d+)\]", r"\033[38;5;\1m", template)
         template = re.sub(
-            r"\[(\w+)\]", lambda m: f"\033[38;5;{theme.color(m[1])}m", template
+            r"\[(\w+)\]", lambda m: f"\033[38;5;{theme.color(m[1])}m",
+            template
         )
         template_object = Template(template)
         template_object.globals["model_style"] = model_style
@@ -362,5 +365,5 @@ def model_style(name: str):
     else:
         key = "dep_mart"
     theme = Theme.by_name(user_config().theme)
-    cval = theme.color(name)
+    cval = theme.color(key)
     return f"\033[38;5;{cval}m"
