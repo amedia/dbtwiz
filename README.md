@@ -73,7 +73,8 @@ may want to adjust some settings from the get-go to fit your environment.
 
 The config settings are stored in a file `config.toml` in the `dbtwiz` folder within
 your user's app settings directory. In a GitHub Codespace or in a local Linux environment
-the file is located at `~/.config/dbtwiz/config.toml`.
+the file is located at `~/.config/dbtwiz/config.toml`, while in a local Windows environment
+it's located at `%appdata%/dbtwiz/config.toml`. TODO: Where is it located in MacOS?
 
 #### Dark mode
 If you're using a dark background colour in your terminal, you should configure _dbtwiz_ to
