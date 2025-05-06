@@ -78,7 +78,8 @@ it's located at `%appdata%/dbtwiz/config.toml`. TODO: Where is it located in Mac
 
 If dbtwiz looks up a user config file and it doesn't exist, it will be created with
 the following default settings:
-```
+
+```toml
 auth_check = true            # When true, check for existing GCP auth token, and ask
                              # for automatic reauthentication if needed.
 
