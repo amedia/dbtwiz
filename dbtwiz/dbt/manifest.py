@@ -8,6 +8,7 @@ from jinja2 import Template
 
 from dbtwiz.config.project import project_config, project_dbtwiz_path
 from dbtwiz.config.user import user_config
+from dbtwiz.config.theme import Theme
 from dbtwiz.gcp.auth import ensure_app_default_auth
 from dbtwiz.helpers.logger import debug, error, info
 
@@ -121,7 +122,7 @@ class Manifest:
                 return None
         else:
             model_names = models.keys()
-        formatter = user_config().get("model_info", "formatter")
+        formatter = user_config().model_formatter
         chosen_models = iterfzf.iterfzf(
             model_names,
             query=select,
@@ -180,6 +181,7 @@ class Manifest:
     @functools.cache
     def model_info_template(self, clear=False) -> Template:
         """Generate and return the model information template with optional clearing."""
+        theme = Theme.by_name(user_config().theme)
         with open(Path(__file__).parent / "templates" / "model_info.tpl", "r+") as f:
             template = f.read()
         if clear:
@@ -188,7 +190,7 @@ class Manifest:
         template = template.replace("[/]", "\033[0m")
         # template = re.sub(r"\[c(\d+)\]", r"\033[38;5;\1m", template)
         template = re.sub(
-            r"\[(\w+)\]", lambda m: f"\033[38;5;{user_config().color(m[1])}m", template
+            r"\[(\w+)\]", lambda m: f"\033[38;5;{theme.color(m[1])}m", template
         )
         template_object = Template(template)
         template_object.globals["model_style"] = model_style
@@ -359,5 +361,6 @@ def model_style(name: str):
         key = "dep_int"
     else:
         key = "dep_mart"
-    cval = user_config().color(key)
+    theme = Theme.by_name(user_config().theme)
+    cval = theme.color(name)
     return f"\033[38;5;{cval}m"
