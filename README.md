@@ -46,7 +46,7 @@ Depending on the specific subcommand, there are some configuration settings defi
 
 The tool will give you a warning when you run a commmand that needs one of the config elements should it be missing, so you don't need to add them all before they become relevant.
 
-```
+```toml
 [tool.dbtwiz.project]
 # Config for bucket containing dbt manifest.json at the top level
 bucket_state_project = ""         # Project name for bucket
@@ -94,7 +94,7 @@ model_formatter = "fmt -s"   # Command for showing prerendered model info files 
 							 # Windows using cmd.exe in Terminal: "type"
 
 theme = "light"              # Use a color scheme suitable for a light background, set
-                               to "dark" for better contrasts against a dark background.
+                             # to "dark" for better contrasts against a dark background.
 ```
 
 ## Development
