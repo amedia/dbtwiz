@@ -3,6 +3,7 @@ from io import StringIO
 from pathlib import Path
 from typing import List
 
+from dbtwiz.config.user import user_config
 from dbtwiz.dbt.project import get_source_tables
 from dbtwiz.gcp.bigquery import BigQueryClient
 from dbtwiz.helpers.logger import fatal, info, warn
@@ -322,8 +323,7 @@ def write_source_file(
     with open(source_file, "w", encoding="utf-8") as file:
         ruamel_yaml.dump(data, file)
 
-    # FIXME: Make editor user configurable with 'code' as default
-    os.system(f"code {source_file}")
+    os.system(f"{user_config().editor} {source_file}")
 
 
 def create_source(

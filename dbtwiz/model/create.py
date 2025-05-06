@@ -2,6 +2,7 @@ import os
 from io import StringIO
 from pathlib import Path
 
+from dbtwiz.config.user import user_config
 from dbtwiz.dbt.model import ModelBasePath
 from dbtwiz.dbt.project import (
     Group,
@@ -508,10 +509,9 @@ def create_model_files(
         with open(sql_path, "w+") as f:
             f.write(sql)
 
-        os.system(f"code {sql_path}")
-    os.system(f"code {yml_path}")
+        os.system(f"{user_config().editor} {sql_path}")
+    os.system(f"{user_config().editor} {yml_path}")
     # Open files in editor
-    # FIXME: Make editor user configurable with 'code' as default
 
 
 def create_model(
