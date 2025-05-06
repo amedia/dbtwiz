@@ -1,11 +1,11 @@
-from dbtwiz.config.user import dark_mode
+from dbtwiz.config.user import user_config
 
 
 def custom_style():
     """Pick a suitable Style for questionary based on user's theme"""
     from questionary import Style  # Lazy import for improved performance
 
-    if dark_mode():
+    if user_config().theme == "dark":
         # style_dict = {
         #     'completion-menu.completion':         'bg:#333333 #ffffff',  # Completion items background a little lighter gray
         #     'completion-menu.completion.current': 'bg:#444444 #ffffff', # Selected completion item even lighter
