@@ -67,6 +67,7 @@ class UserConfig:
                 defaults += str(value).lower() + "\n"
             else:
                 defaults += str(value) + "\n"
+        self.config_path().mkdir(parents=True, exist_ok=True)
         with open(self._config_file(), "w") as f:
             f.write(defaults)
 
