@@ -76,22 +76,25 @@ your user's app settings directory. In a GitHub Codespace or in a local Linux en
 the file is located at `~/.config/dbtwiz/config.toml`, while in a local Windows environment
 it's located at `%appdata%/dbtwiz/config.toml`. TODO: Where is it located in MacOS?
 
-#### Dark mode
-If you're using a dark background colour in your terminal, you should configure _dbtwiz_ to
-use bright colours for highlighting in previews and elsewhere to make the text more readable.
+If dbtwiz looks up a user config file and it doesn't exist, it will be created with
+the following default settings:
+```
+auth_check = true            # When true, check for existing GCP auth token, and ask
+                             # for automatic reauthentication if needed.
 
-Edit the config file to include `theme = dark` to achieve this. You will also need to
-delete the contents of the `.dbtwiz/models` directory within the project to rebuild the model
-info after changing theme.
+editor = "code"              # Command for opening model source files in editor
 
-#### Preview formatter
+model_formatter = "fmt -s"   # Command for showing prerendered model info files in
+                             # the interactive fzf-based selector. The default should
+							 # work in GitHub Codespaces, on Linux or on MacOS with
+							 # GNU coreutils installed. Here are some alternatives:
+							 # MacOS without GNU coreutils: "cat -s"
+							 # Windows using PowerShell: "cat" or "Get-Content"
+							 # Windows using cmd.exe in Terminal: "type"
 
-By default, _dbtwiz_ uses the command _fmt_ tool to format text in the preview window when
-selecting models interactively. Under macOS, the _fmt_ tool won't handle ANSI escape codes,
-and unless you have the GNU coreutils version of _fmt_ you will get garbage characters in the
-preview window, and should switch to the simple _cat_ command for formatting instead.
-
-Edit the config file to say `model_formatter = "cat -s"` to achieve this.
+theme = "light"              # Use a color scheme suitable for a light background, set
+                               to "dark" for better contrasts against a dark background.
+```
 
 ## Development
 
