@@ -1,7 +1,5 @@
 import functools
 
-from dbtwiz.helpers.logger import debug
-
 
 class Theme:
     """
@@ -44,7 +42,6 @@ class Theme:
     def color(self, name: str):
         """Get value of color with the given name"""
         try:
-            debug(f"theme.color({name})")
             return self._colors[name]
         except KeyError:
             raise AttributeError(f"Invalid color attribute '{name}'")

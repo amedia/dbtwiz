@@ -21,7 +21,7 @@ class Manifest:
     MANIFEST_PATH = Path(".", "target", "manifest.json")
     PROD_MANIFEST_PATH = project_dbtwiz_path() / "prod-state" / "manifest.json"
     MODELS_CACHE_PATH = project_dbtwiz_path("models-cache.json")
-    MODELS_INFO_PATH = project_dbtwiz_path("models")
+    MODELS_INFO_PATH = project_dbtwiz_path("models") / str(user_config().theme)
 
     def __init__(self, path: Path = MANIFEST_PATH):
         """Initialize the class by loading manifest data from the given path."""
@@ -149,13 +149,13 @@ class Manifest:
 
     def update_models_cache(self):
         """Save the current models to the models cache file."""
-        Path.mkdir(self.MODELS_CACHE_PATH.parent, exist_ok=True)
+        Path.mkdir(self.MODELS_CACHE_PATH.parent, parents=True, exist_ok=True)
         with open(self.MODELS_CACHE_PATH, "w+") as f:
             json.dump(self.models(), f)
 
     def update_models_info(self):
         """Update model information files based on current models."""
-        Path.mkdir(self.MODELS_INFO_PATH, exist_ok=True)
+        Path.mkdir(self.MODELS_INFO_PATH, parents=True, exist_ok=True)
         for model in self.models().values():
             model_name = model["name"]
             info_file = self.MODELS_INFO_PATH / f"{model_name}.txt"
