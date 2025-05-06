@@ -72,8 +72,8 @@ The default configuration of _dbtwiz_ will be installed the first time you run i
 may want to adjust some settings from the get-go to fit your environment.
 
 The config settings are stored in a file `config.toml` in the `dbtwiz` folder within
-your user's app settings directory. In a GitHub codespace the file is located at
-`~/.config/dbtwiz/config.toml`.
+your user's app settings directory. In a GitHub Codespace or in a local Linux environment
+the file is located at `~/.config/dbtwiz/config.toml`.
 
 #### Dark mode
 If you're using a dark background colour in your terminal, you should configure _dbtwiz_ to
