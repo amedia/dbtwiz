@@ -32,7 +32,6 @@ unless an exact model name is passed.
 - [`backfill`](docs/backfill.md) - The _backfill_ subcommand allows you to (re)run date-partitioned models in production for a
 period spanning one or multiple days. It will spawn a Cloud Run job that will run `dbt` for
 a configurable number of days in parallel.
-- [`config`](docs/config.md) - Update user configuration setting
 - `admin` - Administrative commands
   - [`cleandev`](docs/admin_cleandev.md) - Delete all materializations in the dbt development dataset
   - [`orphaned`](docs/admin_orphaned.md) - List or delete orphaned materializations in the data warehouse
@@ -72,24 +71,24 @@ docker_image_manifest_path = ""   # Path to manifest in docker image
 The default configuration of _dbtwiz_ will be installed the first time you run it, but you
 may want to adjust some settings from the get-go to fit your environment.
 
+The config settings are stored in a file `config.toml` in the `dbtwiz` folder within
+your user's app settings directory. In a GitHub codespace the file is located at
+`~/.config/dbtwiz/config.toml`.
+
 #### Dark mode
 If you're using a dark background colour in your terminal, you should configure _dbtwiz_ to
 use bright colours for highlighting in previews and elsewhere to make the text more readable.
 
-Run the following command to switch from default light mode to dark mode:
-```shell
-$ dbtwiz config theme dark
-```
+Edit the config file to include `theme = dark` to achieve this.
 
 #### Preview formatter
 
 By default, _dbtwiz_ uses the command _fmt_ tool to format text in the preview window when
 selecting models interactively. Under macOS, the _fmt_ tool won't handle ANSI escape codes,
 and unless you have the GNU coreutils version of _fmt_ you will get garbage characters in the
-preview window, and should switch to the simple _cat_ command for formatting instead:
-```shell
-$ dbtwiz config model_info:formatter "cat -s"
-```
+preview window, and should switch to the simple _cat_ command for formatting instead.
+
+Edit the config file to say `model_formatter = "cat -s"` to achieve this.
 
 ## Development
 
