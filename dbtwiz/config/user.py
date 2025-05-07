@@ -99,7 +99,7 @@ class UserConfig:
 
 
     def _toml_item(self, setting) -> str:
-        """Format key/value for inclusion in Toml"""
+        """Format setting for inclusion in Toml"""
         key, value = setting["key"], setting["default"]
         lines = [f"# {row}" for row in inspect.cleandoc(setting["help"]).splitlines()]
         if isinstance(value, str):
