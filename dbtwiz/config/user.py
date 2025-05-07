@@ -1,10 +1,9 @@
 import functools
+import inspect
 from pathlib import Path
 import tomllib
 from typing import Any, Dict
 import typer
-
-from dbtwiz.helpers.logger import error, fatal, info
 
 
 @functools.cache
@@ -21,17 +20,58 @@ def user_config_path(target: str = "") -> Path:
 class UserConfig:
     """User-specific settings from config.toml"""
 
-    DEFAULTS = {
-        "auth_check": True,
-        "editor": "code",
-        "model_formatter": "fmt -s",
-        "theme": "light",
-    }
+    SETTINGS = [
+        {
+            "key": "auth_check",
+            "default": True,
+            "help": """
+            When true, check for existing GCP auth token, and ask for
+            automatic reauthentication if needed.
+            """,
+        },
+        {
+            "key": "editor",
+            "default": "code",
+            "help": """
+            Command for opening model source files in editor.
+            """,
+        },
+        {
+            "key": "log_debug",
+            "default": False,
+            "help": """
+            Enable debug logging of some internal dbtwiz operations. You won't
+            need this unless you're working on or helping troubleshoot dbtwiz.
+            """,
+        },
+        {
+            "key": "model_formatter",
+            "default": "fmt -s",
+            "help": """
+            Command for showing prerendered model info files in the interactive
+            fzf-based selector. The default should work in GitHub Codespaces,
+            on Linux or on MacOS with GNU coreutils installed.
+            Here are some alternatives:
+             - MacOS without GNU coreutils: "cat -s"
+             - Windows using PowerShell: "cat" or "Get-Content"
+             - Windows using cmd.exe in Terminal: "type"
+            """,
+        },
+        {
+            "key": "theme",
+            "default": "light",
+            "help": """
+            Set to "light" to use a color scheme suitable for a light background,
+            or to "dark" for better contrasts against a dark background.
+            """,
+        },
+    ]
 
 
     def __init__(self) -> None:
         """Initialize the class by determining the root path and parsing the config."""
         self._parse_config()
+        self._append_missing_defaults()
 
 
     def config_path(self) -> Path:
@@ -48,35 +88,46 @@ class UserConfig:
         """Parse the config file"""
         config_file = self._config_file()
         if not config_file.exists():
-            self._make_default_config()
+            self._config = {}
+            return
         try:
             with open(self._config_file(), "rb") as f:
                 self._config = tomllib.load(f)
         except Exception as ex:
+            from dbtwiz.helpers.logger import fatal
             fatal(f"Failed to parse file {self._config_file()}: {ex}")
 
 
-    def _make_default_config(self):
-        """Generate default configuration"""
-        defaults = ""
-        for key, value in UserConfig.DEFAULTS.items():
-            defaults += f"{key} = "
-            if isinstance(value, str):
-                defaults += '"' + value + '"\n'
-            elif isinstance(value, bool):
-                defaults += str(value).lower() + "\n"
-            else:
-                defaults += str(value) + "\n"
+    def _toml_item(self, setting) -> str:
+        """Format key/value for inclusion in Toml"""
+        key, value = setting["key"], setting["default"]
+        lines = [f"# {row}" for row in inspect.cleandoc(setting["help"]).splitlines()]
+        if isinstance(value, str):
+            lines.append(f"{key} = \"{value}\"")
+        elif isinstance(value, bool):
+            lines.append(f"{key} = {str(value).lower()}")
+        else:
+            lines.append(f"{key} = {value}")
+        return "\n".join(lines)
+
+
+    def _append_missing_defaults(self):
+        """Add missing defaults to config and append to file"""
         self.config_path().mkdir(parents=True, exist_ok=True)
-        with open(self._config_file(), "w") as f:
-            f.write(defaults)
+        with open(self._config_file(), "a") as f:
+            for setting in UserConfig.SETTINGS:
+                key = setting["key"]
+                if key not in self._config:
+                    self._config[key] = setting["default"]
+                    f.write(self._toml_item(setting) + "\n\n")
 
 
     def __getattr__(self, name):
         """Dynamically handle attribute access and warn if the setting is missing."""
+        from dbtwiz.helpers.logger import fatal
         if name in self._config:
             value = self._config[name]
-            if not value or value == "":
+            if value is not False and (not value or value == ""):
                 fatal(
                     f"'{name}' config is undefined in tool.dbtwiz.project config in pyproject.toml"
                 )
