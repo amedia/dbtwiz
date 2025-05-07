@@ -105,9 +105,9 @@ class UserConfig:
         """Format setting for inclusion in Toml"""
         key = setting["key"]
         if "default_win" in setting and platform.system() == "Windows":
-            value = setting["default_windows"]
+            value = setting["default_win"]
         elif "default_mac" in setting and platform.system() == "Darwin":
-            value = setting["default_windows"]
+            value = setting["default_mac"]
         else:
             value = setting["default"]
         lines = [f"# {row}" for row in inspect.cleandoc(setting["help"]).splitlines()]
