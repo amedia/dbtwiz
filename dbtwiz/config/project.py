@@ -61,7 +61,7 @@ class ProjectConfig:
         """Dynamically handle attribute access and warn if the setting is missing."""
         if name in self._config:
             value = self._config[name]
-            if not value or value == "":
+            if value is not False and (not value or value == ""):
                 fatal(
                     f"'{name}' config is undefined in tool.dbtwiz.project config in pyproject.toml"
                 )
