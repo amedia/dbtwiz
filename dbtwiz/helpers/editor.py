@@ -7,7 +7,7 @@ from dbtwiz.helpers.logger import debug, warn
 
 def open_in_editor(path: Path) -> int:
     """Open the file at the given path in the user's configured editor"""
-    editor = str(user_config().editor)
+    editor = str(user_config().editor_command)
     if "{}" in editor:
         command = editor.replace("{}", str(path))
     else:

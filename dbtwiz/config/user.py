@@ -31,7 +31,7 @@ class UserConfig:
             """,
         },
         {
-            "key": "editor",
+            "key": "editor_command",
             "default": "code {}",
             "help": """
             Command for opening model source files in editor, with empty

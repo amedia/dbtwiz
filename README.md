@@ -90,7 +90,7 @@ auth_check = true
 # Some examples:
 # - Visual Studio Code: "code {}"
 # - Emacs (with running server): "emacsclient -n {}"
-editor = "code {}"
+editor_command = "code {}"
 
 # Enable debug logging of some internal dbtwiz operations. You won't
 # need this unless you're working on or helping troubleshoot dbtwiz.
