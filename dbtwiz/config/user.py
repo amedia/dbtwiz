@@ -55,6 +55,7 @@ class UserConfig:
             fzf-based selector. The default should work in GitHub Codespaces,
             on Linux or on MacOS with GNU coreutils installed.
             Here are some alternatives:
+             - Linux/Codespace or MacOS with GNU coreutils: "fmt -s"
              - MacOS without GNU coreutils: "cat -s"
              - Windows using PowerShell: "cat" or "Get-Content"
              - Windows using cmd.exe in Terminal: "type"
