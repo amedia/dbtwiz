@@ -97,12 +97,8 @@ editor = "code {}"
 log_debug = false
 
 # Command for showing prerendered model info files in the interactive
-# fzf-based selector. The default should work in GitHub Codespaces,
-# on Linux or on MacOS with GNU coreutils installed.
-# Here are some alternatives:
-# - Linux/Codespace or MacOS with GNU coreutils: "fmt -s"
-# - MacOS without GNU coreutils: "cat -s"
-# - Windows: "powershell cat"
+# fzf-based selector. A sensible default is chosen based on the
+# current platform.
 model_formatter = "fmt -s"
 
 # Set to "light" to use a color scheme suitable for a light background,
