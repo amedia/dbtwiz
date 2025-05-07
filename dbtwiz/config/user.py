@@ -1,6 +1,7 @@
 import functools
 import inspect
 from pathlib import Path
+import platform
 import tomllib
 from typing import Any, Dict
 import typer
@@ -47,6 +48,8 @@ class UserConfig:
         {
             "key": "model_formatter",
             "default": "fmt -s",
+            "default_mac": "cat -s",
+            "default_win": "powershell cat",
             "help": """
             Command for showing prerendered model info files in the interactive
             fzf-based selector. The default should work in GitHub Codespaces,
@@ -100,7 +103,13 @@ class UserConfig:
 
     def _toml_item(self, setting) -> str:
         """Format setting for inclusion in Toml"""
-        key, value = setting["key"], setting["default"]
+        key = setting["key"]
+        if "default_win" in setting and platform.system() == "Windows":
+            value = setting["default_windows"]
+        elif "default_mac" in setting and platform.system() == "Darwin":
+            value = setting["default_windows"]
+        else:
+            value = setting["default"]
         lines = [f"# {row}" for row in inspect.cleandoc(setting["help"]).splitlines()]
         if isinstance(value, str):
             lines.append(f"{key} = \"{value}\"")

@@ -114,7 +114,6 @@ class Manifest:
         """Let user interactively select one or more models using fuzzy search"""
         import iterfzf  # Only when used
 
-        model_info_path = cls.MODELS_INFO_PATH / "{}.txt"
         models = cls.models_cached()
         if work:
             model_names = models_with_local_changes(models)
@@ -131,7 +130,7 @@ class Manifest:
             multi=multi,
             sort=True,
             ansi=True,
-            preview=f"{formatter} '{model_info_path}'",
+            preview=f"{formatter} {cls.MODELS_INFO_PATH}/{{}}.txt",
             __extra__=["--preview-window=right,wrap"],
         )
         return chosen_models
