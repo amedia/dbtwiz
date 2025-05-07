@@ -6,6 +6,7 @@ from typing import List
 from dbtwiz.config.user import user_config
 from dbtwiz.dbt.project import get_source_tables
 from dbtwiz.gcp.bigquery import BigQueryClient
+from dbtwiz.helpers.editor import open_in_editor
 from dbtwiz.helpers.logger import fatal, info, warn
 from dbtwiz.ui.interact import (
     autocomplete_from_list,
@@ -323,7 +324,7 @@ def write_source_file(
     with open(source_file, "w", encoding="utf-8") as file:
         ruamel_yaml.dump(data, file)
 
-    os.system(f"{user_config().editor} {source_file}")
+    open_in_editor(source_file)
 
 
 def create_source(

@@ -84,8 +84,13 @@ the following default settings:
 # automatic reauthentication if needed.
 auth_check = true
 
-# Command for opening model source files in editor
-editor = "code"
+# Command for opening model source files in editor, with empty
+# curly braces where the file path should be inserted. If curly
+# braces are left out, the file name will be appended at the end.
+# Some examples:
+# - Visual Studio Code: "code {}"
+# - Emacs (with running server): "emacsclient -n {}"
+editor = "code {}"
 
 # Enable debug logging of some internal dbtwiz operations. You won't
 # need this unless you're working on or helping troubleshoot dbtwiz.

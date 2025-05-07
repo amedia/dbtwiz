@@ -32,9 +32,14 @@ class UserConfig:
         },
         {
             "key": "editor",
-            "default": "code",
+            "default": "code {}",
             "help": """
-            Command for opening model source files in editor.
+            Command for opening model source files in editor, with empty
+            curly braces where the file path should be inserted. If curly
+            braces are left out, the file name will be appended at the end.
+            Some examples:
+            - Visual Studio Code: "code {}"
+            - Emacs (with running server): "emacsclient -n {}"
             """,
         },
         {
