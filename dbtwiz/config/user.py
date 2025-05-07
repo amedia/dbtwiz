@@ -121,14 +121,14 @@ class UserConfig:
 
 
     def _append_missing_defaults(self):
-        """Add missing defaults to config and append to file"""
+        """Add missing defaults to config file and parse again"""
         self.config_path().mkdir(parents=True, exist_ok=True)
         with open(self._config_file(), "a") as f:
             for setting in UserConfig.SETTINGS:
                 key = setting["key"]
                 if key not in self._config:
-                    self._config[key] = setting["default"]
                     f.write(self._toml_item(setting) + "\n\n")
+        self._parse_config()
 
 
     def __getattr__(self, name):
