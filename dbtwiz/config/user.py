@@ -57,8 +57,7 @@ class UserConfig:
             Here are some alternatives:
              - Linux/Codespace or MacOS with GNU coreutils: "fmt -s"
              - MacOS without GNU coreutils: "cat -s"
-             - Windows using PowerShell: "cat" or "Get-Content"
-             - Windows using cmd.exe in Terminal: "type"
+             - Windows: "powershell cat"
             """,
         },
         {

@@ -97,8 +97,7 @@ log_debug = false
 # Here are some alternatives:
 # - Linux/Codespace or MacOS with GNU coreutils: "fmt -s"
 # - MacOS without GNU coreutils: "cat -s"
-# - Windows using PowerShell: "cat" or "Get-Content"
-# - Windows using cmd.exe in Terminal: "type"
+# - Windows: "powershell cat"
 model_formatter = "fmt -s"
 
 # Set to "light" to use a color scheme suitable for a light background,
