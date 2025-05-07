@@ -1,11 +1,10 @@
-import configparser
 import functools
+import inspect
 from pathlib import Path
+import platform
+import tomllib
 from typing import Any, Dict
-
 import typer
-
-from dbtwiz.helpers.logger import error, info
 
 
 @functools.cache
@@ -16,108 +15,139 @@ def user_config():
 
 def user_config_path(target: str = "") -> Path:
     """Get Path to the given target within the user configuration directory"""
-    return user_config().CONFIG_PATH / target
-
-
-def dark_mode() -> bool:
-    """Are we using a dark theme?"""
-    return user_config().get("general", "theme") == "dark"
-
-
-class InvalidConfig(ValueError):
-    """Class for invalid config."""
-
-    pass
+    return user_config().config_path() / target
 
 
 class UserConfig:
-    """User-specific configuration"""
+    """User-specific settings from config.toml"""
 
-    CONFIG_PATH = Path(typer.get_app_dir("dbtwiz"))
-    CONFIG_FILE = CONFIG_PATH / "config.ini"
+    SETTINGS = [
+        {
+            "key": "auth_check",
+            "default": True,
+            "help": """
+            When true, check for existing GCP auth token, and ask for
+            automatic reauthentication if needed.
+            """,
+        },
+        {
+            "key": "editor_command",
+            "default": "code {}",
+            "help": """
+            Command for opening model source files in editor, with empty
+            curly braces where the file path should be inserted. If curly
+            braces are left out, the file name will be appended at the end.
+            Some examples:
+            - Visual Studio Code: "code {}"
+            - Emacs (with running server): "emacsclient -n {}"
+            """,
+        },
+        {
+            "key": "log_debug",
+            "default": False,
+            "help": """
+            Enable debug logging of some internal dbtwiz operations. You won't
+            need this unless you're working on or helping troubleshoot dbtwiz.
+            """,
+        },
+        {
+            "key": "model_formatter",
+            "default": "fmt -s",
+            "default_mac": "cat -s",
+            "default_win": "powershell cat",
+            "help": """
+            Command for showing prerendered model info files in the interactive
+            fzf-based selector. A sensible default is chosen based on the
+            current platform.
+            """,
+        },
+        {
+            "key": "theme",
+            "default": "light",
+            "help": """
+            Set to "light" to use a color scheme suitable for a light background,
+            or to "dark" for better contrasts against a dark background.
+            """,
+        },
+    ]
 
-    SECTIONS = ["general", "model_info", "theme"]
 
-    THEMES: Dict[str, Any] = dict(
-        names=["light", "dark"],
-        colors=dict(
-            name=[30, 115],
-            path=[27, 147],
-            tags=[28, 106],
-            group=[94, 178],
-            materialized=[54, 212],
-            owner=[136, 208],
-            policy=[136, 208],
-            dep_stg=[34, 118],
-            dep_int=[24, 123],
-            dep_mart=[20, 75],
-            description=[102, 144],
-            deprecated=[124, 196],
-        ),
-    )
+    def __init__(self) -> None:
+        """Initialize the class by determining the root path and parsing the config."""
+        self._parse_config()
+        self._append_missing_defaults()
 
-    def __init__(self):
-        """Get the configuration, from file if it exists or create a new one with defaults"""
-        self.parser = configparser.ConfigParser()
-        if Path.exists(self.CONFIG_FILE):
-            self.parser.read(self.CONFIG_FILE)
+
+    def config_path(self) -> Path:
+        """Path to user configuration directory"""
+        return Path(typer.get_app_dir("dbtwiz"))
+
+
+    def _config_file(self) -> Path:
+        """Path to user configuration directory"""
+        return self.config_path() / "config.toml"
+
+
+    def _parse_config(self):
+        """Parse the config file"""
+        config_file = self._config_file()
+        if not config_file.exists():
+            self._config = {}
             return
-        self._set_defaults()
-
-    def get(self, section, key) -> str:
-        """Retrieve a string value from the specified section and key."""
-        return self.parser.get(section, key)
-
-    def getint(self, section, key) -> int:
-        """Retrieve an integer value from the specified section and key."""
-        return self.parser.getint(section, key)
-
-    def getboolean(self, section, key) -> int:
-        """Retrieve a boolean value from the specified section and key."""
-        return self.parser.getboolean(section, key)
-
-    def color(self, key) -> int:
-        """Get the color value of a named key in the current theme"""
-        return self.parser.getint("theme", key)
-
-    def update(self, section, key, value) -> None:
-        """Update a setting and write changes to configuration file"""
         try:
-            if not self.parser.has_section(section):
-                raise InvalidConfig(f"Unknown configuration section: {section}")
-            if not self.parser.has_option(section, key):
-                raise InvalidConfig(f"Unknown configuration setting: {section}:{key}")
+            with open(self._config_file(), "rb") as f:
+                self._config = tomllib.load(f)
+        except Exception as ex:
+            from dbtwiz.helpers.logger import fatal
+            fatal(f"Failed to parse file {self._config_file()}: {ex}")
 
-            if section == "general" and key == "theme":
-                if value not in self.THEMES["names"]:
-                    raise InvalidConfig(
-                        f"Invalid theme: {value} - must be one of {self.THEMES['names']}"
-                    )
-                self._set_theme(theme=value)
-            else:
-                self.parser.set(section, key, value)
-            self._write_to_file()
-            info(f"Configuration setting {section}:{key} updated.")
-        except InvalidConfig as ex:
-            error(str(ex))
 
-    def _write_to_file(self) -> None:
-        """Write the current parser configuration to a file."""
-        Path.mkdir(self.CONFIG_PATH, exist_ok=True)
-        with open(self.CONFIG_FILE, "w+") as f:
-            self.parser.write(f)
+    def _toml_item(self, setting) -> str:
+        """Format setting for inclusion in Toml"""
+        key = setting["key"]
+        if "default_win" in setting and platform.system() == "Windows":
+            value = setting["default_win"]
+        elif "default_mac" in setting and platform.system() == "Darwin":
+            value = setting["default_mac"]
+        else:
+            value = setting["default"]
+        lines = [f"# {row}" for row in inspect.cleandoc(setting["help"]).splitlines()]
+        if isinstance(value, str):
+            lines.append(f"{key} = \"{value}\"")
+        elif isinstance(value, bool):
+            lines.append(f"{key} = {str(value).lower()}")
+        else:
+            lines.append(f"{key} = {value}")
+        return "\n".join(lines)
 
-    def _set_defaults(self) -> None:
-        """Initialize the parser with default settings and sections."""
-        for section in self.SECTIONS:
-            self.parser.add_section(section)
-        self.parser.set("general", "auth_check", "yes")
-        self.parser.set("model_info", "formatter", "fmt -s")
-        self._set_theme(self.THEMES["names"][0])
 
-    def _set_theme(self, theme) -> None:
-        """Apply the specified theme to the parser configuration."""
-        self.parser.set("general", "theme", theme)
-        theme_index = self.THEMES["names"].index(theme)
-        for key, value in self.THEMES["colors"].items():
-            self.parser.set("theme", key, str(value[theme_index]))
+    def _append_missing_defaults(self):
+        """Add missing defaults to config file and parse again"""
+        self.config_path().mkdir(parents=True, exist_ok=True)
+        with open(self._config_file(), "a") as f:
+            for setting in UserConfig.SETTINGS:
+                key = setting["key"]
+                if key not in self._config:
+                    f.write(self._toml_item(setting) + "\n\n")
+        self._parse_config()
+
+
+    def __getattr__(self, name):
+        """Dynamically handle attribute access and warn if the setting is missing."""
+        from dbtwiz.helpers.logger import fatal
+        if name in self._config:
+            value = self._config[name]
+            if value is not False and (not value or value == ""):
+                fatal(
+                    f"'{name}' config is undefined in tool.dbtwiz.project config in pyproject.toml"
+                )
+            return value
+        else:
+            fatal(
+                f"'{name}' is missing from tool.dbtwiz.project config in pyproject.toml"
+            )
+            return None  # or raise AttributeError if you prefer
+
+    def __dir__(self):
+        """Include dynamic attributes for autocompletion."""
+        return list(self._config.keys()) + list(super().__dir__())

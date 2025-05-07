@@ -2,12 +2,16 @@ import typer
 from rich.console import Console
 from rich.panel import Panel
 
+from dbtwiz.config.user import user_config
+
+
 log_console, error_console = Console(), Console(stderr=True)
 
 
 def debug(message: str):
-    """Log a debug message"""
-    log_console.print(message, style="blue")
+    """Log a debug message when enabled"""
+    if user_config().log_debug:
+        log_console.print(message, style="blue")
 
 
 def info(message: str, style: str = "green"):

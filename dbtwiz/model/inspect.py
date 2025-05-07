@@ -6,7 +6,8 @@ from dbtwiz.helpers.logger import error
 def inspect_model(name: str) -> None:
     """Function for inspecting a model."""
     models = Manifest.models_cached()
-    if name not in models.keys():
+    if not Manifest.can_select_directly(name):
+        Manifest().update_models_info()
         name = Manifest.choose_models(name, multi=False)
 
     if name is None:

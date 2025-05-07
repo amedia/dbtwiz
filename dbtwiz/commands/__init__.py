@@ -3,7 +3,6 @@ from typing import Annotated
 
 import typer
 
-from dbtwiz.config.user import UserConfig
 from dbtwiz.dbt.manifest import Manifest
 from dbtwiz.dbt.target import Target
 from dbtwiz.helpers.decorators import examples
@@ -261,17 +260,3 @@ def backfill(
     command_backfill(
         select, first_date, last_date, full_refresh, parallelism, status, verbose
     )
-
-
-@app.command()
-def config(
-    setting: Annotated[str, typer.Argument(help="Configuration setting")],
-    value: Annotated[str, typer.Argument(help="Configuration value")],
-):
-    """Update user configuration setting"""
-    if ":" in setting:
-        section, key = setting.split(":")
-    else:
-        section, key = "general", setting
-
-    UserConfig().update(section, key, value)

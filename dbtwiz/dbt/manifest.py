@@ -8,8 +8,10 @@ from jinja2 import Template
 
 from dbtwiz.config.project import project_config, project_dbtwiz_path
 from dbtwiz.config.user import user_config
+from dbtwiz.config.theme import Theme
 from dbtwiz.gcp.auth import ensure_app_default_auth
 from dbtwiz.helpers.logger import debug, error, info
+from dbtwiz.templates import path_to_template
 
 from .run import invoke
 from .support import models_with_local_changes
@@ -19,7 +21,7 @@ class Manifest:
     MANIFEST_PATH = Path(".", "target", "manifest.json")
     PROD_MANIFEST_PATH = project_dbtwiz_path() / "prod-state" / "manifest.json"
     MODELS_CACHE_PATH = project_dbtwiz_path("models-cache.json")
-    MODELS_INFO_PATH = project_dbtwiz_path("models")
+    MODELS_INFO_PATH = project_dbtwiz_path("models") / str(user_config().theme)
 
     def __init__(self, path: Path = MANIFEST_PATH):
         """Initialize the class by loading manifest data from the given path."""
@@ -112,7 +114,6 @@ class Manifest:
         """Let user interactively select one or more models using fuzzy search"""
         import iterfzf  # Only when used
 
-        model_info_path = cls.MODELS_INFO_PATH / "{}.txt"
         models = cls.models_cached()
         if work:
             model_names = models_with_local_changes(models)
@@ -121,7 +122,7 @@ class Manifest:
                 return None
         else:
             model_names = models.keys()
-        formatter = user_config().get("model_info", "formatter")
+        formatter = user_config().model_formatter
         chosen_models = iterfzf.iterfzf(
             model_names,
             query=select,
@@ -129,7 +130,7 @@ class Manifest:
             multi=multi,
             sort=True,
             ansi=True,
-            preview=f"{formatter} '{model_info_path}'",
+            preview=f"{formatter} {cls.MODELS_INFO_PATH}/{{}}.txt",
             __extra__=["--preview-window=right,wrap"],
         )
         return chosen_models
@@ -147,13 +148,13 @@ class Manifest:
 
     def update_models_cache(self):
         """Save the current models to the models cache file."""
-        Path.mkdir(self.MODELS_CACHE_PATH.parent, exist_ok=True)
+        Path.mkdir(self.MODELS_CACHE_PATH.parent, parents=True, exist_ok=True)
         with open(self.MODELS_CACHE_PATH, "w+") as f:
             json.dump(self.models(), f)
 
     def update_models_info(self):
         """Update model information files based on current models."""
-        Path.mkdir(self.MODELS_INFO_PATH, exist_ok=True)
+        Path.mkdir(self.MODELS_INFO_PATH, parents=True, exist_ok=True)
         for model in self.models().values():
             model_name = model["name"]
             info_file = self.MODELS_INFO_PATH / f"{model_name}.txt"
@@ -180,7 +181,9 @@ class Manifest:
     @functools.cache
     def model_info_template(self, clear=False) -> Template:
         """Generate and return the model information template with optional clearing."""
-        with open(Path(__file__).parent / "templates" / "model_info.tpl", "r+") as f:
+        theme = Theme.by_name(user_config().theme)
+        debug(theme)
+        with open(path_to_template("model_info"), "r+") as f:
             template = f.read()
         if clear:
             template = "\033[2J\033[H" + template
@@ -188,7 +191,8 @@ class Manifest:
         template = template.replace("[/]", "\033[0m")
         # template = re.sub(r"\[c(\d+)\]", r"\033[38;5;\1m", template)
         template = re.sub(
-            r"\[(\w+)\]", lambda m: f"\033[38;5;{user_config().color(m[1])}m", template
+            r"\[(\w+)\]", lambda m: f"\033[38;5;{theme.color(m[1])}m",
+            template
         )
         template_object = Template(template)
         template_object.globals["model_style"] = model_style
@@ -359,5 +363,6 @@ def model_style(name: str):
         key = "dep_int"
     else:
         key = "dep_mart"
-    cval = user_config().color(key)
+    theme = Theme.by_name(user_config().theme)
+    cval = theme.color(key)
     return f"\033[38;5;{cval}m"

@@ -23,7 +23,8 @@ def test(
     }
 
     models = Manifest.models_cached()
-    if target == "dev" and select not in models.keys():
+    if target == "dev" and not Manifest.can_select_directly(select):
+        Manifest().update_models_info()
         chosen_models = Manifest.choose_models(select)
         if chosen_models:
             select = ",".join(chosen_models)

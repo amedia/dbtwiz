@@ -2,6 +2,7 @@ import os
 from io import StringIO
 from pathlib import Path
 
+from dbtwiz.helpers.editor import open_in_editor
 from dbtwiz.dbt.model import ModelBasePath
 from dbtwiz.dbt.project import (
     Group,
@@ -507,11 +508,8 @@ def create_model_files(
         sql = get_stg_sql(source) if layer == "staging" else "{# SQL placeholder #}"
         with open(sql_path, "w+") as f:
             f.write(sql)
-
-        os.system(f"code {sql_path}")
-    os.system(f"code {yml_path}")
-    # Open files in editor
-    # FIXME: Make editor user configurable with 'code' as default
+        open_in_editor(sql_path)
+    open_in_editor(yml_path)
 
 
 def create_model(

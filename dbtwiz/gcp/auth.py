@@ -14,7 +14,7 @@ CREDENTIALS_JSON = Path("gcloud", "application_default_credentials.json")
 
 def ensure_app_default_auth() -> None:
     """Ensures application-default authorization is active."""
-    if not user_config().getboolean("general", "auth_check"):
+    if not user_config().auth_check:
         return
 
     if (

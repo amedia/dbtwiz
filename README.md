@@ -32,7 +32,6 @@ unless an exact model name is passed.
 - [`backfill`](docs/backfill.md) - The _backfill_ subcommand allows you to (re)run date-partitioned models in production for a
 period spanning one or multiple days. It will spawn a Cloud Run job that will run `dbt` for
 a configurable number of days in parallel.
-- [`config`](docs/config.md) - Update user configuration setting
 - `admin` - Administrative commands
   - [`cleandev`](docs/admin_cleandev.md) - Delete all materializations in the dbt development dataset
   - [`orphaned`](docs/admin_orphaned.md) - List or delete orphaned materializations in the data warehouse
@@ -47,7 +46,7 @@ Depending on the specific subcommand, there are some configuration settings defi
 
 The tool will give you a warning when you run a commmand that needs one of the config elements should it be missing, so you don't need to add them all before they become relevant.
 
-```
+```toml
 [tool.dbtwiz.project]
 # Config for bucket containing dbt manifest.json at the top level
 bucket_state_project = ""         # Project name for bucket
@@ -72,23 +71,39 @@ docker_image_manifest_path = ""   # Path to manifest in docker image
 The default configuration of _dbtwiz_ will be installed the first time you run it, but you
 may want to adjust some settings from the get-go to fit your environment.
 
-#### Dark mode
-If you're using a dark background colour in your terminal, you should configure _dbtwiz_ to
-use bright colours for highlighting in previews and elsewhere to make the text more readable.
+The config settings are stored in a file `config.toml` in the `dbtwiz` folder within
+your user's app settings directory. In a GitHub Codespace or in a local Linux environment
+the file is located at `~/.config/dbtwiz/config.toml`, while in a local Windows environment
+it's located at `%appdata%/dbtwiz/config.toml`. TODO: Where is it located in MacOS?
 
-Run the following command to switch from default light mode to dark mode:
-```shell
-$ dbtwiz config theme dark
-```
+If dbtwiz looks up a user config file and it doesn't exist, it will be created with
+the following default settings:
 
-#### Preview formatter
+```toml
+# When true, check for existing GCP auth token, and ask for
+# automatic reauthentication if needed.
+auth_check = true
 
-By default, _dbtwiz_ uses the command _fmt_ tool to format text in the preview window when
-selecting models interactively. Under macOS, the _fmt_ tool won't handle ANSI escape codes,
-and unless you have the GNU coreutils version of _fmt_ you will get garbage characters in the
-preview window, and should switch to the simple _cat_ command for formatting instead:
-```shell
-$ dbtwiz config model_info:formatter "cat -s"
+# Command for opening model source files in editor, with empty
+# curly braces where the file path should be inserted. If curly
+# braces are left out, the file name will be appended at the end.
+# Some examples:
+# - Visual Studio Code: "code {}"
+# - Emacs (with running server): "emacsclient -n {}"
+editor_command = "code {}"
+
+# Enable debug logging of some internal dbtwiz operations. You won't
+# need this unless you're working on or helping troubleshoot dbtwiz.
+log_debug = false
+
+# Command for showing prerendered model info files in the interactive
+# fzf-based selector. A sensible default is chosen based on the
+# current platform.
+model_formatter = "fmt -s"
+
+# Set to "light" to use a color scheme suitable for a light background,
+# or to "dark" for better contrasts against a dark background.
+theme = "light"
 ```
 
 ## Development
