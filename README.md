@@ -87,6 +87,10 @@ auth_check = true
 # Command for opening model source files in editor
 editor = "code"
 
+# Enable debug logging of some internal dbtwiz operations. You won't
+# need this unless you're working on or helping troubleshoot dbtwiz.
+log_debug = false
+
 # Command for showing prerendered model info files in the interactive
 # fzf-based selector. The default should work in GitHub Codespaces,
 # on Linux or on MacOS with GNU coreutils installed.
