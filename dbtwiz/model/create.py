@@ -14,7 +14,7 @@ from dbtwiz.dbt.project import (
     materialization_choices,
 )
 from dbtwiz.helpers.editor import open_in_editor
-from dbtwiz.helpers.logger import fatal, info, warn
+from dbtwiz.helpers.logger import fatal, info, notice, warn
 from dbtwiz.ui.interact import (
     autocomplete_from_list,
     confirm,
@@ -539,7 +539,7 @@ def print_create_model_cli_command(
             else:
                 command_parts.append(f"--{parameter.replace('_', '-')} '{context[parameter]}'")
 
-    warn("To repeat/resume the model creation, use this command:\n\n" + " ".join(command_parts))
+    notice("To repeat/resume the model creation, use this command:\n\n" + " ".join(command_parts))
 
 
 def create_model(
