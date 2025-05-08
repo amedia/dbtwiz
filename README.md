@@ -73,8 +73,8 @@ may want to adjust some settings from the get-go to fit your environment.
 
 The config settings are stored in a file `config.toml` in the `dbtwiz` folder within
 your user's app settings directory:
-- `~/.config/dbtwiz/config.toml`: for GitHub Codespaces or local Linux environments
-- `%appdata%/dbtwiz/config.toml`: for Windows
+- `~/.config/dbtwiz/config.toml` for GitHub Codespaces or local Linux environments
+- `%appdata%/dbtwiz/config.toml` for Windows
 
 If dbtwiz looks up a user config file and it doesn't exist, it will be created with
 the following default settings:
