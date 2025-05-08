@@ -170,7 +170,7 @@ class BigQueryClient:
             # Split into project and dataset components
             project_id, dataset_name, _ = table_id.split(".")
             dataset_id = f"{project_id}.{dataset_name}"
-            
+
             # Check if dataset exists
             try:
                 dataset = self.get_client().get_dataset(dataset_id)
@@ -182,7 +182,7 @@ class BigQueryClient:
                 dataset = self.get_client().create_dataset(dataset)
                 info(f"Created dataset {dataset_id}")
                 return dataset
-            
+
         except Exception as e:
             fatal(f"Error ensuring dataset {dataset_id} exists: {e}")
 
@@ -376,13 +376,12 @@ class BigQueryClient:
 
         source_policy = client.get_iam_policy(source_table_id)
         target_policy = client.get_iam_policy(target_table_id)
-        
+
         # Merge policies (preserve existing target permissions)
         target_policy.bindings.extend(
-            b for b in source_policy.bindings 
-            if b not in target_policy.bindings
+            b for b in source_policy.bindings if b not in target_policy.bindings
         )
-        
+
         client.set_iam_policy(target_table_id, target_policy)
 
     def create_table_copy(self, old_table_id: str, new_table_id: str) -> None:
@@ -409,7 +408,7 @@ class BigQueryClient:
                 return
 
             # If copying to other dataset, ensure it exists
-            if old_table_id.split('.')[:2] != new_table_id.split('.')[:2]:
+            if old_table_id.split(".")[:2] != new_table_id.split(".")[:2]:
                 self.ensure_dataset_exists(new_table_id)
 
             # Get table metadata and iam policy
@@ -464,7 +463,9 @@ class BigQueryClient:
             )
 
             # Replicate grants from the old table/view to the new table/view
-            self._copy_iam_policy(source_table_id=old_table_id, target_table_id=new_table_id)
+            self._copy_iam_policy(
+                source_table_id=old_table_id, target_table_id=new_table_id
+            )
 
         except Exception as e:
             error(f"Error copying table/view {old_table_id} to {new_table_id}: {e}")
@@ -501,10 +502,10 @@ class BigQueryClient:
                 return
 
             # If backup table dataset is different from old or new, verify dataset exists
-            if backup_table_id.split('.')[:2] not in (
-                new_table_id.split('.')[:2],
-                old_table_id.split('.')[:2]
-                ):
+            if backup_table_id.split(".")[:2] not in (
+                new_table_id.split(".")[:2],
+                old_table_id.split(".")[:2],
+            ):
                 self.ensure_dataset_exists(new_table_id)
 
             # Get table metadata and iam policy

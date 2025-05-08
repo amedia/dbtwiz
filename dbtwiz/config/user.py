@@ -1,9 +1,9 @@
 import functools
 import inspect
-from pathlib import Path
 import platform
 import tomllib
-from typing import Any, Dict
+from pathlib import Path
+
 import typer
 
 
@@ -71,22 +71,18 @@ class UserConfig:
         },
     ]
 
-
     def __init__(self) -> None:
         """Initialize the class by determining the root path and parsing the config."""
         self._parse_config()
         self._append_missing_defaults()
 
-
     def config_path(self) -> Path:
         """Path to user configuration directory"""
         return Path(typer.get_app_dir("dbtwiz"))
 
-
     def _config_file(self) -> Path:
         """Path to user configuration directory"""
         return self.config_path() / "config.toml"
-
 
     def _parse_config(self):
         """Parse the config file"""
@@ -99,8 +95,8 @@ class UserConfig:
                 self._config = tomllib.load(f)
         except Exception as ex:
             from dbtwiz.helpers.logger import fatal
-            fatal(f"Failed to parse file {self._config_file()}: {ex}")
 
+            fatal(f"Failed to parse file {self._config_file()}: {ex}")
 
     def _toml_item(self, setting) -> str:
         """Format setting for inclusion in Toml"""
@@ -113,13 +109,12 @@ class UserConfig:
             value = setting["default"]
         lines = [f"# {row}" for row in inspect.cleandoc(setting["help"]).splitlines()]
         if isinstance(value, str):
-            lines.append(f"{key} = \"{value}\"")
+            lines.append(f'{key} = "{value}"')
         elif isinstance(value, bool):
             lines.append(f"{key} = {str(value).lower()}")
         else:
             lines.append(f"{key} = {value}")
         return "\n".join(lines)
-
 
     def _append_missing_defaults(self):
         """Add missing defaults to config file and parse again"""
@@ -131,10 +126,10 @@ class UserConfig:
                     f.write(self._toml_item(setting) + "\n\n")
         self._parse_config()
 
-
     def __getattr__(self, name):
         """Dynamically handle attribute access and warn if the setting is missing."""
         from dbtwiz.helpers.logger import fatal
+
         if name in self._config:
             value = self._config[name]
             if value is not False and (not value or value == ""):

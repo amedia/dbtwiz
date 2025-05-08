@@ -1,9 +1,7 @@
-import os
 from io import StringIO
 from pathlib import Path
 from typing import List
 
-from dbtwiz.config.user import user_config
 from dbtwiz.dbt.project import get_source_tables
 from dbtwiz.gcp.bigquery import BigQueryClient
 from dbtwiz.helpers.editor import open_in_editor

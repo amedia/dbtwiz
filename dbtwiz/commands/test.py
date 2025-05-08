@@ -22,7 +22,7 @@ def test(
         "vars": f'{{data_interval_start: "{date}"}}',
     }
 
-    models = Manifest.models_cached()
+    Manifest.models_cached()
     if target == "dev" and not Manifest.can_select_directly(select):
         Manifest().update_models_info()
         chosen_models = Manifest.choose_models(select)

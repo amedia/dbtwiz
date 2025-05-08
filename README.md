@@ -72,12 +72,12 @@ The default configuration of _dbtwiz_ will be installed the first time you run i
 may want to adjust some settings from the get-go to fit your environment.
 
 The config settings are stored in a file `config.toml` in the `dbtwiz` folder within
-your user's app settings directory. In a GitHub Codespace or in a local Linux environment
-the file is located at `~/.config/dbtwiz/config.toml`, while in a local Windows environment
-it's located at `%appdata%/dbtwiz/config.toml`. TODO: Where is it located in MacOS?
+your user's app settings directory:
+- `~/.config/dbtwiz/config.toml` for GitHub Codespaces or local Linux environments
+- `%appdata%/dbtwiz/config.toml` for Windows
 
 If dbtwiz looks up a user config file and it doesn't exist, it will be created with
-the following default settings:
+default settings according to your platform. It might look like this:
 
 ```toml
 # When true, check for existing GCP auth token, and ask for
