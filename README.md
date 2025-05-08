@@ -77,7 +77,7 @@ your user's app settings directory:
 - `%appdata%/dbtwiz/config.toml` for Windows
 
 If dbtwiz looks up a user config file and it doesn't exist, it will be created with
-the following default settings:
+default settings according to your platform. It might look like this:
 
 ```toml
 # When true, check for existing GCP auth token, and ask for
