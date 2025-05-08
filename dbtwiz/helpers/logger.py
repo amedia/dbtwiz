@@ -45,6 +45,18 @@ def fatal(message: str, exit_code=1):
     raise typer.Exit(code=exit_code)
 
 
+def notice(message: str):
+    """Log a notice"""
+    log_console.print(
+        Panel(
+            message,
+            title="[bold green]Notice[/]",
+            border_style="green",
+            title_align="left",
+        )
+    )
+
+
 def status(message: str, status_text: str = "", style: str = "yellow"):
     """Log a status message that can be updated"""
     if status_text:
