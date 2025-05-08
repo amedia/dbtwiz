@@ -4,7 +4,6 @@ from rich.panel import Panel
 
 from dbtwiz.config.user import user_config
 
-
 log_console, error_console = Console(), Console(stderr=True)
 
 

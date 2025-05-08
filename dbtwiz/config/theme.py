@@ -29,7 +29,6 @@ class Theme:
         deprecated="Model description for deprecated models",
     )
 
-
     def __init__(self, **colors):
         """Construct a new theme with the given color attributes"""
         if colors.keys() != Theme.COLOR_ATTRIBUTES.keys():
@@ -38,14 +37,12 @@ class Theme:
         for key, value in colors.items():
             self.__setattr__(key, value)
 
-
     def color(self, name: str):
         """Get value of color with the given name"""
         try:
             return self._colors[name]
         except KeyError:
             raise AttributeError(f"Invalid color attribute '{name}'")
-
 
     def description(self, color: str):
         """Get description of the given color attribute"""
@@ -54,20 +51,41 @@ class Theme:
         except KeyError:
             raise AttributeError(f"Invalid color attribute '{color}'")
 
-
     @classmethod
     def light(cls):
         """Instantiate a light color theme"""
-        return Theme(name=30, path=27, tags=28, group=94, materialized=54,
-                     owner=136, policy=136, dep_stg=34, dep_int=24, dep_mart=20,
-                     description=102, deprecated=124)
+        return Theme(
+            name=30,
+            path=27,
+            tags=28,
+            group=94,
+            materialized=54,
+            owner=136,
+            policy=136,
+            dep_stg=34,
+            dep_int=24,
+            dep_mart=20,
+            description=102,
+            deprecated=124,
+        )
 
     @classmethod
     def dark(cls):
         """Instantiate a dark color theme"""
-        return Theme(name=115, path=147, tags=106, group=178, materialized=212,
-                     owner=208, policy=208, dep_stg=118, dep_int=123, dep_mart=75,
-                     description=144, deprecated=196)
+        return Theme(
+            name=115,
+            path=147,
+            tags=106,
+            group=178,
+            materialized=212,
+            owner=208,
+            policy=208,
+            dep_stg=118,
+            dep_int=123,
+            dep_mart=75,
+            description=144,
+            deprecated=196,
+        )
 
     @classmethod
     @functools.cache

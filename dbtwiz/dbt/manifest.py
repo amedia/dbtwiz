@@ -7,8 +7,8 @@ from typing import Dict, List, Tuple
 from jinja2 import Template
 
 from dbtwiz.config.project import project_config, project_dbtwiz_path
-from dbtwiz.config.user import user_config
 from dbtwiz.config.theme import Theme
+from dbtwiz.config.user import user_config
 from dbtwiz.gcp.auth import ensure_app_default_auth
 from dbtwiz.helpers.logger import debug, error, info
 from dbtwiz.templates import path_to_template
@@ -191,8 +191,7 @@ class Manifest:
         template = template.replace("[/]", "\033[0m")
         # template = re.sub(r"\[c(\d+)\]", r"\033[38;5;\1m", template)
         template = re.sub(
-            r"\[(\w+)\]", lambda m: f"\033[38;5;{theme.color(m[1])}m",
-            template
+            r"\[(\w+)\]", lambda m: f"\033[38;5;{theme.color(m[1])}m", template
         )
         template_object = Template(template)
         template_object.globals["model_style"] = model_style

@@ -1,8 +1,6 @@
-import os
 from io import StringIO
 from pathlib import Path
 
-from dbtwiz.helpers.editor import open_in_editor
 from dbtwiz.dbt.model import ModelBasePath
 from dbtwiz.dbt.project import (
     Group,
@@ -15,6 +13,7 @@ from dbtwiz.dbt.project import (
     list_domain_models,
     materialization_choices,
 )
+from dbtwiz.helpers.editor import open_in_editor
 from dbtwiz.helpers.logger import fatal, info, warn
 from dbtwiz.ui.interact import (
     autocomplete_from_list,

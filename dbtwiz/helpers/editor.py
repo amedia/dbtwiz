@@ -1,8 +1,8 @@
-from pathlib import Path
 import os
+from pathlib import Path
 
 from dbtwiz.config.user import user_config
-from dbtwiz.helpers.logger import debug, warn
+from dbtwiz.helpers.logger import warn
 
 
 def open_in_editor(path: Path) -> int:
@@ -14,5 +14,7 @@ def open_in_editor(path: Path) -> int:
         command = f"{editor} {path}"
     value = os.system(command)
     if value != 0:
-        warn(f"Failed to open file in editor. Command '{command}' returned status {value}.")
+        warn(
+            f"Failed to open file in editor. Command '{command}' returned status {value}."
+        )
     return value

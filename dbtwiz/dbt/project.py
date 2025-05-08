@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import Dict, List, Tuple, Union
 
 from dbtwiz.config.project import project_path
+
 from .model import ModelBasePath
 
 
