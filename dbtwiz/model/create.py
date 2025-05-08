@@ -510,6 +510,37 @@ def create_model_files(
         open_in_editor(sql_path)
     open_in_editor(yml_path)
 
+def print_create_model_cli_command(
+    context
+):
+    """Generate the command that would reproduce this run"""
+    command_parts = ["dbtwiz model create"]
+
+    for parameter in [
+        "quick",
+        "layer",
+        "source",
+        "domain",
+        "name",
+        "description",
+        "group",
+        "access",
+        "materialization",
+        "expiration",
+        "team",
+        "frequency",
+        "service_consumers",
+        "access_policy"
+    ]:
+        if context[parameter]:
+            if isinstance(context[parameter], list):
+                for sub_parameter in context[parameter]:
+                    command_parts.append(f"--{parameter.replace('_', '-')} '{sub_parameter}'")
+            else:
+                command_parts.append(f"--{parameter.replace('_', '-')} '{context[parameter]}'")
+
+    warn("To repeat/resume the model creation, use this command:\n\n" + " ".join(command_parts))
+
 
 def create_model(
     quick: bool,
@@ -547,35 +578,39 @@ def create_model(
         "access_policy": access_policy,
     }
 
-    for func in [
-        select_layer,
-        select_source,
-        select_domain,
-        select_name,
-        select_description,
-        select_materialization,
-        select_expiration,
-        select_group,
-        select_access,
-        select_team,
-        select_frequency,
-        select_service_consumers,
-        select_access_policy,
-    ]:
-        func(context)
+    try:
+        for func in [
+            select_layer,
+            select_source,
+            select_domain,
+            select_name,
+            select_description,
+            select_materialization,
+            select_expiration,
+            select_group,
+            select_access,
+            select_team,
+            select_frequency,
+            select_service_consumers,
+            select_access_policy,
+        ]:
+            func(context)
 
-    create_model_files(
-        layer=context.get("layer"),
-        source=context.get("source"),
-        domain=context.get("domain"),
-        name=context.get("name"),
-        description=context.get("description"),
-        materialization=context.get("materialization"),
-        access=context.get("access"),
-        group=context.get("group"),
-        teams=context.get("team"),
-        service_consumers=context.get("service_consumers"),
-        access_policy=context.get("access_policy"),
-        frequency=context.get("frequency"),
-        expiration=context.get("expiration"),
-    )
+        create_model_files(
+            layer=context.get("layer"),
+            source=context.get("source"),
+            domain=context.get("domain"),
+            name=context.get("name"),
+            description=context.get("description"),
+            materialization=context.get("materialization"),
+            access=context.get("access"),
+            group=context.get("group"),
+            teams=context.get("team"),
+            service_consumers=context.get("service_consumers"),
+            access_policy=context.get("access_policy"),
+            frequency=context.get("frequency"),
+            expiration=context.get("expiration"),
+        )
+
+    finally:
+        print_create_model_cli_command(context=context)
