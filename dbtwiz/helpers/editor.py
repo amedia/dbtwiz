@@ -14,7 +14,5 @@ def open_in_editor(path: Path) -> int:
         command = f"{editor} {path}"
     value = os.system(command)
     if value != 0:
-        warn(
-            f"Failed to open file in editor. Command '{command}' returned status {value}."
-        )
+        warn(f"Failed to open file in editor. '{command}' returned status {value}.")
     return value
