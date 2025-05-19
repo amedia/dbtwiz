@@ -7,6 +7,7 @@ from dbtwiz.helpers.logger import error, fatal, info, status
 MILLISECONDS_PER_DAY = 1000 * 60 * 60 * 24
 DEPRECATION_MESSAGE = "THIS OBJECT IS DEPRECATED"
 BACKUP_MESSAGE = "THIS OBJECT IS FOR BACKUP PURPOSES ONLY"
+GCP_LOCATION = "EU"
 
 
 class BigQueryClient:
@@ -178,7 +179,7 @@ class BigQueryClient:
             except self.NotFound:
                 # Dataset doesn't exist - create it
                 dataset = self.get_bigquery().Dataset(dataset_id)
-                dataset.location = "EU"
+                dataset.location = GCP_LOCATION
                 dataset = self.get_client().create_dataset(dataset)
                 info(f"Created dataset {dataset_id}")
                 return dataset
@@ -188,7 +189,7 @@ class BigQueryClient:
 
     def run_query(self, query):
         """Runs a query in bigquery"""
-        return self.get_client().query(query)
+        return self.get_client().query(query, location=GCP_LOCATION)
 
     def delete_table(self, table_id):
         """Deletes a table from bigquery"""
