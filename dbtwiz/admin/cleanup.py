@@ -54,8 +54,6 @@ def build_data_structure(manifest_models, client):
     data = dict()
     for model in manifest_models:
         project, dataset, table = model["relation_name"].replace("`", "").split(".")
-        if dataset == "elementary":  # Skip materializations belonging to Elementary
-            continue
         data[project] = data.get(project, dict())
         data[project][dataset] = data[project].get(dataset, dict(manifest=[]))
         data[project][dataset]["manifest"].append(table)
@@ -88,7 +86,7 @@ def find_orphaned_tables(data: dict) -> list:
     for project, datasets in data.items():
         for dataset, variants in datasets.items():
             for table in variants.get("bigquery", []):
-                if table not in variants["manifest"] and len(variants["manifest"]) > 0:
+                if table not in variants["manifest"]:
                     orphaned.append(f"{project}.{dataset}.{table}")
     return orphaned
 
