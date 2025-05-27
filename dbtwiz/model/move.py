@@ -94,6 +94,7 @@ def move_model(
                 "partition_expiration_days",
                 "require_partition_filter",
                 "tags",
+                "post-hook"
             ]:
                 if config_key in old_yml_content_updated["models"][0]["config"]:
                     del old_yml_content_updated["models"][0]["config"][config_key]
