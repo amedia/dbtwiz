@@ -111,9 +111,10 @@ def job_spec_template():
 
 def run_command(args: list[str], verbose: bool = False, check: bool = True):
     """Run the given command in a subprocess"""
+    command = " ".join(args)
     if verbose:
-        debug(f"Running command: {' '.join(args)}")
-    result = subprocess.run(args, shell=True)
+        debug(f"Running command: {command}")
+    result = subprocess.run(command, shell=True)
     if check:
         result.check_returncode()
     return result
