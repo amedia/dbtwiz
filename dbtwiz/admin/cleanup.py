@@ -73,8 +73,8 @@ def build_data_structure(manifest_models, client):
                 dataset = row["table_schema"]
                 data[project][dataset] = data[project].get(dataset, dict(manifest=[]))
                 data[project][dataset]["bigquery"] = row["tables"]
-        except Exception:
-            error(f"Unable to fetch datasets for project {project}")
+        except Exception as e:
+            error(str(e))
 
     return data
 
