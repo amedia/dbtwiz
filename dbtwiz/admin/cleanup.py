@@ -60,18 +60,21 @@ def build_data_structure(manifest_models, client):
 
     # Add existing materializations in DWH by querying information schema
     for project in data.keys():
-        info(f"Fetching datasets and tables for project {project}")
-        query = f"""
-            select table_schema, array_agg(table_name) as tables
-            from {project}.`region-eu`.INFORMATION_SCHEMA.TABLES
-            where table_name not like '%__dbt_tmp_%'
-            group by table_schema
-        """
-        result = client.run_query(query).result()
-        for row in result:
-            dataset = row["table_schema"]
-            data[project][dataset] = data[project].get(dataset, dict(manifest=[]))
-            data[project][dataset]["bigquery"] = row["tables"]
+        try:
+            info(f"Fetching datasets and tables for project {project}")
+            query = f"""
+                select table_schema, array_agg(table_name) as tables
+                from {project}.`region-eu`.INFORMATION_SCHEMA.TABLES
+                where table_name not like '%__dbt_tmp_%'
+                group by table_schema
+            """
+            result = client.run_query(query).result()
+            for row in result:
+                dataset = row["table_schema"]
+                data[project][dataset] = data[project].get(dataset, dict(manifest=[]))
+                data[project][dataset]["bigquery"] = row["tables"]
+        except Exception as e:
+            error(str(e))
 
     return data
 
