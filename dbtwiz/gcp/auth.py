@@ -1,5 +1,5 @@
-import json
 import os
+import shutil
 import subprocess
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -49,38 +49,32 @@ def ensure_app_default_auth() -> None:
         subprocess.run("gcloud auth application-default login", shell=True)
 
 
+def check_gcloud_installed():
+    """Check if gcloud CLI is installed."""
+    return shutil.which("gcloud") is not None
+
+
 def ensure_gcloud_auth() -> None:
     """Ensures gcloud authorization is active."""
-    allowed_domains = project_config().user_auth_verified_domains
-    # Get list of authenticated accounts
+    if not check_gcloud_installed():
+        fatal(
+            "Error checking gcloud authentication. Ensure gcloud is installed correctly."
+        )
+
+    # Check access token
     result = subprocess.run(
-        "gcloud auth list --format=json",
+        "gcloud auth print-access-token",
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
         shell=True,
     )
-    if result.returncode != 0:
-        fatal(
-            "Error checking gcloud authentication. Ensure gcloud is installed correctly."
-        )
 
-    # Parse the output and check if there are any accounts
-    accounts = json.loads(result.stdout.strip())
-    if not accounts or len(accounts) == 0:
-        warn("No GCP accounts authenticated.")
-
-    # Check if an allowed domain account is authenticated
-    for account in accounts:
-        if account.get("status") == "ACTIVE" and any(
-            account.get("account").lower().endswith(f"@{domain}")
-            for domain in allowed_domains
-        ):
-            return
-    warn("No valid GCP account is authenticated.")
-
-    if confirm("Do you wish to reauthenticate now?"):
-        subprocess.run("gcloud auth login", check=True, shell=True)
+    if (
+        "Reauthentication required" in result.stderr
+        or "There was a problem refreshing your current auth tokens" in result.stderr):
+        if confirm("Do you wish to reauthenticate now?"):
+            subprocess.run("gcloud auth login", check=True, shell=True)
 
 
 def ensure_auth(

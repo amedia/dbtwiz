@@ -59,7 +59,6 @@ service_account_region = ""       # Region for where service account actions are
 
 # Config for user actions
 user_project = ""                 # Project name for where user queries are run
-user_auth_verified_domains = []   # Which domains to check when identifying whether user is already authenticated
 
 # Config for docker image used for backfill
 docker_image_url_dbt = ""         # Url for docker image
