@@ -159,11 +159,11 @@ def update_model_references(old_model_name: str, new_model_name: str) -> None:
         new_model_name: The new model name (e.g., 'stg_new_domain__new_model_name').
     """
     try:
-        # Define the regex pattern to match `{{ ref('model_name') }}` with flexible spacing
+        # Define the regex pattern to match `ref('model_name')` with flexible spacing
         ref_pattern = re.compile(
-            r"\{\{\s*ref\s*\(\s*['\"]"
-            + re.escape(old_model_name)
-            + r"['\"]\s*\)\s*\}\}",
+            r"\bref\s*\(\s*['\"]" 
+            + re.escape(old_model_name) 
+            + r"['\"]\s*\)",
             re.IGNORECASE,
         )
 
