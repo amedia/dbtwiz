@@ -181,7 +181,7 @@ def update_model_references(old_model_name: str, new_model_name: str) -> None:
                     # Replace all occurrences of the old model name with the new model name
                     content = _read_file(file_path)
                     updated_content, replacements = ref_pattern.subn(
-                        f'{{{{ ref("{new_model_name}") }}}}', content
+                        f'ref("{new_model_name}")', content
                     )
                     reference_changes += replacements
 
