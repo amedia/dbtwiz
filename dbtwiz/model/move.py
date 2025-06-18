@@ -81,7 +81,8 @@ def move_model(
 
         # Step 2: Modify the old SQL content
         if safe:
-            old_sql_content_updated = f"select * from {{{{ ref('{new_model_name}') }}}}"
+            old_sql_content_updated = f"""select * from {{{{ ref("{new_model_name}") }}}}
+"""
 
             # Step 3: Update the old YML file to materialize as a view and add meta element
             # Clean up old file config since we're changing to view
