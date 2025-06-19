@@ -196,6 +196,29 @@ class YmlValidator:
 
         return validation_errors
 
+    def validate_yml_primary_key_constraint(self, model_def: dict) -> bool:
+        """Validates that a primary key constraint is defined for the model."""
+        column_level_pk = False
+
+        model_level_pk = any(
+            c.get("type") == "primary_key" for c in model_def.get("constraints", [])
+        )
+
+        column_level_pk_columns = [
+            col["name"]
+            for col in model_def.get("columns", [])
+            if any(c.get("type") == "primary_key" for c in col.get("constraints", []))
+        ]
+        column_level_pk = len(column_level_pk_columns) > 0
+
+        if not model_level_pk and not column_level_pk:
+            return "primary key constraint is missing"
+        elif model_level_pk and column_level_pk:
+            return "primary key constraint is defined at both model and column levels"
+        elif column_level_pk and len(column_level_pk_columns) > 1:
+            return "primary key constraint is defined for multiple columns - it must be changed to a model level constraint"
+        return None
+
     def validate_yml_definition(self) -> Tuple[bool, str]:
         """Validates YML definition (currently only the model name)."""
         yml_path = self.model_base.path.with_suffix(".yml")
@@ -216,6 +239,13 @@ class YmlValidator:
         validation_errors = self._validate_model_name(
             model_def=yml_content.get("models")[0]
         )
+
+        if (
+            pk_constraint_error := self.validate_yml_primary_key_constraint(
+                model_def=yml_content.get("models")[0]
+            )
+        ) is not None:
+            validation_errors.append(pk_constraint_error)
 
         if validation_errors:
             error_msg = "failed\n" + "\n".join(f"• {e}" for e in validation_errors)
