@@ -200,7 +200,6 @@ class YmlValidator:
         """Validates that a primary key constraint is defined for the model."""
         column_level_pk = False
 
-        # Check model-level primary key
         model_level_pk = any(
             c.get("type") == "primary_key" for c in model_def.get("constraints", [])
         )
