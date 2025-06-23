@@ -17,14 +17,9 @@ def check_gcloud_installed():
 
 
 def app_default_auth_login():
-    """Triggers application default authorization and sets quota project."""
+    """Triggers application default authorization."""
     if confirm("Do you wish to reauthenticate now?"):
         subprocess.run("gcloud auth application-default login", shell=True)
-        if project_config().user_project:
-            subprocess.run(
-                f"gcloud auth application-default set-quota-project {project_config().user_project}",
-                shell=True,
-            )
 
 
 def ensure_app_default_auth() -> None:
