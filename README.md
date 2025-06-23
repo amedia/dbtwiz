@@ -1,6 +1,6 @@
 # dbtwiz
 Python package with CLI helper tool for dbt in GCP using BigQuery.
-Although some functions are platform independent, the majority assume GCP and BigQuery is used.
+Although some functions are platform independent, the majority assume that GCP and BigQuery is used.
 
 ## Installation
 
