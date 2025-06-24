@@ -5,9 +5,7 @@ import typer
 
 from dbtwiz.dbt.manifest import Manifest
 from dbtwiz.dbt.target import Target
-from dbtwiz.helpers.decorators import examples
 
-from .backfill import backfill as command_backfill
 from .build import build as command_build
 from .test import test as command_test
 
@@ -66,8 +64,10 @@ variable and will be picked up by the `interval_end()` macro by the models.""",
         typer.Option(
             "--batch-size",
             "-bs",
-            help=("""Number of dates to run for in each batch.
-If used outside of backfilling then only the first batch will be run."""),
+            help=(
+                """Number of dates to run for in each batch.
+If used outside of backfilling then only the first batch will be run."""
+            ),
         ),
     ] = 9999,
     use_task_index: Annotated[
@@ -198,108 +198,3 @@ def manifest(
 ):
     """Update dev and production manifests for fast lookup"""
     Manifest.update_manifests(type)
-
-
-@app.command()
-@examples(
-    """Example of the basic use-case:
-```shell
-$ dbtwiz backfill mymodel 2024-01-01 2024-01-31
-```
-
-Another example including downstream dependencies and serial execution (needed for models that
-depends on previous partitions of their own data, for example):
-```shell
-$ dbtwiz backfill -p1 mymodel+ 2024-01-01 2024-01-15
-```
-
-After the job has been set up and passed on to Cloud Run, a status page should automatically
-be opened in your browser so you can track progress."""
-)
-def backfill(
-    select: Annotated[str, typer.Argument(help="Model selector passed to dbt")],
-    date_first: Annotated[
-        str, typer.Argument(help="Start of backfill period [YYYY-mm-dd]")
-    ],
-    date_last: Annotated[
-        str, typer.Argument(help="End of backfill period (inclusive) [YYYY-mm-dd]")
-    ],
-    batch_size: Annotated[
-        int,
-        typer.Option(
-            "--batch-size",
-            "-bs",
-            help=("Number of dates to include in each batch."),
-        ),
-    ] = 1,
-    full_refresh: Annotated[
-        bool,
-        typer.Option(
-            "--full-refresh",
-            "-f",
-            help=(
-                "Build the model with full refresh, which causes existing tables to be deleted "
-                "and recreated. Needed when schema has changed between runs. "
-                "**This should only be used when backfilling a single date, ie. when "
-                "_date_first_ and _date_last_ are the same.**"
-            ),
-        ),
-    ] = False,
-    parallelism: Annotated[
-        int,
-        typer.Option(
-            "--parallelism",
-            "-p",
-            help=(
-                "Number of tasks to run in parallel. Set to 1 for serial processing, "
-                "useful for models that depend on their own past data where the "
-                "processing order is important."
-            ),
-        ),
-    ] = 8,
-    status: Annotated[
-        bool,
-        typer.Option(
-            "--status",
-            "-s",
-            help="Open job status page in browser after starting execution",
-        ),
-    ] = True,
-    verbose: Annotated[
-        bool,
-        typer.Option("--verbose", "-v", help="Output more info about what is going on"),
-    ] = False,
-) -> None:
-    """
-    The _backfill_ subcommand allows you to (re)run date-partitioned models in production for a
-    period spanning one or multiple days. It will spawn a Cloud Run job that will run `dbt` for
-    a configurable number of days in parallel.
-    """
-    # Validate
-    try:
-        first_date = datetime.date.fromisoformat(date_first)
-        last_date = datetime.date.fromisoformat(date_last)
-    except ValueError:
-        raise InvalidArgumentsError("Dates must be on the YYYY-mm-dd format.")
-    if date_last < date_first:
-        raise InvalidArgumentsError("Last date must be on or after first date.")
-    if full_refresh:
-        if "+" in select:
-            raise InvalidArgumentsError(
-                "Full refresh is only supported on single models."
-            )
-        if date_last != date_first:
-            raise InvalidArgumentsError(
-                "Full refresh in only supported on single day runs."
-            )
-    # Dispatch
-    command_backfill(
-        selector=select,
-        first_date=first_date,
-        last_date=last_date,
-        batch_size=batch_size,
-        full_refresh=full_refresh,
-        parallelism=parallelism,
-        status=status,
-        verbose=verbose,
-    )
