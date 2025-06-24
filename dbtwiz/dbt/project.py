@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from typing import Dict, List, Tuple, Union
 
@@ -28,6 +29,47 @@ class Group:
         return self.YAML_PATH.relative_to(project_path())
 
 
+class Profile:
+    """Project's profiles"""
+    PROFILES_DIR = (
+        Path(os.environ.get("DBT_PROFILES_DIR"))
+        if os.environ.get("DBT_PROFILES_DIR")
+        else project_path() / ".profiles"
+    )
+    YAML_PATH = PROFILES_DIR / "profiles.yml"
+
+    def __init__(self):
+        """Initializes the class and reads the model groups"""
+        from yaml import safe_load  # Lazy import for improved performance
+
+        if not self.YAML_PATH.exists():
+            raise FileNotFoundError(
+                "Couldn't find profiles.yml. Is the DBT_PROFILES_DIR env var set?"
+            )
+
+        with open(self.YAML_PATH, "r", encoding="utf-8") as f:
+            self.profiles = safe_load(f)[Project().profile()]["outputs"]
+
+    def _resolve_profile(self, raw_config):
+        """Get fully rendered profile values including env_var resolution"""
+        from jinja2 import BaseLoader, Environment  # Lazy import for improved performance
+
+        # Create custom renderer
+        def render_value(value):
+            if not isinstance(value, str):
+                return value
+
+            template = Environment(loader=BaseLoader()).from_string(value)
+            return template.render(env_var=os.getenv)
+
+        # Return rendered values
+        return {k: render_value(v) for k, v in raw_config.items()}
+
+    def profile_config(self, name):
+        """Return a dict with the profile configuration"""
+        return self._resolve_profile(raw_config=self.profiles[name])
+
+
 class Project:
     """Project's variable settings"""
 
@@ -41,6 +83,9 @@ class Project:
 
     def name(self) -> str:
         return self.data.get("name")
+
+    def profile(self) -> str:
+        return self.data.get("profile")
 
     def teams(self) -> List[Dict[str, str]]:
         """List of teams defined in project config"""
