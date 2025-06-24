@@ -12,6 +12,10 @@ a configurable number of days in parallel.
 
 ## Options
 
+### `--batch-size`, `-bs`
+
+Number of dates to include in each batch.
+
 ### `--full-refresh`, `-f`
 
 Build the model with full refresh, which causes existing tables to be deleted and recreated. Needed when schema has changed between runs. **This should only be used when backfilling a single date, ie. when _date_first_ and _date_last_ are the same.**

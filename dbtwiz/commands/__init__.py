@@ -41,15 +41,35 @@ list will show all models which partially matches using fuzzy match to allow
 you to refine your search.""",
         ),
     ] = "",
-    date: Annotated[
+    start_date: Annotated[
         str,
         typer.Option(
-            "--date",
+            "--start-date",
+            "-sd",
             help="""Date in `YYYY-mm-dd` format.
 For partitioned models, this option sets the date to be passed as `data_interval_start`
-variable and will be picked up by the `start_date()` macro by the models.""",
+variable and will be picked up by the `interval_start()` macro by the models.""",
         ),
     ] = "",
+    end_date: Annotated[
+        str,
+        typer.Option(
+            "--end-date",
+            "-ed",
+            help="""Date in `YYYY-mm-dd` format.
+For partitioned models, this option sets the date to be passed as `data_interval_end`
+variable and will be picked up by the `interval_end()` macro by the models.""",
+        ),
+    ] = "",
+    batch_size: Annotated[
+        int,
+        typer.Option(
+            "--batch-size",
+            "-bs",
+            help=("""Number of dates to run for in each batch.
+If used outside of backfilling then only the first batch will be run."""),
+        ),
+    ] = 9999,
     use_task_index: Annotated[
         bool,
         typer.Option(
@@ -112,17 +132,25 @@ Pass this option to rebuild the same models that you most recently built.""",
     """
     # Validate
     try:
-        if date == "":
-            run_date = datetime.date.today()
-        else:
-            run_date = datetime.date.fromisoformat(date)
+        start_date = (
+            datetime.date.today()
+            if start_date == ""
+            else datetime.date.fromisoformat(start_date)
+        )
+        end_date = (
+            datetime.date.today()
+            if end_date == ""
+            else datetime.date.fromisoformat(end_date)
+        )
     except ValueError:
         raise InvalidArgumentsError("Date must be on the YYYY-mm-dd format.")
     # Dispatch
     command_build(
         target=target.value,
         select=select,
-        date=run_date,
+        start_date=start_date,
+        end_date=end_date,
+        batch_size=batch_size,
         use_task_index=use_task_index,
         full_refresh=full_refresh,
         upstream=upstream,
@@ -196,6 +224,14 @@ def backfill(
     date_last: Annotated[
         str, typer.Argument(help="End of backfill period (inclusive) [YYYY-mm-dd]")
     ],
+    batch_size: Annotated[
+        int,
+        typer.Option(
+            "--batch-size",
+            "-bs",
+            help=("Number of dates to include in each batch."),
+        ),
+    ] = 7,
     full_refresh: Annotated[
         bool,
         typer.Option(
@@ -258,5 +294,12 @@ def backfill(
             )
     # Dispatch
     command_backfill(
-        select, first_date, last_date, full_refresh, parallelism, status, verbose
+        selector=select,
+        first_date=first_date,
+        last_date=last_date,
+        batch_size=batch_size,
+        full_refresh=full_refresh,
+        parallelism=parallelism,
+        status=status,
+        verbose=verbose,
     )

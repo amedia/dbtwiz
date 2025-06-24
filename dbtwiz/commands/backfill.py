@@ -2,6 +2,7 @@ import subprocess
 import time
 import webbrowser
 from datetime import date
+from math import ceil
 from textwrap import dedent
 
 from jinja2 import Template
@@ -42,10 +43,12 @@ def generate_job_spec(
     date_last: date,
     full_refresh: bool,
     parallelism: int,
+    batch_size: int,
 ) -> str:
     """Generate job specification YAML file"""
     number_of_days = (date_last - date_first).days + 1
-    parallelism = min(number_of_days, parallelism)
+    task_count = ceil(number_of_days / batch_size)
+    parallelism = min(task_count, parallelism)
     job_name = backfill_job_name(selector)
     if full_refresh:
         assert number_of_days == 1
@@ -53,10 +56,12 @@ def generate_job_spec(
     job_spec_yaml = job_spec_template().render(
         job_name=job_name,
         parallelism=parallelism,
-        task_count=number_of_days,
+        task_count=task_count,
         image=project_config().docker_image_url_dbt,
         selector=selector,
         start_date=date_first.strftime("%Y-%m-%d"),
+        end_date=date_last.strftime("%Y-%m-%d"),
+        batch_size=batch_size,
         full_refresh=full_refresh,
         service_account=project_config().service_account_identifier,
         service_account_region=project_config().service_account_region,
@@ -92,8 +97,12 @@ def job_spec_template():
                 - "prod"
                 - --select
                 - "{{ selector }}"
-                - --date
+                - --start-date
                 - "{{ start_date }}"
+                - --end_date
+                - "{{ end-date }}"
+                - --batch-size
+                - "{{ batch_size }}"
                 - --use-task-index
                 {% if full_refresh %}
                 - --full-refresh
@@ -128,6 +137,7 @@ def backfill(
     parallelism: int,
     status: bool,
     verbose: bool,
+    batch_size: int,
 ):
     """Runs backfill for the given selector and date interval."""
     job_name = generate_job_spec(
@@ -136,6 +146,7 @@ def backfill(
         date_last=last_date,
         full_refresh=full_refresh,
         parallelism=parallelism,
+        batch_size=batch_size,
     )
 
     ensure_auth(check_app_default_auth=True, check_gcloud_auth=True)

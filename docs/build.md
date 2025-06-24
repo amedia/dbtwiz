@@ -19,11 +19,22 @@ it will build with no further interaction. Otherwise an interactive selection
 list will show all models which partially matches using fuzzy match to allow
 you to refine your search.
 
-### `--date`
+### `--start-date`, `-sd`
 
 Date in `YYYY-mm-dd` format.
 For partitioned models, this option sets the date to be passed as `data_interval_start`
-variable and will be picked up by the `start_date()` macro by the models.
+variable and will be picked up by the `interval_start()` macro by the models.
+
+### `--end-date`, `-ed`
+
+Date in `YYYY-mm-dd` format.
+For partitioned models, this option sets the date to be passed as `data_interval_end`
+variable and will be picked up by the `interval_end()` macro by the models.
+
+### `--batch-size`, `-bs`
+
+Number of dates to run for in each batch.
+If used outside of backfilling then only the first batch will be run.
 
 ### `--use-task-index`
 
