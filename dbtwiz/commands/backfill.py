@@ -99,8 +99,8 @@ def job_spec_template():
                 - "{{ selector }}"
                 - --start-date
                 - "{{ start_date }}"
-                - --end_date
-                - "{{ end-date }}"
+                - --end-date
+                - "{{ end_date }}"
                 - --batch-size
                 - "{{ batch_size }}"
                 - --use-task-index
