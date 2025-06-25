@@ -16,10 +16,16 @@ app = typer.Typer()
 
 @app.command()
 @description(
-    """By using defer, it is good practice to routinely clean the dbt dev dataset to ensure up to date production tables are used.
+    """Unless overriden, it will default to looking for target called `dev` in profiles.yml.
+The user will be prompted before any tables are deleted.
+
+By using defer, it is good practice to routinely clean the dbt dev dataset to ensure up to date production tables are used.
 """
 )
 def cleandev(
+    target: Annotated[
+        Target, typer.Option("--target", "-t", help="Target")
+    ] = Target.dev,
     force_delete: Annotated[
         bool,
         typer.Option(
@@ -30,7 +36,7 @@ def cleandev(
     """Delete all materializations in the dbt development dataset"""
     from .cleanup import empty_development_dataset
 
-    empty_development_dataset(force_delete)
+    empty_development_dataset(target_name=target, force_delete=force_delete)
 
 
 @app.command()

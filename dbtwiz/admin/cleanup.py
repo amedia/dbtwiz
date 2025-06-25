@@ -1,5 +1,6 @@
 from dbtwiz.config.project import project_config
 from dbtwiz.dbt.manifest import Manifest
+from dbtwiz.dbt.project import Profile
 from dbtwiz.dbt.target import Target
 from dbtwiz.gcp.auth import ensure_auth
 from dbtwiz.gcp.bigquery import BigQueryClient
@@ -7,19 +8,13 @@ from dbtwiz.helpers.logger import error, info
 from dbtwiz.ui.interact import multiselect_from_list
 
 
-def empty_development_dataset(force_delete: bool) -> None:
+def empty_development_dataset(target_name: str, force_delete: bool) -> None:
     """Delete all materializations in the development dataset"""
     ensure_auth()
 
-    Manifest.update_manifests("dev")
-    manifest = Manifest()
-
-    # Get project and dataset from first materialization in dev manifest
-    project, dataset = [
-        (m["database"], m["schema"])
-        for m in manifest.models().values()
-        if m["materialized"] != "ephemeral"
-    ][0]
+    dev_profile = Profile().profile_config(target_name=target_name)
+    project = dev_profile.get("project") or dev_profile.get("database")
+    dataset = dev_profile.get("dataset") or dev_profile.get("schema")
 
     client = BigQueryClient(default_project=project_config().user_project)
     tables, _ = client.fetch_tables_in_dataset(project, dataset)
