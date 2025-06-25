@@ -65,9 +65,9 @@ class Profile:
         # Return rendered values
         return {k: render_value(v) for k, v in raw_config.items()}
 
-    def profile_config(self, name):
+    def profile_config(self, target_name):
         """Return a dict with the profile configuration"""
-        return self._resolve_profile(raw_config=self.profiles[name])
+        return self._resolve_profile(raw_config=self.profiles[target_name])
 
 
 class Project:

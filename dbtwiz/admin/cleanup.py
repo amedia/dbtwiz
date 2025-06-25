@@ -8,11 +8,11 @@ from dbtwiz.helpers.logger import error, info
 from dbtwiz.ui.interact import multiselect_from_list
 
 
-def empty_development_dataset(force_delete: bool) -> None:
+def empty_development_dataset(target_name: str, force_delete: bool) -> None:
     """Delete all materializations in the development dataset"""
     ensure_auth()
 
-    dev_profile = Profile().profile_config(name="dev")
+    dev_profile = Profile().profile_config(target_name=target_name)
     project = dev_profile.get("project") or dev_profile.get("database")
     dataset = dev_profile.get("dataset") or dev_profile.get("schema")
 
