@@ -16,7 +16,10 @@ app = typer.Typer()
 
 @app.command()
 @description(
-    """By using defer, it is good practice to routinely clean the dbt dev dataset to ensure up to date production tables are used.
+    """The command assumes a profile called `dev` exists in profiles.yml.
+The user will be prompted before any tables are deleted..
+
+By using defer, it is good practice to routinely clean the dbt dev dataset to ensure up to date production tables are used.
 """
 )
 def cleandev(
