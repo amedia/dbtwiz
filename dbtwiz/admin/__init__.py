@@ -25,7 +25,7 @@ $ dbtwiz backfill mymodel 2024-01-01 2024-01-31
 Another example including downstream dependencies and serial execution (needed for models that
 depends on previous partitions of their own data, for example):
 ```shell
-$ dbtwiz backfill -p1 mymodel+ 2024-01-01 2024-01-15
+$ dbtwiz backfill mymodel+ 2024-01-01 2024-01-15 -p 1
 ```
 
 After the job has been set up and passed on to Cloud Run, a status page should automatically
