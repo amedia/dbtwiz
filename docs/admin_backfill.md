@@ -8,11 +8,11 @@ a configurable number of days in parallel.
 
 - `select`: Model selector passed to dbt
 - `date_first`: Start of backfill period [YYYY-mm-dd]
-- `date_last`: End of backfill period (inclusive) [YYYY-mm-dd]
+- `date_last`: End of backfill period (inclusive) [YYYY-mm-dd]. Defaults to date_first.
 
 ## Options
 
-### `--batch-size`, `-bs`
+### `--batch-size`, `-b`
 
 Number of dates to include in each batch.
 

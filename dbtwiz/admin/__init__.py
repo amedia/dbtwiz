@@ -39,14 +39,14 @@ def backfill(
     date_last: Annotated[
         str,
         typer.Argument(
-            help="End of backfill period (inclusive) [YYYY-mm-dd]", metavar="TEXT"
+            help="End of backfill period (inclusive) [YYYY-mm-dd]. Defaults to date_first.", metavar="TEXT"
         ),
     ] = None,
     batch_size: Annotated[
         int,
         typer.Option(
             "--batch-size",
-            "-bs",
+            "-b",
             help=("Number of dates to include in each batch."),
         ),
     ] = 1,
