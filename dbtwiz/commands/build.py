@@ -29,7 +29,9 @@ def choose_models(target: str, select, repeat_last: bool, work=None):
 def build(
     target: str,
     select: str,
-    date: date,
+    start_date: date,
+    end_date: date,
+    batch_size: int,
     use_task_index: bool,
     full_refresh: bool,
     upstream: bool,
@@ -59,15 +61,15 @@ def build(
 
     if use_task_index:
         date_offset = int(os.environ.get("CLOUD_RUN_TASK_INDEX", 0))
-        info(f"Using CLOUD_RUN_TASK_INDEX={date_offset}")
-        info(f"Base date: {date}")
-        date += timedelta(days=date_offset)
-        info(f"Backfill date: {date}")
+        start_date = start_date + timedelta(days=date_offset * batch_size)
+        end_date = min(end_date, start_date + timedelta(days=batch_size - 1))
+        info(f"Batch size: {batch_size}")
 
+    info(f"Date range: {start_date} -> {end_date}")
     commands = ["build"]
     args = {
         "target": target,
-        "vars": f'{{data_interval_start: "{date}"}}',
+        "vars": f'{{data_interval_start: "{start_date}", data_interval_end: "{end_date}"}}',
     }
 
     if len(select) > 0:

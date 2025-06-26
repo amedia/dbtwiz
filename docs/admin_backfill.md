@@ -1,4 +1,4 @@
-# `dbtwiz backfill`
+# `dbtwiz admin backfill`
 
 The _backfill_ subcommand allows you to (re)run date-partitioned models in production for a
 period spanning one or multiple days. It will spawn a Cloud Run job that will run `dbt` for
@@ -8,11 +8,11 @@ a configurable number of days in parallel.
 
 - `select`: Model selector passed to dbt
 - `date_first`: Start of backfill period [YYYY-mm-dd]
-- `date_last`: End of backfill period (inclusive) [YYYY-mm-dd]
+- `date_last`: End of backfill period (inclusive) [YYYY-mm-dd]. Defaults to date_first.
 
 ## Options
 
-### `--batch-size`, `-bs`
+### `--batch-size`, `-b`
 
 Number of dates to include in each batch.
 
@@ -42,7 +42,7 @@ $ dbtwiz backfill mymodel 2024-01-01 2024-01-31
 Another example including downstream dependencies and serial execution (needed for models that
 depends on previous partitions of their own data, for example):
 ```shell
-$ dbtwiz backfill -p1 mymodel+ 2024-01-01 2024-01-15
+$ dbtwiz backfill mymodel+ 2024-01-01 2024-01-15 -p 1
 ```
 
 After the job has been set up and passed on to Cloud Run, a status page should automatically

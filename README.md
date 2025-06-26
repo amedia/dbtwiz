@@ -29,10 +29,10 @@ and/or by updating the references to the model by other dbt models.
 unless an exact model name is passed.
 - [`test`](docs/test.md) - Test dbt models
 - [`manifest`](docs/manifest.md) - Update dev and production manifests for fast lookup
-- [`backfill`](docs/backfill.md) - The _backfill_ subcommand allows you to (re)run date-partitioned models in production for a
+- `admin` - Administrative commands
+  - [`backfill`](docs/admin_backfill.md) - The _backfill_ subcommand allows you to (re)run date-partitioned models in production for a
 period spanning one or multiple days. It will spawn a Cloud Run job that will run `dbt` for
 a configurable number of days in parallel.
-- `admin` - Administrative commands
   - [`cleandev`](docs/admin_cleandev.md) - Delete all materializations in the dbt development dataset
   - [`orphaned`](docs/admin_orphaned.md) - List or delete orphaned materializations in the data warehouse
   - [`partition-expiry`](docs/admin_partition_expiry.md) - Checks for mismatched partition expiry and allows updating to correct.
