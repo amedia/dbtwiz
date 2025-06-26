@@ -37,8 +37,11 @@ def backfill(
         str, typer.Argument(help="Start of backfill period [YYYY-mm-dd]")
     ],
     date_last: Annotated[
-        str, typer.Argument(help="End of backfill period (inclusive) [YYYY-mm-dd]")
-    ],
+        str,
+        typer.Argument(
+            help="End of backfill period (inclusive) [YYYY-mm-dd]", metavar="TEXT"
+        ),
+    ] = None,
     batch_size: Annotated[
         int,
         typer.Option(
@@ -93,17 +96,17 @@ def backfill(
     # Validate
     try:
         first_date = datetime.date.fromisoformat(date_first)
-        last_date = datetime.date.fromisoformat(date_last)
+        last_date = datetime.date.fromisoformat(date_last) if date_last else first_date
     except ValueError:
         raise InvalidArgumentsError("Dates must be on the YYYY-mm-dd format.")
-    if date_last < date_first:
+    if last_date < first_date:
         raise InvalidArgumentsError("Last date must be on or after first date.")
     if full_refresh:
         if "+" in select:
             raise InvalidArgumentsError(
                 "Full refresh is only supported on single models."
             )
-        if date_last != date_first:
+        if last_date != first_date:
             raise InvalidArgumentsError(
                 "Full refresh in only supported on single day runs."
             )
