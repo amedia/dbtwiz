@@ -48,7 +48,8 @@ def ensure_app_default_auth() -> None:
 
 
 def ensure_gcloud_auth() -> None:
-    """Ensures gcloud authorization is active."""
+    """Ensures gcloud authorization is active.
+    TODO: This works locally, but not in codespaces"""
     if not check_gcloud_installed():
         fatal(
             "Error checking gcloud authentication. Ensure gcloud is installed correctly."
