@@ -66,6 +66,7 @@ def ensure_gcloud_auth() -> None:
     if (
         "Reauthentication required" in result.stderr
         or "There was a problem refreshing your current auth tokens" in result.stderr
+        or "You do not currently have an active account selected" in result.stderr
     ):
         if confirm("Do you wish to reauthenticate now?"):
             subprocess.run("gcloud auth login", check=True, shell=True)
