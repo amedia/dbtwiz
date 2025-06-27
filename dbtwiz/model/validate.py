@@ -52,6 +52,7 @@ class YmlValidator:
                 pass
 
         # Fall back to prod manifest
+        Manifest.download_prod_manifest()
         manifest = Manifest(Manifest.PROD_MANIFEST_PATH)
         prod_model_details = manifest.model_by_name(model_name)
 
