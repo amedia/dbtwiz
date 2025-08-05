@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dbtwiz"
-version = "0.2.14"
+version = "0.2.15"
 authors = [
     {name = "Amedia Produkt og Teknologi"}
 ]
@@ -20,7 +20,8 @@ dependencies = [
     "questionary>=2.1.0",
     "rich>=13.9.0",
     "ruamel.yaml>=0.18.10",
-    "typer>=0.15.0"
+    "typer>=0.15.0",
+    "shandy-sqlfmt>=0.27.0"
 ]
 
 [project.scripts]
