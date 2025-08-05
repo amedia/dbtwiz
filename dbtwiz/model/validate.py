@@ -442,7 +442,7 @@ class SqlValidator:
         from sqlfmt.config import load_config_file
 
         pyproject_path = ProjectConfig().root_path() / "pyproject.toml"
-        config = load_config_file([pyproject_path])
+        config = load_config_file(config_path=pyproject_path, files=[pyproject_path])
         mode = Mode(**config)
 
         report = run([self.model_base.path.with_suffix(".sql")], mode)
