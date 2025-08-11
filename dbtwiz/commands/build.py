@@ -70,6 +70,7 @@ def build(
     args = {
         "target": target,
         "vars": f'{{data_interval_start: "{start_date}", data_interval_end: "{end_date}"}}',
+        "exclude": "tag:no_backfill"
     }
 
     if len(select) > 0:

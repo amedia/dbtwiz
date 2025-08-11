@@ -3,6 +3,7 @@ from typing import Annotated, List
 
 import typer
 
+from dbtwiz.config.project import project_config
 from dbtwiz.dbt.target import Target
 from dbtwiz.helpers.decorators import description, examples
 from dbtwiz.helpers.logger import error
@@ -49,7 +50,7 @@ def backfill(
             "-b",
             help=("Number of dates to include in each batch."),
         ),
-    ] = 1,
+    ] = project_config().backfill_default_batch_size or 30,
     full_refresh: Annotated[
         bool,
         typer.Option(
