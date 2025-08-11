@@ -57,14 +57,13 @@ def build(
     ]
 
     select = " ".join(chosen_models_with_deps)
+    debug(f"Select: '{select}'")
 
     if use_task_index:
         date_offset = int(os.environ.get("CLOUD_RUN_TASK_INDEX", 0))
         start_date = start_date + timedelta(days=date_offset * batch_size)
         end_date = min(end_date, start_date + timedelta(days=batch_size - 1))
         info(f"Batch size: {batch_size}")
-
-    debug(f"Select: '{select}'")
 
     info(f"Date range: {start_date} -> {end_date}")
     commands = ["build"]
