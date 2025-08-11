@@ -96,7 +96,7 @@ def job_spec_template():
                 - --target
                 - "prod"
                 - --select
-                - "{{ selector }} --exclude tag:no_backfill"
+                - "{{ selector }}"
                 - --start-date
                 - "{{ start_date }}"
                 - --end-date

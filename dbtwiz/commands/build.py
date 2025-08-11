@@ -56,7 +56,7 @@ def build(
         for model in chosen_models
     ]
 
-    select = " ".join(chosen_models_with_deps)
+    select = " ".join(chosen_models_with_deps) + " --exclude tag:no_backfill"
     debug(f"Select: '{select}'")
 
     if use_task_index:
