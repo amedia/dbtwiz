@@ -56,8 +56,10 @@ def build(
         for model in chosen_models
     ]
 
-    select = " ".join(chosen_models_with_deps) + " --exclude tag:no_backfill"
+    select = " ".join(chosen_models_with_deps)
     debug(f"Select: '{select}'")
+
+    args["exclude"] = "tag:no_backfill"
 
     if use_task_index:
         date_offset = int(os.environ.get("CLOUD_RUN_TASK_INDEX", 0))
