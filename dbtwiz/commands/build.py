@@ -59,8 +59,6 @@ def build(
     select = " ".join(chosen_models_with_deps)
     debug(f"Select: '{select}'")
 
-    args["exclude"] = "tag:no_backfill"
-
     if use_task_index:
         date_offset = int(os.environ.get("CLOUD_RUN_TASK_INDEX", 0))
         start_date = start_date + timedelta(days=date_offset * batch_size)
@@ -72,6 +70,7 @@ def build(
     args = {
         "target": target,
         "vars": f'{{data_interval_start: "{start_date}", data_interval_end: "{end_date}"}}',
+        "exclude": "tag:no_backfill"
     }
 
     if len(select) > 0:
