@@ -49,7 +49,7 @@ def backfill(
             "-b",
             help=("Number of dates to include in each batch."),
         ),
-    ] = 1,
+    ] = 30,
     full_refresh: Annotated[
         bool,
         typer.Option(
