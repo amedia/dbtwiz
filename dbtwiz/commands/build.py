@@ -64,10 +64,6 @@ def build(
         end_date = min(end_date, start_date + timedelta(days=batch_size - 1))
         info(f"Batch size: {batch_size}")
 
-        if date_offset > 0:
-            # Only run models with tag no_backfill once (for the first batch)
-            select += " --exclude tag:no_backfill"
-
     debug(f"Select: '{select}'")
 
     info(f"Date range: {start_date} -> {end_date}")
