@@ -2,7 +2,7 @@ import functools
 import tomllib
 from pathlib import Path
 
-from dbtwiz.helpers.logger import fatal
+from dbtwiz.helpers.logger import fatal, warn
 
 
 @functools.cache
@@ -62,12 +62,12 @@ class ProjectConfig:
         if name in self._config:
             value = self._config[name]
             if value is not False and (not value or value == ""):
-                fatal(
+                warn(
                     f"'{name}' config is undefined in tool.dbtwiz.project config in pyproject.toml"
                 )
             return value
         else:
-            fatal(
+            warn(
                 f"'{name}' is missing from tool.dbtwiz.project config in pyproject.toml"
             )
             return None  # or raise AttributeError if you prefer
