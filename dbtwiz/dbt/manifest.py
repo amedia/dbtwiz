@@ -9,12 +9,12 @@ from jinja2 import Template
 from dbtwiz.config.project import project_config, project_dbtwiz_path
 from dbtwiz.config.theme import Theme
 from dbtwiz.config.user import user_config
-from dbtwiz.gcp.auth import ensure_app_default_auth
-from dbtwiz.helpers.logger import debug, error, info
+from dbtwiz.integrations.gcp_auth import ensure_app_default_auth
+from dbtwiz.utils.logger import debug, error, info
 from dbtwiz.templates import path_to_template
 
-from .run import invoke
-from .support import models_with_local_changes
+from dbtwiz.dbt.run import invoke
+from dbtwiz.dbt.support import models_with_local_changes
 
 
 class Manifest:

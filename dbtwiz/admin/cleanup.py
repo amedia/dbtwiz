@@ -1,10 +1,10 @@
 from dbtwiz.config.project import project_config
 from dbtwiz.dbt.manifest import Manifest
-from dbtwiz.dbt.project import Profile
+from dbtwiz.core.project import Project
 from dbtwiz.dbt.target import Target
-from dbtwiz.gcp.auth import ensure_auth
-from dbtwiz.gcp.bigquery import BigQueryClient
-from dbtwiz.helpers.logger import error, info
+from dbtwiz.integrations.gcp_auth import ensure_auth
+from dbtwiz.integrations.bigquery import BigQueryClient
+from dbtwiz.utils.logger import error, info
 from dbtwiz.ui.interact import multiselect_from_list
 
 

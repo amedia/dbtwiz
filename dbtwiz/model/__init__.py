@@ -3,7 +3,7 @@ from typing import Annotated, List
 
 import typer
 
-from dbtwiz.helpers.decorators import description, examples
+from dbtwiz.utils.decorators import description, examples
 
 from .create import create_model
 from .format import format_sql_files

@@ -1,7 +1,7 @@
 from typing import List
 
 from dbtwiz.config.project import project_config
-from dbtwiz.helpers.logger import debug, fatal
+from dbtwiz.utils.logger import debug, fatal
 
 
 def invoke(commands: List[str], **args: dict):

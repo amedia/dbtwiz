@@ -2,7 +2,7 @@ from typing import Annotated, List
 
 import typer
 
-from dbtwiz.helpers.decorators import description
+from dbtwiz.utils.decorators import description
 
 from .create import create_source
 

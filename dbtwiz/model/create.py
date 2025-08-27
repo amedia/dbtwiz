@@ -1,8 +1,8 @@
 from io import StringIO
 from pathlib import Path
 
-from dbtwiz.dbt.model import ModelBasePath
-from dbtwiz.dbt.project import (
+from dbtwiz.core.model import ModelBasePath
+from dbtwiz.core.project import (
     Group,
     Project,
     access_choices,
@@ -13,8 +13,8 @@ from dbtwiz.dbt.project import (
     list_domain_models,
     materialization_choices,
 )
-from dbtwiz.helpers.editor import open_in_editor
-from dbtwiz.helpers.logger import fatal, info, notice, warn
+from dbtwiz.utils.editor import open_in_editor
+from dbtwiz.utils.logger import fatal, info, notice, warn
 from dbtwiz.ui.interact import (
     autocomplete_from_list,
     confirm,

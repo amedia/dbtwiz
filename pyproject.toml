@@ -25,7 +25,7 @@ dependencies = [
 ]
 
 [project.scripts]
-dbtwiz = "dbtwiz.main:main"
+dbtwiz = "dbtwiz.cli.main:main"
 
 [tool.ruff]
 line-length = 88

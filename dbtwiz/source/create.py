@@ -2,10 +2,10 @@ from io import StringIO
 from pathlib import Path
 from typing import List
 
-from dbtwiz.dbt.project import get_source_tables
-from dbtwiz.gcp.bigquery import BigQueryClient
-from dbtwiz.helpers.editor import open_in_editor
-from dbtwiz.helpers.logger import fatal, info, warn
+from dbtwiz.core.project import get_source_tables
+from dbtwiz.integrations.bigquery import BigQueryClient
+from dbtwiz.utils.editor import open_in_editor
+from dbtwiz.utils.logger import fatal, info, warn
 from dbtwiz.ui.interact import (
     autocomplete_from_list,
     confirm,

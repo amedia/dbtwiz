@@ -94,7 +94,7 @@ class UserConfig:
             with open(self._config_file(), "rb") as f:
                 self._config = tomllib.load(f)
         except Exception as ex:
-            from dbtwiz.helpers.logger import fatal
+            from dbtwiz.utils.logger import fatal
 
             fatal(f"Failed to parse file {self._config_file()}: {ex}")
 
@@ -128,7 +128,7 @@ class UserConfig:
 
     def __getattr__(self, name):
         """Dynamically handle attribute access and warn if the setting is missing."""
-        from dbtwiz.helpers.logger import fatal
+        from dbtwiz.utils.logger import fatal
 
         if name in self._config:
             value = self._config[name]

@@ -335,7 +335,7 @@ def generate(
 
 if __name__ == "__main__":
     # Specific config for dbtwiz package
-    from dbtwiz.main import app
+    from dbtwiz.cli.main import app
 
     script_dir = Path(__file__).parent.resolve()
     repo_root = script_dir.parent.parent  # Goes up two levels from dbtwiz/helpers/

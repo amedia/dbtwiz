@@ -7,7 +7,7 @@ from google.auth.transport import requests
 
 from dbtwiz.config.project import project_config
 from dbtwiz.config.user import user_config
-from dbtwiz.helpers.logger import fatal, warn
+from dbtwiz.utils.logger import fatal, warn
 from dbtwiz.ui.interact import confirm
 
 

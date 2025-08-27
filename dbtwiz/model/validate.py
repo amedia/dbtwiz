@@ -8,10 +8,10 @@ from ruamel.yaml import YAML
 
 from dbtwiz.config.project import ProjectConfig
 from dbtwiz.dbt.manifest import Manifest
-from dbtwiz.dbt.model import ModelBasePath
-from dbtwiz.gcp.auth import ensure_app_default_auth
-from dbtwiz.gcp.bigquery import BigQueryClient
-from dbtwiz.helpers.logger import status, warn
+from dbtwiz.core.model import ModelBasePath
+from dbtwiz.integrations.gcp_auth import ensure_app_default_auth
+from dbtwiz.integrations.bigquery import BigQueryClient
+from dbtwiz.utils.logger import status, warn
 
 
 class YmlValidator:

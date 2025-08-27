@@ -1,7 +1,7 @@
 import re
 from typing import List
 
-from dbtwiz.helpers.logger import error, fatal
+from dbtwiz.utils.logger import error, fatal
 
 from .style import custom_style
 

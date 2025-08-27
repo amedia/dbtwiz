@@ -5,8 +5,8 @@ import typer
 
 from dbtwiz.config.project import project_config
 from dbtwiz.dbt.target import Target
-from dbtwiz.helpers.decorators import description, examples
-from dbtwiz.helpers.logger import error
+from dbtwiz.utils.decorators import description, examples
+from dbtwiz.utils.logger import error
 
 
 class InvalidArgumentsError(ValueError):

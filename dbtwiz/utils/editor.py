@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 
 from dbtwiz.config.user import user_config
-from dbtwiz.helpers.logger import warn
+from dbtwiz.utils.logger import warn
 
 
 def open_in_editor(path: Path) -> int:
