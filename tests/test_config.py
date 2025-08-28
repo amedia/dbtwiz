@@ -219,6 +219,7 @@ class TestConfigLoading:
                             load_project_config()
 
 
+@pytest.mark.integration
 class TestConfigIntegration:
     """Test configuration system integration."""
 
