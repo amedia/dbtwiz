@@ -37,7 +37,7 @@ def mock_user_config() -> UserConfig:
         auth_check=False,
         editor_command="echo {}",
         log_debug=True,
-        model_formatter="cat",
+        sql_formatter="cat",
         theme="light",
     )
 

@@ -55,16 +55,16 @@ class TestUserConfig:
         # Test that the validator correctly sets platform-specific defaults
         with patch("platform.system", return_value="Windows"):
             # Create config with the default value that triggers the validator
-            config = UserConfig(model_formatter="fmt -s")
-            assert config.model_formatter == "powershell cat"
+            config = UserConfig(sql_formatter="fmt -s")
+            assert config.sql_formatter == "powershell cat"
 
         with patch("platform.system", return_value="Darwin"):
-            config = UserConfig(model_formatter="fmt -s")
-            assert config.model_formatter == "cat -s"
+            config = UserConfig(sql_formatter="fmt -s")
+            assert config.sql_formatter == "cat -s"
 
         with patch("platform.system", return_value="Linux"):
-            config = UserConfig(model_formatter="fmt -s")
-            assert config.model_formatter == "fmt -s"
+            config = UserConfig(sql_formatter="fmt -s")
+            assert config.sql_formatter == "fmt -s"
 
     def test_user_config_config_path(self):
         """Test config_path method returns correct path."""

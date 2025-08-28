@@ -180,7 +180,7 @@ class Manifest:
                 return None
         else:
             model_names = models.keys()
-        formatter = user_config().model_formatter
+        formatter = user_config().sql_formatter
         chosen_models = iterfzf.iterfzf(
             model_names,
             query=select,

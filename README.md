@@ -99,7 +99,7 @@ log_debug = false
 # Command for showing prerendered model info files in the interactive
 # fzf-based selector. A sensible default is chosen based on the
 # current platform.
-model_formatter = "fmt -s"
+sql_formatter = "fmt -s"
 
 # Set to "light" to use a color scheme suitable for a light background,
 # or to "dark" for better contrasts against a dark background.

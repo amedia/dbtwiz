@@ -57,8 +57,8 @@ class UserConfig(BaseModel):
         description="Enable debug logging of some internal dbtwiz operations. You won't need this unless you're working on or helping troubleshoot dbtwiz.",
     )
 
-    # Model formatter settings
-    model_formatter: str = Field(
+    # SQL formatter settings
+    sql_formatter: str = Field(
         "fmt -s",
         description="Command for showing prerendered model info files in the interactive fzf-based selector. A sensible default is chosen based on the current platform.",
     )
@@ -102,7 +102,7 @@ class UserConfig(BaseModel):
             """,
         },
         {
-            "key": "model_formatter",
+            "key": "sql_formatter",
             "default": "fmt -s",
             "default_mac": "cat -s",
             "default_win": "powershell cat",
@@ -131,7 +131,7 @@ class UserConfig(BaseModel):
             raise ValueError(f"theme must be one of {valid_themes}")
         return v
 
-    @field_validator("model_formatter", mode="before")
+    @field_validator("sql_formatter", mode="before")
     @classmethod
     def set_platform_specific_formatter(cls, v):
         """Set platform-specific default formatter if not specified"""
