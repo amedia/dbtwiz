@@ -106,7 +106,9 @@ class Profile:
             if not isinstance(value, str):
                 return value
 
-            template = Environment(loader=BaseLoader()).from_string(value)
+            template = Environment(loader=BaseLoader(), autoescape=True).from_string(
+                value
+            )
             return template.render(env_var=os.getenv)
 
         # Return rendered values

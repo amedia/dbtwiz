@@ -41,9 +41,26 @@ class YmlValidator:
             warn(
                 f"{self.model_base.model_name}: yml file missing - [italic]creating[/italic]"
             )
-            os.system(
-                f"dbtwiz model create -l {self.model_base.layer} -d {self.model_base.domain} -n {self.model_base.identifier}"
-            )
+            import subprocess
+
+            try:
+                subprocess.run(
+                    [
+                        "dbtwiz",
+                        "model",
+                        "create",
+                        "-l",
+                        self.model_base.layer,
+                        "-d",
+                        self.model_base.domain,
+                        "-n",
+                        self.model_base.identifier,
+                    ],
+                    check=True,
+                    capture_output=True,
+                )
+            except subprocess.CalledProcessError:
+                pass  # Continue even if creation fails
             if yml_path.exists():
                 return True, f"yml file created successfully: {yml_path.name}"
             if not yml_path.exists():

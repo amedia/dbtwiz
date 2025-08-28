@@ -121,4 +121,9 @@ jobs:
 
     - name: Run security checks
       run: |
-        poetry run bandit -r dbtwiz -f json -o bandit-report.json || true
+        # Run bandit and show findings in CI output
+        # Fail on high severity issues, but allow medium/low to pass
+        # High severity issues have been fixed, remaining are low confidence
+        poetry run bandit -r dbtwiz --severity-level high --format screen
+        # Also generate JSON report for detailed analysis
+        poetry run bandit -r dbtwiz -f json -o bandit-report.json

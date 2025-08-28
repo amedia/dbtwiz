@@ -1,4 +1,5 @@
 import os
+import subprocess
 from pathlib import Path
 
 from ..config.user import user_config
@@ -22,9 +23,15 @@ def open_in_editor(path: Path) -> int:
     editor = str(user_config().editor_command)
     if "{}" in editor:
         command = editor.replace("{}", str(path))
+        # Split the command into parts for subprocess
+        cmd_parts = command.split()
     else:
-        command = f"{editor} {path}"
-    value = os.system(command)
-    if value != 0:
-        warn(f"Failed to open file in editor. '{command}' returned status {value}.")
-    return value
+        # Split the editor command and append the path
+        cmd_parts = editor.split() + [str(path)]
+
+    try:
+        result = subprocess.run(cmd_parts, check=False)
+        return result.returncode
+    except (FileNotFoundError, OSError) as e:
+        warn(f"Failed to open file in editor. '{' '.join(cmd_parts)}' failed: {e}")
+        return 1
