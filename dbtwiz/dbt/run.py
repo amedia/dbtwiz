@@ -34,6 +34,6 @@ def invoke(commands: List[str], **args: Any) -> None:
 
     if not result.success:
         if result.exception:
-            fatal(result.exception, exit_code=2)
+            fatal(str(result.exception), exit_code=2)
         else:
             fatal("dbt invocation failed.", exit_code=1)

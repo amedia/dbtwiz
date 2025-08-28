@@ -34,6 +34,66 @@ lint.select = ["E", "F", "W", "C90"]
 lint.ignore = ["E501"]
 target-version = "py311"
 
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "--strict-markers",
+    "--strict-config",
+    "--cov=dbtwiz",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+    "--cov-report=xml",
+    "--cov-fail-under=10",
+    "--durations=10",
+    "--tb=short"
+]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+    "cli: marks tests as CLI tests",
+    "gcp: marks tests that require GCP access",
+    "dbt: marks tests that require dbt",
+    "skip_ci: marks tests to skip in CI"
+]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning"
+]
+
+[tool.coverage.run]
+source = ["dbtwiz"]
+omit = [
+    "*/tests/*",
+    "*/test_*",
+    "*/__pycache__/*",
+    "*/migrations/*",
+    "*/venv/*",
+    "*/env/*",
+    "*/build/*",
+    "*/dist/*"
+]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if settings.DEBUG",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if __name__ == .__main__.:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+]
+show_missing = true
+precision = 2
+
 [tool.poetry]
 requires-poetry = ">=2.0"
 
@@ -44,3 +104,14 @@ questionary = "^2.1.0"
 pre-commit = "^4.3.0"
 # Not used directly, but seems to be a dependency. Force newer version due to https://github.com/advisories/GHSA-xrx6-fmxq-rjj2
 rsa = ">=4.7.0"
+
+[tool.poetry.group.test.dependencies]
+pytest = "^8.4.1"
+pytest-cov = "^6.2.1"
+pytest-mock = "^3.14.1"
+pytest-xdist = "^3.8.0"
+pytest-asyncio = "^1.1.0"
+pytest-freezer = "^0.4.9"
+pytest-randomly = "^3.16.0"
+pytest-timeout = "^2.4.0"
+coverage = "^7.10.5"
