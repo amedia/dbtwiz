@@ -11,10 +11,10 @@ app = typer.Typer(help="Commands for dbt source management")
 @app.command()
 @description(
     """Creates a new dbt source definition interactively.
-    
+
     Guides you through selecting project, dataset, and tables with autocomplete.
     Automatically generates source YAML files with proper descriptions.
-    
+
     The command will:
     1. Help you select the appropriate project and dataset
     2. Provide autocomplete for available tables

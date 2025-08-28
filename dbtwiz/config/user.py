@@ -3,15 +3,16 @@ import inspect
 import platform
 import tomllib
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, ClassVar, Dict, List
 
 import typer
+from pydantic import BaseModel, Field, field_validator
 
 
 @functools.cache
 def user_config():
     """Read and cache settings from user configuration"""
-    return UserConfig()
+    return load_user_config()
 
 
 def user_config_path(target: str = "") -> Path:
@@ -19,13 +20,59 @@ def user_config_path(target: str = "") -> Path:
     return user_config().config_path() / target
 
 
-class UserConfig:
+def load_user_config() -> "UserConfig":
+    """Load user configuration from file or create with defaults"""
+    config_path = Path(typer.get_app_dir("dbtwiz")) / "config.toml"
+
+    if config_path.exists():
+        try:
+            with open(config_path, "rb") as f:
+                config_data = tomllib.load(f)
+            return UserConfig(**config_data)
+        except Exception:
+            pass
+
+    # Return default config
+    return UserConfig()
+
+
+class UserConfig(BaseModel):
     """User-specific settings from config.toml"""
 
+    # Authentication settings
+    auth_check: bool = Field(
+        True,
+        description="When true, check for existing GCP auth token, and ask for automatic reauthentication if needed.",
+    )
+
+    # Editor settings
+    editor_command: str = Field(
+        "code {}",
+        description="Command for opening model source files in editor, with empty curly braces where the file path should be inserted. If curly braces are left out, the file name will be appended at the end. Some examples: - Visual Studio Code: 'code {}' - Emacs (with running server): 'emacsclient -n {}'",
+    )
+
+    # Logging settings
+    log_debug: bool = Field(
+        False,
+        description="Enable debug logging of some internal dbtwiz operations. You won't need this unless you're working on or helping troubleshoot dbtwiz.",
+    )
+
+    # Model formatter settings
+    model_formatter: str = Field(
+        "fmt -s",
+        description="Command for showing prerendered model info files in the interactive fzf-based selector. A sensible default is chosen based on the current platform.",
+    )
+
+    # UI settings
+    theme: str = Field(
+        "light",
+        description="Set to 'light' to use a color scheme suitable for a light background, or to 'dark' for better contrasts against a dark background.",
+    )
+
     # ============================================================================
-    # CLASS CONSTANTS
+    # CLASS CONSTANTS (kept for backward compatibility)
     # ============================================================================
-    SETTINGS = [
+    SETTINGS: ClassVar[List[Dict[str, Any]]] = [
         {
             "key": "auth_check",
             "default": True,
@@ -75,10 +122,25 @@ class UserConfig:
         },
     ]
 
-    def __init__(self) -> None:
-        """Initialize the class by determining the root path and parsing the config."""
-        self._parse_config()
-        self._append_missing_defaults()
+    @field_validator("theme")
+    @classmethod
+    def validate_theme(cls, v):
+        """Validate theme value"""
+        valid_themes = ["light", "dark"]
+        if v not in valid_themes:
+            raise ValueError(f"theme must be one of {valid_themes}")
+        return v
+
+    @field_validator("model_formatter", mode="before")
+    @classmethod
+    def set_platform_specific_formatter(cls, v):
+        """Set platform-specific default formatter if not specified"""
+        if v == "fmt -s":  # Only override the default
+            if platform.system() == "Windows":
+                return "powershell cat"
+            elif platform.system() == "Darwin":
+                return "cat -s"
+        return v
 
     # ============================================================================
     # PUBLIC METHODS

@@ -4,12 +4,12 @@ Moves a model by copying to a new location with a new name,
 and/or by updating the references to the model by other dbt models.
 
 Moves or renames a dbt model with optional reference updates.
-    
+
     By default, creates a copy at the new location and converts the original to a view
     pointing to the new model. Use --safe=false to delete the original instead.
-    
+
     Use --action update-references to update all model references automatically.
-    
+
     This command handles:
     1. Moving the model file to a new location
     2. Updating the model name in the file content

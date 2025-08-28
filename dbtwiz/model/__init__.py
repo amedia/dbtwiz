@@ -23,13 +23,13 @@ class MoveAction(str, Enum):
 @app.command()
 @description(
     """Creates a new dbt model with proper folder structure and YAML configuration.
-    
+
     Assumes dbt project structure: models/layer/domain/model_name.sql
     - Layers: staging (stg), intermediate (int), marts (mrt), bespoke (bsp)
     - Models are prefixed: stg_domain__name, int_domain__name, etc.
-    
+
     Requires dbt_project.yml with teams, access-policies, and service-consumers variables.
-    
+
     The command will guide you through:
     1. Selecting the appropriate layer and domain
     2. Naming the model with proper conventions
@@ -256,12 +256,12 @@ def lint(
 @app.command()
 @description(
     """Moves or renames a dbt model with optional reference updates.
-    
+
     By default, creates a copy at the new location and converts the original to a view
     pointing to the new model. Use --safe=false to delete the original instead.
-    
+
     Use --action update-references to update all model references automatically.
-    
+
     This command handles:
     1. Moving the model file to a new location
     2. Updating the model name in the file content
