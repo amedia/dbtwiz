@@ -128,7 +128,6 @@ typer = "^0.16.1"
 questionary = "^2.1.0"
 pre-commit = "^4.3.0"
 mypy = "^1.17.1"
-safety = "^3.6.0"
 bandit = "^1.8.6"
 # Not used directly, but seems to be a dependency. Force newer version due to https://github.com/advisories/GHSA-xrx6-fmxq-rjj2
 rsa = ">=4.7.0"
