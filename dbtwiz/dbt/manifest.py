@@ -25,7 +25,14 @@ class Manifest:
 
     def __init__(self, path: Path = MANIFEST_PATH):
         """Initialize the class by loading manifest data from the given path."""
-        # TODO: Check that the manifest file exists, and build it if not
+        # Ensure manifest file exists, build if not
+        if not path.exists() or path.stat().st_size == 0:
+            debug(f"Manifest file {path} does not exist or is empty, building it...")
+            self.rebuild_manifest()
+            # Wait a moment for the file to be written
+            import time
+            time.sleep(1)
+        
         with open(path, "r") as f:
             manifest = json.load(f)
             self.nodes = manifest["nodes"]
