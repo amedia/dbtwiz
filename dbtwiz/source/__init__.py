@@ -27,7 +27,7 @@ def create(
     source_name: Annotated[
         str,
         typer.Option(
-            "--source_name",
+            "--source-name",
             "-s",
             help="Where the source is located (existing alias used for project+dataset combination)",
         ),
