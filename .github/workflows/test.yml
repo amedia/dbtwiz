@@ -134,14 +134,11 @@ jobs:
         if echo "$BANDIT_OUTPUT" | grep -q "Severity: High"; then
           echo "❌ High severity security issues found!"
           exit 1
-        elif [ $BANDIT_EXIT_CODE -eq 1 ]; then
-          echo "✅ No high severity security issues found (exit code 1 is expected)"
+        elif [ $BANDIT_EXIT_CODE -eq 0 ] || [ $BANDIT_EXIT_CODE -eq 1 ]; then
+          echo "✅ No high severity security issues found"
         else
           echo "❌ Security check failed with unexpected exit code $BANDIT_EXIT_CODE"
           exit $BANDIT_EXIT_CODE
         fi
         
         set -e  # Re-enable exit on error
-        
-        # Also generate JSON report for detailed analysis
-        poetry run bandit -r dbtwiz -f json -o bandit-report.json
