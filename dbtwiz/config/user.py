@@ -3,6 +3,7 @@ import inspect
 import platform
 import tomllib
 from pathlib import Path
+from typing import Any, Dict, List
 
 import typer
 
@@ -95,8 +96,12 @@ class UserConfig:
         """Path to user configuration file."""
         return self.config_path() / "config.toml"
 
-    def _parse_config(self):
-        """Parse the config file."""
+    def _parse_config(self) -> None:
+        """Parse the config file.
+
+        Raises:
+            SystemExit: If the file cannot be parsed (via fatal function)
+        """
         config_file = self._config_file()
         if not config_file.exists():
             self._config = {}
@@ -109,8 +114,15 @@ class UserConfig:
 
             fatal(f"Failed to parse file {self._config_file()}: {ex}")
 
-    def _toml_item(self, setting) -> str:
-        """Format setting for inclusion in Toml."""
+    def _toml_item(self, setting: Dict[str, Any]) -> str:
+        """Format setting for inclusion in Toml.
+
+        Args:
+            setting: Dictionary containing setting configuration
+
+        Returns:
+            Formatted TOML string for the setting
+        """
         key = setting["key"]
         if "default_win" in setting and platform.system() == "Windows":
             value = setting["default_win"]
@@ -127,8 +139,12 @@ class UserConfig:
             lines.append(f"{key} = {value}")
         return "\n".join(lines)
 
-    def _append_missing_defaults(self):
-        """Add missing defaults to config file and parse again."""
+    def _append_missing_defaults(self) -> None:
+        """Add missing defaults to config file and parse again.
+
+        This method ensures that all required configuration settings have
+        default values, creating them if they don't exist.
+        """
         self.config_path().mkdir(parents=True, exist_ok=True)
         with open(self._config_file(), "a") as f:
             for setting in UserConfig.SETTINGS:
@@ -141,8 +157,18 @@ class UserConfig:
     # SPECIAL METHODS
     # ============================================================================
 
-    def __getattr__(self, name):
-        """Dynamically handle attribute access and warn if the setting is missing."""
+    def __getattr__(self, name: str) -> Any:
+        """Dynamically handle attribute access and warn if the setting is missing.
+
+        Args:
+            name: Name of the configuration attribute to access
+
+        Returns:
+            Configuration value or None if not found
+
+        Raises:
+            SystemExit: If the configuration is missing (via fatal function)
+        """
         from ..utils.logger import fatal
 
         if name in self._config:
@@ -158,6 +184,10 @@ class UserConfig:
             )
             return None  # or raise AttributeError if you prefer
 
-    def __dir__(self):
-        """Include dynamic attributes for autocompletion."""
+    def __dir__(self) -> List[str]:
+        """Include dynamic attributes for autocompletion.
+
+        Returns:
+            List of available attribute names for autocompletion
+        """
         return list(self._config.keys()) + list(super().__dir__())

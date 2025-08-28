@@ -6,7 +6,13 @@ from typing import Any, Optional
 class DbtwizError(Exception):
     """Base exception for all dbtwiz errors."""
 
-    def __init__(self, message: str, details: Optional[Any] = None):
+    def __init__(self, message: str, details: Optional[Any] = None) -> None:
+        """Initialize the exception with a message and optional details.
+
+        Args:
+            message: Error message describing what went wrong
+            details: Optional additional details about the error
+        """
         self.message = message
         self.details = details
         super().__init__(self.message)

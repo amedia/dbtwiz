@@ -1,6 +1,7 @@
 import functools
 import tomllib
 from pathlib import Path
+from typing import Any, List
 
 from ..utils.logger import fatal, warn
 
@@ -36,16 +37,24 @@ class ProjectConfig:
     # PUBLIC METHODS
     # ============================================================================
 
-    def root_path(self):
-        """Return the root path of the project."""
+    def root_path(self) -> Path:
+        """Return the root path of the project.
+
+        Returns:
+            Path object pointing to the project root directory
+        """
         return self.root
 
     # ============================================================================
     # PRIVATE METHODS - Internal Helper Functions
     # ============================================================================
 
-    def _determine_root_path(self):
-        """Search upward from current path to find project root"""
+    def _determine_root_path(self) -> None:
+        """Search upward from current path to find project root.
+
+        Raises:
+            SystemExit: If no pyproject.toml file is found (via fatal function)
+        """
         path_list = [Path.cwd()] + list(Path.cwd().parents)
         for path in path_list:
             if (path / "pyproject.toml").exists():
@@ -53,8 +62,12 @@ class ProjectConfig:
                 return
         fatal("No pyproject.toml file found in current or upstream directories.")
 
-    def _parse_config(self):
-        """Parse the 'pyproject.toml' file and store the configuration."""
+    def _parse_config(self) -> None:
+        """Parse the 'pyproject.toml' file and store the configuration.
+
+        Raises:
+            SystemExit: If the file cannot be parsed (via fatal function)
+        """
         project_file = self.root_path() / "pyproject.toml"
         try:
             with open(project_file, "rb") as f:
@@ -69,8 +82,15 @@ class ProjectConfig:
     # SPECIAL METHODS
     # ============================================================================
 
-    def __getattr__(self, name):
-        """Dynamically handle attribute access and warn if the setting is missing."""
+    def __getattr__(self, name: str) -> Any:
+        """Dynamically handle attribute access and warn if the setting is missing.
+
+        Args:
+            name: Name of the configuration attribute to access
+
+        Returns:
+            Configuration value or None if not found
+        """
         if name in self._config:
             value = self._config[name]
             if value is not False and (not value or value == ""):
@@ -84,6 +104,10 @@ class ProjectConfig:
             )
             return None  # or raise AttributeError if you prefer
 
-    def __dir__(self):
-        """Include dynamic attributes for autocompletion."""
+    def __dir__(self) -> List[str]:
+        """Include dynamic attributes for autocompletion.
+
+        Returns:
+            List of available attribute names for autocompletion
+        """
         return list(self._config.keys()) + list(super().__dir__())

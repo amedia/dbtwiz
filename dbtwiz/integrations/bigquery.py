@@ -1,4 +1,4 @@
-from typing import Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from ruamel.yaml.scalarstring import PreservedScalarString
 
@@ -12,37 +12,54 @@ GCP_LOCATION = "EU"
 
 
 class BigQueryClient:
-    """Class for BigQuery client"""
+    """Class for BigQuery client operations."""
 
     def __init__(
-        self, impersonation_service_account: str = None, default_project: str = None
-    ):
-        """Initializes the class."""
+        self,
+        impersonation_service_account: Optional[str] = None,
+        default_project: Optional[str] = None,
+    ) -> None:
+        """Initialize the BigQuery client.
+
+        Args:
+            impersonation_service_account: Optional service account to impersonate
+            default_project: Optional default project ID for BigQuery operations
+        """
         from google.api_core.exceptions import Forbidden, NotFound
 
         self.Forbidden = Forbidden
         self.NotFound = NotFound
-        self.impersonation_service_account = impersonation_service_account
-        self.default_project = default_project
-        self._bigquery = None
-        self._client = None
-        self._credentials = None
-        self._authorized_session = None
+        self.impersonation_service_account: Optional[str] = (
+            impersonation_service_account
+        )
+        self.default_project: Optional[str] = default_project
+        self._bigquery: Optional[Any] = None
+        self._client: Optional[Any] = None
+        self._credentials: Optional[Any] = None
+        self._authorized_session: Optional[Any] = None
 
     # ============================================================================
     # PUBLIC METHODS - Client Management
     # ============================================================================
 
-    def get_bigquery(self):
-        """Get or import the BigQuery package."""
+    def get_bigquery(self) -> Any:
+        """Get or import the BigQuery package.
+
+        Returns:
+            The BigQuery module for client operations
+        """
         if self._bigquery is None:
             from google.cloud import bigquery
 
             self._bigquery = bigquery
         return self._bigquery
 
-    def get_client(self):
-        """Get or set the BigQuery client."""
+    def get_client(self) -> Any:
+        """Get or set the BigQuery client.
+
+        Returns:
+            Configured BigQuery client instance
+        """
         if self._client is None:
             bigquery = self.get_bigquery()
             credentials = self.get_credentials()
@@ -51,8 +68,12 @@ class BigQueryClient:
             )
         return self._client
 
-    def get_credentials(self):
-        """Retrieve or create credentials, optionally with impersonation."""
+    def get_credentials(self) -> Any:
+        """Retrieve or create credentials, optionally with impersonation.
+
+        Returns:
+            Google Cloud credentials for BigQuery operations
+        """
         if self._credentials is None:
             from google.auth import default
             from google.auth.impersonated_credentials import Credentials
@@ -75,8 +96,12 @@ class BigQueryClient:
 
         return self._credentials
 
-    def get_authorized_session(self):
-        """Retrieve or create authorized session."""
+    def get_authorized_session(self) -> Any:
+        """Retrieve or create authorized session.
+
+        Returns:
+            Authorized session for HTTP requests
+        """
         if self._authorized_session is None:
             from google.auth.transport.requests import AuthorizedSession
 
@@ -88,8 +113,15 @@ class BigQueryClient:
     # PUBLIC METHODS - Core BigQuery Operations
     # ============================================================================
 
-    def list_datasets_in_project(self, project) -> Tuple[List[str], str]:
-        """Fetch all datasets in the given project from BigQuery."""
+    def list_datasets_in_project(self, project: str) -> Tuple[List[str], str]:
+        """Fetch all datasets in the given project from BigQuery.
+
+        Args:
+            project: Project ID to list datasets from
+
+        Returns:
+            Tuple of (dataset_list, error_message)
+        """
         try:
             datasets = list(self.get_client().list_datasets(project=project))
             return sorted([dataset.dataset_id for dataset in datasets]), ""
@@ -105,8 +137,18 @@ class BigQueryClient:
             )
             return [], f"Error: Failed to fetch datasets from BigQuery: {e}"
 
-    def fetch_tables_in_dataset(self, project, dataset) -> Tuple[List[str], str]:
-        """Fetch all tables in the given project and dataset from BigQuery."""
+    def fetch_tables_in_dataset(
+        self, project: str, dataset: str
+    ) -> Tuple[List[str], str]:
+        """Fetch all tables in the given project and dataset from BigQuery.
+
+        Args:
+            project: Project ID containing the dataset
+            dataset: Dataset ID to list tables from
+
+        Returns:
+            Tuple of (table_list, error_message)
+        """
         dataset_ref = f"{project}.{dataset}"
         try:
             tables = list(self.get_client().list_tables(dataset_ref))
@@ -119,9 +161,18 @@ class BigQueryClient:
             return [], f"Error: Failed to fetch tables from BigQuery: {e}"
 
     def fetch_table_columns(
-        self, project, dataset, table_name
-    ) -> Tuple[List[str], str]:
-        """Fetch column names and descriptions from BigQuery."""
+        self, project: str, dataset: str, table_name: str
+    ) -> Tuple[Optional[List[str]], str]:
+        """Fetch column names and descriptions from BigQuery.
+
+        Args:
+            project: Project ID containing the table
+            dataset: Dataset ID containing the table
+            table_name: Name of the table to fetch columns from
+
+        Returns:
+            Tuple of (column_list, error_message)
+        """
         table_ref = f"{project}.{dataset}.{table_name}"
         try:
             table = self.get_client().get_table(table_ref)
@@ -134,8 +185,15 @@ class BigQueryClient:
         except Exception as e:
             return None, f"Error: Failed to fetch table details from BigQuery: {e}"
 
-    def check_project_exists(self, project) -> str:
-        """Checks whether the given project exists in BigQuery"""
+    def check_project_exists(self, project: str) -> str:
+        """Check whether the given project exists in BigQuery.
+
+        Args:
+            project: Project ID to check
+
+        Returns:
+            Status message indicating project existence and accessibility
+        """
         try:
             # Check if the project exists and is accessible
             datasets = list(self.get_client().list_datasets(project=project))
@@ -152,8 +210,18 @@ class BigQueryClient:
         except Exception as e:
             return f"Error: Failed to verify project '{project}': {e}"
 
-    def ensure_dataset_exists(self, table_id):
-        """Ensures a BigQuery dataset exists, and creates it if not."""
+    def ensure_dataset_exists(self, table_id: str) -> Any:
+        """Ensure a BigQuery dataset exists, and create it if not.
+
+        Args:
+            table_id: Full table ID (project.dataset.table)
+
+        Returns:
+            BigQuery dataset object
+
+        Raises:
+            SystemExit: If dataset creation fails (via fatal function)
+        """
         try:
             # Split into project and dataset components
             project_id, dataset_name, _ = table_id.split(".")
@@ -174,12 +242,23 @@ class BigQueryClient:
         except Exception as e:
             fatal(f"Error ensuring dataset {dataset_id} exists: {e}")
 
-    def run_query(self, query):
-        """Runs a query in bigquery"""
+    def run_query(self, query: str) -> Any:
+        """Run a query in BigQuery.
+
+        Args:
+            query: SQL query string to execute
+
+        Returns:
+            BigQuery query job object
+        """
         return self.get_client().query(query, location=GCP_LOCATION)
 
-    def delete_table(self, table_id):
-        """Deletes a table from bigquery"""
+    def delete_table(self, table_id: str) -> None:
+        """Delete a table from BigQuery.
+
+        Args:
+            table_id: Full table ID (project.dataset.table)
+        """
         self.get_client().delete_table(table_id)
 
     def get_bigquery_partition_expiration(self, table_id: str) -> int:
@@ -194,8 +273,15 @@ class BigQueryClient:
             )  # Convert ms to days
         return -1  # Return -1 if no expiration is set
 
-    def update_bigquery_partition_expiration(self, table_id: str, expiration_days: int):
-        """Update the partition expiration for a table in BigQuery."""
+    def update_bigquery_partition_expiration(
+        self, table_id: str, expiration_days: int
+    ) -> None:
+        """Update the partition expiration for a table in BigQuery.
+
+        Args:
+            table_id: Full table ID (project.dataset.table)
+            expiration_days: Number of days for partition expiration
+        """
         table = self.get_client().get_table(table_id)
         if table.time_partitioning:
             # Create a new TimePartitioning object with the updated expiration
@@ -281,10 +367,14 @@ class BigQueryClient:
         except Exception as e:
             error(f"Error updating table constraints for {table_id}: {e}")
 
-    def parse_schema(self, fields, prefix=""):
-        """
-        Parses the schema for a table and returns all columns with their details.
+    def parse_schema(self, fields: List[Any], prefix: str = "") -> List[Dict[str, Any]]:
+        """Parse the schema for a table and return all columns with their details.
+
         For RECORD types, recursively adds all nested columns.
+
+        Args:
+            fields: List of BigQuery schema fields
+            prefix: Optional prefix for nested field names
 
         Returns:
             List of dicts with keys: name, data_type, description (if available)

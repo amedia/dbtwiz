@@ -17,8 +17,12 @@ from ..utils.logger import status, warn
 class YmlValidator:
     """Validator for YML configuration files in dbt models."""
 
-    def __init__(self, model_path: Union[str, Path]):
-        """Initialize the YML validator with the given model path."""
+    def __init__(self, model_path: Union[str, Path]) -> None:
+        """Initialize the YML validator with the given model path.
+
+        Args:
+            model_path: Path to the model file to validate
+        """
         ensure_app_default_auth()
         self.bq_client = BigQueryClient()
         self.model_base = ModelBasePath(path=model_path)
@@ -80,7 +84,11 @@ class YmlValidator:
         return True, "yml file name ok"
 
     def validate_yml_columns(self) -> Tuple[bool, str]:
-        """Validate and update YML columns using the initialized path."""
+        """Validate and update YML columns using the initialized path.
+
+        Returns:
+            Tuple of (success, message) indicating validation result
+        """
         yml_path = self.model_base.path.with_suffix(".yml")
         table_columns, error = self._get_table_columns(self.model_base.model_name)
         if error:
@@ -276,16 +284,24 @@ class YmlValidator:
 class SqlValidator:
     """Validator for SQL files in dbt models."""
 
-    def __init__(self, model_path: Union[str, Path]):
-        """Initialize the SQL validator with the given model path."""
+    def __init__(self, model_path: Union[str, Path]) -> None:
+        """Initialize the SQL validator with the given model path.
+
+        Args:
+            model_path: Path to the model file to validate
+        """
         self.model_base = ModelBasePath(path=model_path)
 
     # ============================================================================
     # PUBLIC METHODS - SQL Validation and Formatting
     # ============================================================================
 
-    def convert_sql_to_model(self):
-        """Replace fully-qualified names with dbt ref() / source()."""
+    def convert_sql_to_model(self) -> Tuple[bool, str]:
+        """Replace fully-qualified names with dbt ref() / source().
+
+        Returns:
+            Tuple of (success, message) indicating conversion result
+        """
         file_path = self.model_base.path.with_suffix(".sql")
 
         Manifest.download_prod_manifest()
@@ -477,8 +493,12 @@ class SqlValidator:
 class ModelValidator:
     """Main validator class that orchestrates validation of dbt models."""
 
-    def __init__(self, model_path: Union[str, Path]):
-        """Initialize the model validator with the given model path."""
+    def __init__(self, model_path: Union[str, Path]) -> None:
+        """Initialize the model validator with the given model path.
+
+        Args:
+            model_path: Path to the model file to validate
+        """
         self.model_base = ModelBasePath(path=model_path)
 
     # ============================================================================

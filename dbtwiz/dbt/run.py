@@ -1,11 +1,19 @@
-from typing import List
+from typing import Any, List
 
 from ..config.project import project_config
 from ..utils.logger import debug, fatal
 
 
-def invoke(commands: List[str], **args: dict):
-    """Invokes a dbt run."""
+def invoke(commands: List[str], **args: Any) -> None:
+    """Invoke a dbt run.
+
+    Args:
+        commands: List of dbt commands to execute
+        **args: Additional arguments to pass to dbt
+
+    Raises:
+        SystemExit: If dbt invocation fails (via fatal function)
+    """
     if args.get("target", "dev") != "dev":
         args["use-colors"] = False
         args["profiles-dir"] = project_config().docker_image_profiles_path

@@ -9,7 +9,6 @@ from .exceptions import (
     ModelError,
     ValidationError,
 )
-
 from .logger import (
     debug,
     error,

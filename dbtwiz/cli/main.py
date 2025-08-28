@@ -1,7 +1,6 @@
 import typer
 
 from .. import admin, commands, model, source
-
 from ..utils.logger import error
 
 app = typer.Typer(
@@ -24,8 +23,12 @@ app.add_typer(admin.app, name="admin", help="Administrative commands")
 
 
 # if __name__ == "__main__":
-def main():
-    """The main function for dbtwiz."""
+def main() -> None:
+    """The main function for dbtwiz.
+
+    This function serves as the entry point for the CLI application.
+    It catches InvalidArgumentsError and displays appropriate error messages.
+    """
     try:
         app()
     except commands.InvalidArgumentsError as err:
