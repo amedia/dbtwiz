@@ -2,45 +2,21 @@
 
 Create new dbt model.
 
-The dbt model creation functions assume a dbt project folder structure that is models -> layer -> domain:
-```
-models:
-  1_staging (stg as abbreviation)
-    <folders for each domain>
-      <models prefixed by abbreviated layer and domain, e.g. stg_<domain>__model_identifier>
-  2_intermediate (int as abbreviation)
-    <as above>
-  3_marts (mrt as abbreviation)
-    <as above>
-  4_bespoke (bsp as abbreviation)
-    <as above>
-```
-
-This function also has some expectations for the definition of `dbt_project.yml`.
-In `dbt_project.yml` it expects variables like these:
-```
-vars:
-  # <partition expiration type name>-expiration: 30 # expiration in days
-  ...
-  # Access configs - to be used in models for granting access
-  access-policies:
-    <access policy name>:
-      principal: group:<gcp group email>
-      description: ""
-    ...
-  teams:
-    <team name>:
-      principal: group:<team email>
-      description: ""
-    ...
-  service-consumers:
-    <service consumer name>:
-      principal: serviceAccount:<service account email>
-      description: ""
-    ...
-```
-Using this information, the create model function will populate the model yml.
-
+Creates a new dbt model with proper folder structure and YAML configuration.
+    
+    Assumes dbt project structure: models/layer/domain/model_name.sql
+    - Layers: staging (stg), intermediate (int), marts (mrt), bespoke (bsp)
+    - Models are prefixed: stg_domain__name, int_domain__name, etc.
+    
+    Requires dbt_project.yml with teams, access-policies, and service-consumers variables.
+    
+    The command will guide you through:
+    1. Selecting the appropriate layer and domain
+    2. Naming the model with proper conventions
+    3. Setting access policies and team ownership
+    4. Configuring materialization and expiration settings
+    5. Defining service consumer access requirements
+    
 ## Options
 
 ### `--quick`, `-q`

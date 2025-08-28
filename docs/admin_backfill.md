@@ -1,8 +1,8 @@
 # `dbtwiz admin backfill`
 
-The _backfill_ subcommand allows you to (re)run date-partitioned models in production for a
-period spanning one or multiple days. It will spawn a Cloud Run job that will run `dbt` for
-a configurable number of days in parallel.
+Backfill date-partitioned models in production for a specified date range.
+
+Spawns Cloud Run jobs to process multiple dates in parallel with configurable batch sizes.
 
 ## Required arguments
 

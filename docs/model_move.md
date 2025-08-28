@@ -3,13 +3,20 @@
 Moves a model by copying to a new location with a new name,
 and/or by updating the references to the model by other dbt models.
 
-By default, it will create the new model in the new location as a copy of the original but with its name changed.
-It will also leave the original model in place, but will change the materialization to a view (unless it's an ephemeral model),
-and will change the sql to be "select * from <new model name>". But if setting the parameter `safe` to False, the original model will be deleted.
-
-The function also supports updating the references in all other dbt models from the old name to the new model name.
-To do this, make sure "update-references" is one of the options used for the parameter `actions`.
-
+Moves or renames a dbt model with optional reference updates.
+    
+    By default, creates a copy at the new location and converts the original to a view
+    pointing to the new model. Use --safe=false to delete the original instead.
+    
+    Use --action update-references to update all model references automatically.
+    
+    This command handles:
+    1. Moving the model file to a new location
+    2. Updating the model name in the file content
+    3. Converting the old model to a view that references the new one
+    4. Optionally updating all references in other models
+    5. Maintaining data lineage and dependencies
+    
 ## Options
 
 ### `--old-model-name`, `-omn`
