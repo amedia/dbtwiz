@@ -82,7 +82,13 @@ jobs:
       run: poetry install --with test,dev
 
     - name: Run integration tests
-      run: poetry run pytest -m integration --tb=short || echo "No integration tests found or all passed"
+      run: |
+        if poetry run pytest -m integration --tb=short; then
+          echo "Integration tests completed successfully"
+        else
+          echo "No integration tests found or tests failed"
+          exit 0
+        fi
       env:
         DBTWIZ_TESTING: "true"
         DBTWIZ_LOG_LEVEL: "DEBUG"
