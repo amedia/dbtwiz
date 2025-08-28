@@ -121,5 +121,5 @@ jobs:
 
     - name: Run security checks
       run: |
-        poetry run safety check
+        poetry run safety scan
         poetry run bandit -r dbtwiz -f json -o bandit-report.json || true
