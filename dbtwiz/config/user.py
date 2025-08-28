@@ -21,6 +21,9 @@ def user_config_path(target: str = "") -> Path:
 class UserConfig:
     """User-specific settings from config.toml"""
 
+    # ============================================================================
+    # CLASS CONSTANTS
+    # ============================================================================
     SETTINGS = [
         {
             "key": "auth_check",
@@ -76,16 +79,24 @@ class UserConfig:
         self._parse_config()
         self._append_missing_defaults()
 
+    # ============================================================================
+    # PUBLIC METHODS
+    # ============================================================================
+
     def config_path(self) -> Path:
-        """Path to user configuration directory"""
+        """Path to user configuration directory."""
         return Path(typer.get_app_dir("dbtwiz"))
 
+    # ============================================================================
+    # PRIVATE METHODS - Internal Helper Functions
+    # ============================================================================
+
     def _config_file(self) -> Path:
-        """Path to user configuration directory"""
+        """Path to user configuration file."""
         return self.config_path() / "config.toml"
 
     def _parse_config(self):
-        """Parse the config file"""
+        """Parse the config file."""
         config_file = self._config_file()
         if not config_file.exists():
             self._config = {}
@@ -94,12 +105,12 @@ class UserConfig:
             with open(self._config_file(), "rb") as f:
                 self._config = tomllib.load(f)
         except Exception as ex:
-            from dbtwiz.utils.logger import fatal
+            from ..utils.logger import fatal
 
             fatal(f"Failed to parse file {self._config_file()}: {ex}")
 
     def _toml_item(self, setting) -> str:
-        """Format setting for inclusion in Toml"""
+        """Format setting for inclusion in Toml."""
         key = setting["key"]
         if "default_win" in setting and platform.system() == "Windows":
             value = setting["default_win"]
@@ -117,7 +128,7 @@ class UserConfig:
         return "\n".join(lines)
 
     def _append_missing_defaults(self):
-        """Add missing defaults to config file and parse again"""
+        """Add missing defaults to config file and parse again."""
         self.config_path().mkdir(parents=True, exist_ok=True)
         with open(self._config_file(), "a") as f:
             for setting in UserConfig.SETTINGS:
@@ -126,9 +137,13 @@ class UserConfig:
                     f.write(self._toml_item(setting) + "\n\n")
         self._parse_config()
 
+    # ============================================================================
+    # SPECIAL METHODS
+    # ============================================================================
+
     def __getattr__(self, name):
         """Dynamically handle attribute access and warn if the setting is missing."""
-        from dbtwiz.utils.logger import fatal
+        from ..utils.logger import fatal
 
         if name in self._config:
             value = self._config[name]

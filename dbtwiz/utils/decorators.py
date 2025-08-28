@@ -1,3 +1,6 @@
+"""Decorators for dbtwiz package."""
+
+
 def examples(*example_commands):
     """Custom decorator to add examples for typer commands."""
 

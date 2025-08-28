@@ -5,10 +5,9 @@ from google.auth import default
 from google.auth.exceptions import DefaultCredentialsError, RefreshError
 from google.auth.transport import requests
 
-from dbtwiz.config.project import project_config
-from dbtwiz.config.user import user_config
-from dbtwiz.utils.logger import fatal, warn
-from dbtwiz.ui.interact import confirm
+from ..config.user import user_config
+from ..ui.interact import confirm
+from ..utils.logger import fatal, warn
 
 
 def check_gcloud_installed():

@@ -1,10 +1,10 @@
 from datetime import date
 
-from dbtwiz.config.project import project_config
-from dbtwiz.dbt.manifest import Manifest
-from dbtwiz.dbt.run import invoke
-from dbtwiz.integrations.gcp_auth import ensure_auth
-from dbtwiz.utils.logger import debug, error, info
+from ..config.project import project_config
+from ..dbt.manifest import Manifest
+from ..dbt.run import invoke
+from ..integrations.gcp_auth import ensure_auth
+from ..utils.logger import debug, error, info
 
 
 def test(

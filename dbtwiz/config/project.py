@@ -2,7 +2,7 @@ import functools
 import tomllib
 from pathlib import Path
 
-from dbtwiz.utils.logger import fatal, warn
+from ..utils.logger import fatal, warn
 
 
 @functools.cache
@@ -32,9 +32,17 @@ class ProjectConfig:
         self._determine_root_path()
         self._parse_config()
 
+    # ============================================================================
+    # PUBLIC METHODS
+    # ============================================================================
+
     def root_path(self):
         """Return the root path of the project."""
         return self.root
+
+    # ============================================================================
+    # PRIVATE METHODS - Internal Helper Functions
+    # ============================================================================
 
     def _determine_root_path(self):
         """Search upward from current path to find project root"""
@@ -56,6 +64,10 @@ class ProjectConfig:
                 )
         except Exception as ex:
             fatal(f"Failed to parse file {project_file}: {ex}")
+
+    # ============================================================================
+    # SPECIAL METHODS
+    # ============================================================================
 
     def __getattr__(self, name):
         """Dynamically handle attribute access and warn if the setting is missing."""

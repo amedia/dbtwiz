@@ -2,7 +2,7 @@ import subprocess
 from pathlib import Path
 from typing import List
 
-from dbtwiz.utils.logger import fatal
+from ..utils.logger import fatal
 
 
 def get_staged_files(folders: List[str], file_types: List[str]) -> List[str]:

@@ -3,17 +3,13 @@ from typing import Annotated
 
 import typer
 
-from dbtwiz.dbt.manifest import Manifest
-from dbtwiz.dbt.target import Target
-
+from ..dbt.manifest import Manifest
+from ..dbt.target import Target
+from ..utils.exceptions import InvalidArgumentsError
 from .build import build as command_build
 from .test import test as command_test
 
 app = typer.Typer()
-
-
-class InvalidArgumentsError(ValueError):
-    pass
 
 
 @app.command()

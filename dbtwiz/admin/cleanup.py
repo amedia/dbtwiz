@@ -1,11 +1,11 @@
-from dbtwiz.config.project import project_config
-from dbtwiz.dbt.manifest import Manifest
-from dbtwiz.core.project import Project
-from dbtwiz.dbt.target import Target
-from dbtwiz.integrations.gcp_auth import ensure_auth
-from dbtwiz.integrations.bigquery import BigQueryClient
-from dbtwiz.utils.logger import error, info
-from dbtwiz.ui.interact import multiselect_from_list
+from ..config.project import project_config
+from ..core.project import Profile
+from ..dbt.manifest import Manifest
+from ..dbt.target import Target
+from ..integrations.bigquery import BigQueryClient
+from ..integrations.gcp_auth import ensure_auth
+from ..ui.interact import multiselect_from_list
+from ..utils.logger import error, info
 
 
 def empty_development_dataset(target_name: str, force_delete: bool) -> None:

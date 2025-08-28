@@ -1,4 +1,4 @@
-from dbtwiz.config.user import user_config
+from ..config.user import user_config
 
 
 def custom_style():

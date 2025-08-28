@@ -13,7 +13,9 @@ class Theme:
     https://en.wikipedia.org/wiki/ANSI_escape_code#8-bit
     """
 
-    # Color attributes and their descriptions
+    # ============================================================================
+    # CLASS CONSTANTS
+    # ============================================================================
     COLOR_ATTRIBUTES = dict(
         name="Model name",
         path="Model file path",
@@ -30,30 +32,38 @@ class Theme:
     )
 
     def __init__(self, **colors):
-        """Construct a new theme with the given color attributes"""
+        """Construct a new theme with the given color attributes."""
         if colors.keys() != Theme.COLOR_ATTRIBUTES.keys():
             raise AttributeError(f"Bad color list: {colors.keys}")
         self._colors = colors
         for key, value in colors.items():
             self.__setattr__(key, value)
 
+    # ============================================================================
+    # PUBLIC METHODS - Instance Methods
+    # ============================================================================
+
     def color(self, name: str):
-        """Get value of color with the given name"""
+        """Get value of color with the given name."""
         try:
             return self._colors[name]
         except KeyError:
             raise AttributeError(f"Invalid color attribute '{name}'")
 
     def description(self, color: str):
-        """Get description of the given color attribute"""
+        """Get description of the given color attribute."""
         try:
             return self.__class__.COLOR_ATTRIBUTES[color]
         except KeyError:
             raise AttributeError(f"Invalid color attribute '{color}'")
 
+    # ============================================================================
+    # PUBLIC METHODS - Class Methods
+    # ============================================================================
+
     @classmethod
     def light(cls):
-        """Instantiate a light color theme"""
+        """Instantiate a light color theme."""
         return Theme(
             name=30,
             path=27,
@@ -71,7 +81,7 @@ class Theme:
 
     @classmethod
     def dark(cls):
-        """Instantiate a dark color theme"""
+        """Instantiate a dark color theme."""
         return Theme(
             name=115,
             path=147,
@@ -90,7 +100,7 @@ class Theme:
     @classmethod
     @functools.cache
     def by_name(cls, name: str):
-        """Instantiate theme by name"""
+        """Instantiate theme by name."""
         if name == "light":
             return cls.light()
         if name == "dark":

@@ -1,8 +1,8 @@
 from io import StringIO
 from pathlib import Path
 
-from dbtwiz.core.model import ModelBasePath
-from dbtwiz.core.project import (
+from ..core.model import ModelBasePath
+from ..core.project import (
     Group,
     Project,
     access_choices,
@@ -13,9 +13,7 @@ from dbtwiz.core.project import (
     list_domain_models,
     materialization_choices,
 )
-from dbtwiz.utils.editor import open_in_editor
-from dbtwiz.utils.logger import fatal, info, notice, warn
-from dbtwiz.ui.interact import (
+from ..ui.interact import (
     autocomplete_from_list,
     confirm,
     description_validator,
@@ -24,6 +22,8 @@ from dbtwiz.ui.interact import (
     name_validator,
     select_from_list,
 )
+from ..utils.editor import open_in_editor
+from ..utils.logger import fatal, info, notice, warn
 
 
 def select_layer(context):
@@ -510,9 +510,8 @@ def create_model_files(
         open_in_editor(sql_path)
     open_in_editor(yml_path)
 
-def print_create_model_cli_command(
-    context
-):
+
+def print_create_model_cli_command(context):
     """Generate the command that would reproduce this run"""
     command_parts = ["dbtwiz model create"]
 
@@ -530,16 +529,23 @@ def print_create_model_cli_command(
         "team",
         "frequency",
         "service_consumers",
-        "access_policy"
+        "access_policy",
     ]:
         if context[parameter]:
             if isinstance(context[parameter], list):
                 for sub_parameter in context[parameter]:
-                    command_parts.append(f"--{parameter.replace('_', '-')} '{sub_parameter}'")
+                    command_parts.append(
+                        f"--{parameter.replace('_', '-')} '{sub_parameter}'"
+                    )
             else:
-                command_parts.append(f"--{parameter.replace('_', '-')} '{context[parameter]}'")
+                command_parts.append(
+                    f"--{parameter.replace('_', '-')} '{context[parameter]}'"
+                )
 
-    notice("To repeat/resume the model creation, use this command:\n\n" + " ".join(command_parts))
+    notice(
+        "To repeat/resume the model creation, use this command:\n\n"
+        + " ".join(command_parts)
+    )
 
 
 def create_model(

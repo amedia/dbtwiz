@@ -1,7 +1,8 @@
 from pathlib import Path
 from typing import Optional, Union
 
-from dbtwiz.config.project import project_path
+from ..config.project import project_path
+from ..utils.exceptions import ModelError, ValidationError
 
 
 class ModelBasePath:
@@ -15,12 +16,12 @@ class ModelBasePath:
         elif layer is not None:
             self._init_with_layer(layer)
         else:
-            raise ValueError("Must provide either layer or path")
+            raise ValidationError("Must provide either layer or path")
 
     def _init_with_layer(self, layer: str):
         """Initialize with just layer name"""
         if layer not in self.layer_details:
-            raise ValueError(f"Invalid layer: {layer}")
+            raise ValidationError(f"Invalid layer: {layer}")
         self._layer = layer
 
     def _init_with_path(self, path: Union[str, Path]):
@@ -63,7 +64,7 @@ class ModelBasePath:
                 )
                 self._full_path = self._domain_path / self._model_name
         except (ValueError, IndexError) as e:
-            raise ValueError(f"Invalid model path structure: {path}") from e
+            raise ModelError(f"Invalid model path structure: {path}") from e
 
     @property
     def layer_details(self):
@@ -77,7 +78,7 @@ class ModelBasePath:
     @property
     def layer(self) -> str:
         if not hasattr(self, "_layer"):
-            raise AttributeError("Layer not available")
+            raise ModelError("Layer not available")
         return self._layer
 
     @property
@@ -91,27 +92,27 @@ class ModelBasePath:
     @property
     def domain(self) -> str:
         if not hasattr(self, "_domain"):
-            raise AttributeError("Domain not available - initialize with path")
+            raise ModelError("Domain not available - initialize with path")
         return self._domain
 
     @property
     def identifier(self) -> str:
         """The base model name without prefix (e.g. 'customers')"""
         if not hasattr(self, "_identifier"):
-            raise AttributeError("Identifier not available - initialize with path")
+            raise ModelError("Identifier not available - initialize with path")
         return self._identifier
 
     @property
     def model_name(self) -> str:
         """The full model name with prefix (e.g. 'stg_marketing__customers')"""
         if not hasattr(self, "_model_name"):
-            raise AttributeError("Model name not available - initialize with path")
+            raise ModelError("Model name not available - initialize with path")
         return self._model_name
 
     @property
     def prefix(self) -> str:
         if not hasattr(self, "_prefix"):
-            raise AttributeError("Prefix not available - initialize with path")
+            raise ModelError("Prefix not available - initialize with path")
         return self._prefix
 
     def get_prefix(self, domain: Optional[str] = None) -> str:
@@ -119,12 +120,12 @@ class ModelBasePath:
             return f"{self.layer_abbreviation}_{domain}__"
         if hasattr(self, "_prefix"):
             return self._prefix
-        raise AttributeError("Must provide domain when initialized with layer")
+        raise ModelError("Must provide domain when initialized with layer")
 
     def get_domain_path(self, domain: Optional[str] = None) -> Path:
         domain = domain or (self._domain if hasattr(self, "_domain") else None)
         if not domain:
-            raise AttributeError("Must provide domain when initialized with layer")
+            raise ModelError("Must provide domain when initialized with layer")
         if domain == getattr(self, "_domain", None):
             return self._domain_path
         return project_path() / "models" / self.layer_folder / domain

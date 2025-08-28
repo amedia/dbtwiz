@@ -6,18 +6,23 @@ from typing import Dict, List, Tuple
 
 from jinja2 import Template
 
-from dbtwiz.config.project import project_config, project_dbtwiz_path
-from dbtwiz.config.theme import Theme
-from dbtwiz.config.user import user_config
-from dbtwiz.integrations.gcp_auth import ensure_app_default_auth
-from dbtwiz.utils.logger import debug, error, info
-from dbtwiz.templates import path_to_template
-
-from dbtwiz.dbt.run import invoke
-from dbtwiz.dbt.support import models_with_local_changes
+from ..config.project import project_config, project_dbtwiz_path
+from ..config.theme import Theme
+from ..config.user import user_config
+from ..integrations.gcp_auth import ensure_app_default_auth
+from ..templates import path_to_template
+from ..utils.exceptions import ManifestError
+from ..utils.logger import debug, error, info
+from .run import invoke
+from .support import models_with_local_changes
 
 
 class Manifest:
+    """Manifest class for managing dbt manifest data and operations."""
+
+    # ============================================================================
+    # CLASS CONSTANTS
+    # ============================================================================
     MANIFEST_PATH = Path(".", "target", "manifest.json")
     PROD_MANIFEST_PATH = project_dbtwiz_path() / "prod-state" / "manifest.json"
     MODELS_CACHE_PATH = project_dbtwiz_path("models-cache.json")
@@ -31,14 +36,27 @@ class Manifest:
             self.rebuild_manifest()
             # Wait a moment for the file to be written
             import time
+
             time.sleep(1)
-        
-        with open(path, "r") as f:
-            manifest = json.load(f)
-            self.nodes = manifest["nodes"]
-            self.sources_nodes = manifest["sources"]
-            self.parent_map = manifest["parent_map"]
-            self.child_map = manifest["child_map"]
+
+        try:
+            with open(path, "r") as f:
+                manifest = json.load(f)
+                self.nodes = manifest["nodes"]
+                self.sources_nodes = manifest["sources"]
+                self.parent_map = manifest["parent_map"]
+                self.child_map = manifest["child_map"]
+        except (FileNotFoundError, json.JSONDecodeError) as e:
+            error(
+                f"Failed to load manifest from {path}",
+                context={"operation": "initialize manifest", "path": str(path)},
+                exception=e,
+            )
+            raise ManifestError(f"Failed to load manifest from {path}") from e
+
+    # ============================================================================
+    # PUBLIC METHODS - Class Methods
+    # ============================================================================
 
     @classmethod
     def models_cached(cls):
@@ -153,6 +171,10 @@ class Manifest:
             re.search(r"[:+*, ]", select) is not None
         )
 
+    # ============================================================================
+    # PUBLIC METHODS - Instance Methods
+    # ============================================================================
+
     def update_models_cache(self):
         """Save the current models to the models cache file."""
         Path.mkdir(self.MODELS_CACHE_PATH.parent, parents=True, exist_ok=True)
@@ -173,6 +195,13 @@ class Manifest:
                 # combine multiple blank lines into one to avoid
                 # painful handling of it in template
                 f.write(re.sub(r"\n\n+", "\n\n", model_info))
+
+    def model_by_name(self, name):
+        """Find and return a model by its name."""
+        for model in self.models().values():
+            if model["name"] == name:
+                return model
+        return None
 
     def model_info_up_to_date(self, model, info_file) -> bool:
         """Is rendered model info up to date?"""
@@ -233,13 +262,6 @@ class Manifest:
                     deprecated=node["description"].lower().startswith("deprecated"),
                 )
         return models
-
-    def model_by_name(self, name):
-        """Find and return a model by its name."""
-        for model in self.models().values():
-            if model["name"] == name:
-                return model
-        return None
 
     def parent_models(self, key):
         """Get and return the sorted list of parent models for the given key."""

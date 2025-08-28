@@ -2,8 +2,8 @@ import subprocess
 from pathlib import Path
 from typing import List, Optional
 
-from dbtwiz.utils.git import get_staged_files
-from dbtwiz.utils.logger import info
+from ..utils.git import get_staged_files
+from ..utils.logger import info
 
 
 def format_sql_files(

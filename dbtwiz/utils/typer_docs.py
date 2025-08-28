@@ -335,10 +335,17 @@ def generate(
 
 if __name__ == "__main__":
     # Specific config for dbtwiz package
+    # Use absolute imports when running as script
+    import sys
+    from pathlib import Path
+    
+    # Add the parent directory to sys.path to allow imports
+    script_dir = Path(__file__).parent.resolve()
+    repo_root = script_dir.parent.parent  # Goes up two levels from dbtwiz/utils/
+    sys.path.insert(0, str(repo_root))
+    
     from dbtwiz.cli.main import app
 
-    script_dir = Path(__file__).parent.resolve()
-    repo_root = script_dir.parent.parent  # Goes up two levels from dbtwiz/helpers/
     docs_dir = repo_root / "docs"
     readme_path = repo_root / "README.md"
 

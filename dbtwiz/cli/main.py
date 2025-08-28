@@ -1,7 +1,8 @@
 import typer
 
-from dbtwiz import admin, commands, model, source
-from dbtwiz.utils.logger import error
+from .. import admin, commands, model, source
+
+from ..utils.logger import error
 
 app = typer.Typer(
     context_settings={"help_option_names": ["-h", "--help"]},

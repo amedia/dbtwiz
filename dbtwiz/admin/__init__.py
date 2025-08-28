@@ -3,15 +3,11 @@ from typing import Annotated, List
 
 import typer
 
-from dbtwiz.config.project import project_config
-from dbtwiz.dbt.target import Target
-from dbtwiz.utils.decorators import description, examples
-from dbtwiz.utils.logger import error
-
-
-class InvalidArgumentsError(ValueError):
-    pass
-
+from ..config.project import project_config
+from ..dbt.target import Target
+from ..utils.decorators import description, examples
+from ..utils.exceptions import InvalidArgumentsError
+from ..utils.logger import error
 
 app = typer.Typer()
 
@@ -40,7 +36,8 @@ def backfill(
     date_last: Annotated[
         str,
         typer.Argument(
-            help="End of backfill period (inclusive) [YYYY-mm-dd]. Defaults to date_first.", metavar="TEXT"
+            help="End of backfill period (inclusive) [YYYY-mm-dd]. Defaults to date_first.",
+            metavar="TEXT",
         ),
     ] = None,
     batch_size: Annotated[

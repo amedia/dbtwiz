@@ -2,7 +2,8 @@ from typing import Dict, List, Tuple
 
 from ruamel.yaml.scalarstring import PreservedScalarString
 
-from dbtwiz.utils.logger import error, fatal, info, status
+from ..utils.exceptions import BigQueryError
+from ..utils.logger import error, fatal, info, status
 
 MILLISECONDS_PER_DAY = 1000 * 60 * 60 * 24
 DEPRECATION_MESSAGE = "THIS OBJECT IS DEPRECATED"
@@ -27,6 +28,10 @@ class BigQueryClient:
         self._client = None
         self._credentials = None
         self._authorized_session = None
+
+    # ============================================================================
+    # PUBLIC METHODS - Client Management
+    # ============================================================================
 
     def get_bigquery(self):
         """Get or import the BigQuery package."""
@@ -79,12 +84,25 @@ class BigQueryClient:
 
         return self._authorized_session
 
+    # ============================================================================
+    # PUBLIC METHODS - Core BigQuery Operations
+    # ============================================================================
+
     def list_datasets_in_project(self, project) -> Tuple[List[str], str]:
         """Fetch all datasets in the given project from BigQuery."""
         try:
             datasets = list(self.get_client().list_datasets(project=project))
             return sorted([dataset.dataset_id for dataset in datasets]), ""
+        except self.Forbidden:
+            return [], "Error: You do not have access to the project."
+        except self.NotFound:
+            return [], "Error: The project does not exist."
         except Exception as e:
+            error(
+                "Failed to fetch datasets from BigQuery",
+                context={"operation": "list datasets", "project": project},
+                exception=e,
+            )
             return [], f"Error: Failed to fetch datasets from BigQuery: {e}"
 
     def fetch_tables_in_dataset(self, project, dataset) -> Tuple[List[str], str]:
@@ -99,37 +117,6 @@ class BigQueryClient:
             return [], f"Error: You do not have access to the dataset '{dataset_ref}'."
         except Exception as e:
             return [], f"Error: Failed to fetch tables from BigQuery: {e}"
-
-    def parse_schema(self, fields, prefix=""):
-        """
-        Parses the schema for a table and returns all columns with their details.
-        For RECORD types, recursively adds all nested columns.
-
-        Returns:
-            List of dicts with keys: name, data_type, description (if available)
-        """
-        schema_details = []
-
-        for field in fields:
-            if field.field_type == "RECORD":
-                # Recursively unnest fields within the struct
-                nested_fields = self.parse_schema(
-                    field.fields, prefix=f"{prefix}{field.name}."
-                )
-                schema_details.extend(nested_fields)
-            else:
-                column = {
-                    "name": f"{prefix}{field.name}",
-                    "data_type": field.field_type.lower(),
-                }
-                column["description"] = (
-                    PreservedScalarString(field.description)
-                    if field.description
-                    else ""
-                )
-                schema_details.append(column)
-
-        return schema_details
 
     def fetch_table_columns(
         self, project, dataset, table_name
@@ -294,6 +281,198 @@ class BigQueryClient:
         except Exception as e:
             error(f"Error updating table constraints for {table_id}: {e}")
 
+    def parse_schema(self, fields, prefix=""):
+        """
+        Parses the schema for a table and returns all columns with their details.
+        For RECORD types, recursively adds all nested columns.
+
+        Returns:
+            List of dicts with keys: name, data_type, description (if available)
+        """
+        schema_details = []
+
+        for field in fields:
+            if field.field_type == "RECORD":
+                # Recursively unnest fields within the struct
+                nested_fields = self.parse_schema(
+                    field.fields, prefix=f"{prefix}{field.name}."
+                )
+                schema_details.extend(nested_fields)
+            else:
+                column = {
+                    "name": f"{prefix}{field.name}",
+                    "data_type": field.field_type.lower(),
+                }
+                column["description"] = (
+                    PreservedScalarString(field.description)
+                    if field.description
+                    else ""
+                )
+                schema_details.append(column)
+
+        return schema_details
+
+    def create_table_copy(self, old_table_id: str, new_table_id: str) -> None:
+        """
+        Creates a copy of a BigQuery table or view with the new table id.
+
+        Args:
+            old_table_id: The full table ID of the source table/view (e.g., 'project_a.dataset_old.table_old').
+            new_table_id: The full table ID of the destination table/view (e.g., 'project_b.dataset_new.table_new').
+        """
+        try:
+            client = self.get_client()
+            bigquery = self.get_bigquery()
+
+            # Verify table states - skip if not as expected
+            table_state_check = self._check_expected_table_states(
+                tables=[
+                    (old_table_id, "exists"),
+                    (new_table_id, "missing"),
+                ],
+                action_description="create table copy",
+            )
+            if not table_state_check:
+                return
+
+            # If copying to other dataset, ensure it exists
+            if old_table_id.split(".")[:2] != new_table_id.split(".")[:2]:
+                self.ensure_dataset_exists(new_table_id)
+
+            # Get table metadata and iam policy
+            old_table = client.get_table(old_table_id)
+
+            # Check if the source object is a table or a view
+            status(
+                message=r"\[bigquery] " + f"Creating copy [bold]{new_table_id}[/bold]"
+            )
+            if old_table.table_type == "TABLE":
+                # Create a new table with the same definition as the source table
+                new_table = bigquery.Table(new_table_id)
+                # Copy all table properties
+                self._copy_properties(
+                    source_table=old_table,
+                    destination_table=new_table,
+                    property_type="TABLE",
+                )
+
+                # Create the new table in BigQuery
+                new_table = client.create_table(new_table)
+                self.update_table_constraints(
+                    table_id=new_table_id,
+                    table_constraints=old_table.table_constraints,
+                    should_update=old_table.table_constraints is not None,
+                )
+                # Copy data from the old table to the new table
+                job_config = bigquery.CopyJobConfig()
+                job = client.copy_table(old_table, new_table, job_config=job_config)
+                job.result()  # Wait for the job to complete
+
+            elif old_table.table_type == "VIEW":
+                # Create a new view with the same definition as the source view
+                new_table = bigquery.Table(new_table_id)
+                new_table.view_query = old_table.view_query
+                self._copy_properties(
+                    source_table=old_table,
+                    destination_table=new_table,
+                    property_type="VIEW",
+                )
+                new_table = client.create_table(new_table)
+                new_table.schema = old_table.schema
+                new_table = client.update_table(new_table, ["schema"])
+
+            else:
+                raise ValueError(f"Unsupported table type: {old_table.table_type}")
+
+            status(
+                message=r"\[bigquery] " + f"Creating copy [bold]{new_table_id}[/bold]",
+                status_text="done",
+                style="green",
+            )
+
+            # Replicate grants from the old table/view to the new table/view
+            self._copy_iam_policy(
+                source_table_id=old_table_id, target_table_id=new_table_id
+            )
+
+        except Exception as e:
+            error(
+                f"Error copying table/view {old_table_id} to {new_table_id}",
+                context={"old_table": old_table_id, "new_table": new_table_id},
+                exception=e,
+            )
+            raise BigQueryError(
+                f"Failed to copy table {old_table_id} to {new_table_id}"
+            ) from e
+
+    def migrate_table(
+        self,
+        old_table_id: str,
+        new_table_id: str,
+        backup_table_id: str,
+    ) -> None:
+        """
+        Replaces an exisiting table/view with a view to the given new table/view, which must already exist.
+        Before doing so, it creates a backup table in the original dataset.
+
+        Args:
+            old_table_id: The full table ID of the original table/view (e.g., 'project_a.dataset_old.table_old').
+            new_table_id: The full table ID of the new table/view (e.g., 'project_b.dataset_new.table_new').
+            backup_table_id: The full table ID of the backup table/view (e.g., 'project_a.dataset_old.table_old__bck').
+        """
+        try:
+            client = self.get_client()
+
+            # Verify table states - skip if not as expected
+            if not self._verify_migration_prerequisites(
+                old_table_id, new_table_id, backup_table_id
+            ):
+                return
+
+            # Get table metadata
+            old_table = client.get_table(old_table_id)
+            backup_table_name = backup_table_id.split(".")[-1]
+
+            # Create backup
+            status(
+                message=r"\[bigquery] "
+                + f"Renaming [bold]{old_table_id}[/bold] to [bold]{backup_table_name}[/bold]"
+            )
+
+            self._create_backup(old_table, backup_table_id, new_table_id)
+
+            status(
+                message=r"\[bigquery] "
+                + f"Renaming [bold]{old_table_id}[/bold] to [bold]{backup_table_name}[/bold]",
+                status_text="done",
+                style="green",
+            )
+
+            # Create replacement view
+            view_id = old_table_id
+            status(message=r"\[bigquery] " + f"Creating view [bold]{view_id}[/bold]")
+
+            self._create_replacement_view(old_table, view_id, new_table_id)
+
+            status(
+                message=r"\[bigquery] " + f"Creating view [bold]{view_id}[/bold]",
+                status_text="done",
+                style="green",
+            )
+
+            # Replicate grants from the old table/view to the view
+            self._copy_iam_policy(source_table_id=old_table_id, target_table_id=view_id)
+
+        except Exception as e:
+            error(f"Error renaming table/view or creating view: {e}")
+            self._rollback_migration(
+                client, old_table, backup_table_id, old_table_id, view_id
+            )
+
+    # ============================================================================
+    # PRIVATE METHODS - Internal Helper Functions
+    # ============================================================================
+
     def _copy_properties(self, source_table, destination_table, property_type) -> None:
         """
         Copies all relevant properties from a source table to a destination table.
@@ -385,244 +564,153 @@ class BigQueryClient:
 
         client.set_iam_policy(target_table_id, target_policy)
 
-    def create_table_copy(self, old_table_id: str, new_table_id: str) -> None:
-        """
-        Creates a copy of a BigQuery table or view with the new table id.
+    def _verify_migration_prerequisites(
+        self, old_table_id: str, new_table_id: str, backup_table_id: str
+    ) -> bool:
+        """Verify that all prerequisites for migration are met."""
+        # Verify table states - skip if not as expected
+        table_state_check = self._check_expected_table_states(
+            tables=[
+                (old_table_id, "exists"),
+                (new_table_id, "exists"),
+                (backup_table_id, "missing"),
+            ],
+            action_description="migrate table",
+        )
+        if not table_state_check:
+            return False
 
-        Args:
-            old_table_id: The full table ID of the source table/view (e.g., 'project_a.dataset_old.table_old').
-            new_table_id: The full table ID of the destination table/view (e.g., 'project_b.dataset_new.table_new').
-        """
-        try:
-            client = self.get_client()
-            bigquery = self.get_bigquery()
+        # If backup table dataset is different from old or new, verify dataset exists
+        if backup_table_id.split(".")[:2] not in (
+            new_table_id.split(".")[:2],
+            old_table_id.split(".")[:2],
+        ):
+            self.ensure_dataset_exists(new_table_id)
 
-            # Verify table states - skip if not as expected
-            table_state_check = self._check_expected_table_states(
-                tables=[
-                    (old_table_id, "exists"),
-                    (new_table_id, "missing"),
-                ],
-                action_description="create table copy",
-            )
-            if not table_state_check:
-                return
+        return True
 
-            # If copying to other dataset, ensure it exists
-            if old_table_id.split(".")[:2] != new_table_id.split(".")[:2]:
-                self.ensure_dataset_exists(new_table_id)
-
-            # Get table metadata and iam policy
-            old_table = client.get_table(old_table_id)
-
-            # Check if the source object is a table or a view
-            status(
-                message=r"\[bigquery] " + f"Creating copy [bold]{new_table_id}[/bold]"
-            )
-            if old_table.table_type == "TABLE":
-                # Create a new table with the same definition as the source table
-                new_table = bigquery.Table(new_table_id)
-                # Copy all table properties
-                self._copy_properties(
-                    source_table=old_table,
-                    destination_table=new_table,
-                    property_type="TABLE",
-                )
-
-                # Create the new table in BigQuery
-                new_table = client.create_table(new_table)
-                self.update_table_constraints(
-                    table_id=new_table_id,
-                    table_constraints=old_table.table_constraints,
-                    should_update=old_table.table_constraints is not None,
-                )
-                # Copy data from the old table to the new table
-                job_config = bigquery.CopyJobConfig()
-                job = client.copy_table(old_table, new_table, job_config=job_config)
-                job.result()  # Wait for the job to complete
-
-            elif old_table.table_type == "VIEW":
-                # Create a new view with the same definition as the source view
-                new_table = bigquery.Table(new_table_id)
-                new_table.view_query = old_table.view_query
-                self._copy_properties(
-                    source_table=old_table,
-                    destination_table=new_table,
-                    property_type="VIEW",
-                )
-                new_table = client.create_table(new_table)
-                new_table.schema = old_table.schema
-                new_table = client.update_table(new_table, ["schema"])
-
-            else:
-                raise ValueError(f"Unsupported table type: {old_table.table_type}")
-
-            status(
-                message=r"\[bigquery] " + f"Creating copy [bold]{new_table_id}[/bold]",
-                status_text="done",
-                style="green",
-            )
-
-            # Replicate grants from the old table/view to the new table/view
-            self._copy_iam_policy(
-                source_table_id=old_table_id, target_table_id=new_table_id
-            )
-
-        except Exception as e:
-            error(f"Error copying table/view {old_table_id} to {new_table_id}: {e}")
-
-    def migrate_table(
-        self,
-        old_table_id: str,
-        new_table_id: str,
-        backup_table_id: str,
+    def _create_backup(
+        self, old_table, backup_table_id: str, new_table_id: str
     ) -> None:
-        """
-        Replaces an exisiting table/view with a view to the given new table/view, which must already exist.
-        Before doing so, it creates a backup table in the original dataset.
+        """Create a backup of the old table/view."""
+        if old_table.table_type == "TABLE":
+            self._backup_table(old_table, backup_table_id, new_table_id)
+        elif old_table.table_type == "VIEW":
+            self._backup_view(old_table, backup_table_id, new_table_id)
+        else:
+            raise ValueError(f"Unsupported table type: {old_table.table_type}")
 
-        Args:
-            old_table_id: The full table ID of the original table/view (e.g., 'project_a.dataset_old.table_old').
-            new_table_id: The full table ID of the new table/view (e.g., 'project_b.dataset_new.table_new').
-            backup_table_id: The full table ID of the backup table/view (e.g., 'project_a.dataset_old.table_old__bck').
+    def _backup_table(self, old_table, backup_table_id: str, new_table_id: str) -> None:
+        """Backup a table by renaming it."""
+        client = self.get_client()
+
+        # Remove constraints before renaming
+        self.update_table_constraints(
+            table_id=old_table.reference.table_id,
+            table_constraints=None,
+            should_update=old_table.table_constraints is not None,
+        )
+
+        # Rename table
+        backup_table_name = backup_table_id.split(".")[-1]
+        query = f"""
+        alter table `{old_table.reference.table_id}`
+        rename to `{backup_table_name}`;
         """
+        query_job = client.query(query)
+        query_job.result()  # Wait for the job to complete
+
+        # Update description and reapply constraints
+        backup_table = client.get_table(backup_table_id)
+        backup_table.description = f"{BACKUP_MESSAGE}. USE {new_table_id}."
+        client.update_table(backup_table, ["description"])
+
+        self.update_table_constraints(
+            table_id=backup_table_id,
+            table_constraints=old_table.table_constraints,
+            should_update=old_table.table_constraints is not None,
+        )
+
+    def _backup_view(self, old_table, backup_table_id: str, new_table_id: str) -> None:
+        """Backup a view by creating a copy and deleting the original."""
+        client = self.get_client()
+        bigquery = self.get_bigquery()
+
+        # Create backup view
+        bck_view = bigquery.Table(backup_table_id)
+        bck_view.view_query = old_table.view_query
+        self._copy_properties(
+            source_table=old_table,
+            destination_table=bck_view,
+            property_type="VIEW",
+        )
+        bck_view.description = f"{BACKUP_MESSAGE}. USE {new_table_id}."
+        bck_view = client.create_table(bck_view)
+        bck_view.schema = old_table.schema
+        client.update_table(bck_view, ["schema"])
+
+        # Delete the original view
+        client.delete_table(old_table.reference.table_id)
+
+    def _create_replacement_view(
+        self, old_table, view_id: str, new_table_id: str
+    ) -> None:
+        """Create a replacement view at the original table location."""
+        client = self.get_client()
+        bigquery = self.get_bigquery()
+
+        view = bigquery.Table(view_id)
+        view.view_query = f"select * from `{new_table_id}`"
+        self._copy_properties(
+            source_table=old_table, destination_table=view, property_type="VIEW"
+        )
+        view.description = f"{DEPRECATION_MESSAGE}. USE {new_table_id}."
+        view = client.create_table(view)
+        view.schema = old_table.schema
+        client.update_table(view, ["schema"])
+
+        # Remove constraints
+        self.update_table_constraints(
+            table_id=view_id,
+            table_constraints=old_table.table_constraints,
+            should_update=old_table.table_constraints is not None,
+        )
+
+    def _rollback_migration(
+        self, client, old_table, backup_table_id: str, old_table_id: str, view_id: str
+    ) -> None:
+        """Rollback migration changes if any step fails."""
         try:
-            client = self.get_client()
-            bigquery = self.get_bigquery()
-
-            # Verify table states - skip if not as expected
-            table_state_check = self._check_expected_table_states(
-                tables=[
-                    (old_table_id, "exists"),
-                    (new_table_id, "exists"),
-                    (backup_table_id, "missing"),
-                ],
-                action_description="migrate table",
-            )
-            if not table_state_check:
-                return
-
-            # If backup table dataset is different from old or new, verify dataset exists
-            if backup_table_id.split(".")[:2] not in (
-                new_table_id.split(".")[:2],
-                old_table_id.split(".")[:2],
-            ):
-                self.ensure_dataset_exists(new_table_id)
-
-            # Get table metadata and iam policy
-            old_table = client.get_table(old_table_id)
-
-            old_table_name = old_table_id.split(".")[-1]
-            backup_table_name = backup_table_id.split(".")[-1]
-
-            status(
-                message=r"\[bigquery] "
-                + f"Renaming [bold]{old_table_id}[/bold] to [bold]{backup_table_name}[/bold]"
-            )
-            # Handle tables and views differently
             if old_table.table_type == "TABLE":
-                # Remove constraints before renaming
-                self.update_table_constraints(
-                    table_id=old_table_id,
-                    table_constraints=None,
-                    should_update=old_table.table_constraints is not None,
-                )
-
-                # For tables, use ALTER TABLE ... RENAME TO
-                query = f"""
-                alter table `{old_table_id}`
-                rename to `{backup_table_name}`;
-                """
-                query_job = client.query(query)
-                query_job.result()  # Wait for the job to complete
-                backup_table = client.get_table(backup_table_id)
-                backup_table.description = f"{BACKUP_MESSAGE}. USE {new_table_id}."
-                client.update_table(backup_table, ["description"])
-                # Reapply constraints after renaming
-                self.update_table_constraints(
-                    table_id=backup_table_id,
-                    table_constraints=old_table.table_constraints,
-                    should_update=old_table.table_constraints is not None,
-                )
-
+                self._rollback_table_migration(client, backup_table_id, old_table_id)
             elif old_table.table_type == "VIEW":
-                # For views, create a new view with the same definition
-                bck_view = bigquery.Table(backup_table_id)
-                bck_view.view_query = old_table.view_query
-                self._copy_properties(
-                    source_table=old_table,
-                    destination_table=bck_view,
-                    property_type="VIEW",
-                )
-                bck_view.description = f"{BACKUP_MESSAGE}. USE {new_table_id}."
-                bck_view = client.create_table(bck_view)
-                bck_view.schema = old_table.schema
-                bck_view = client.update_table(bck_view, ["schema"])
+                self._rollback_view_migration(client, backup_table_id)
 
-                # Delete the original view
-                client.delete_table(old_table_id)
-
-            else:
-                raise ValueError(f"Unsupported table type: {old_table.table_type}")
-
-            status(
-                message=r"\[bigquery] "
-                + f"Renaming [bold]{old_table_id}[/bold] to [bold]{backup_table_name}[/bold]",
-                status_text="done",
-                style="green",
-            )
-
-            # Create a view at the original table/view location
-            view_id = (
-                old_table_id  # View will have the same ID as the original table/view
-            )
-            status(message=r"\[bigquery] " + f"Creating view [bold]{view_id}[/bold]")
-
-            view = bigquery.Table(view_id)
-            view.view_query = f"select * from `{new_table_id}`"
-            self._copy_properties(
-                source_table=old_table, destination_table=view, property_type="VIEW"
-            )
-            view.description = f"{DEPRECATION_MESSAGE}. USE {new_table_id}."
-            view = client.create_table(view)
-            view.schema = old_table.schema
-            view = client.update_table(view, ["schema"])
-            # Remove constraints before renaming
-            self.update_table_constraints(
-                table_id=view_id,
-                table_constraints=old_table.table_constraints,
-                should_update=old_table.table_constraints is not None,
-            )
-
-            status(
-                message=r"\[bigquery] " + f"Creating view [bold]{view_id}[/bold]",
-                status_text="done",
-                style="green",
-            )
-
-            # Replicate grants from the old table/view to the view
-            self._copy_iam_policy(source_table_id=old_table_id, target_table_id=view_id)
-
-        except Exception as e:
-            error(f"Error renaming table/view or creating view: {e}")
-            # Roll back changes if any step fails
-            if old_table.table_type == "TABLE" and "backup_table_name" in locals():
-                # For tables, revert the rename operation
-                revert_query = f"""
-                alter table `{backup_table_id}`
-                rename to `{old_table_name}`;
-                """
-                try:
-                    revert_job = client.query(revert_query)
-                    revert_job.result()
-                    info(f"Rollback: Renamed {backup_table_id} back to {old_table_id}")
-                except Exception as revert_error:
-                    error(f"Failed to roll back rename operation: {revert_error}")
-            elif old_table.table_type == "VIEW" and "backup_table_name" in locals():
-                # For views, delete the new view if it was created
-                if client.get_table(backup_table_name, retry=None):
-                    client.delete_table(backup_table_name)
-                    info(f"Rollback: Deleted {backup_table_name}")
+            # Clean up replacement view if it was created
             if "view_id" in locals() and client.get_table(view_id, retry=None):
                 client.delete_table(view_id)
                 info(f"Rollback: Deleted {view_id}")
+        except Exception as rollback_error:
+            error(f"Failed to rollback migration: {rollback_error}")
+
+    def _rollback_table_migration(
+        self, client, backup_table_id: str, old_table_id: str
+    ) -> None:
+        """Rollback table migration by renaming backup back to original."""
+        old_table_name = old_table_id.split(".")[-1]
+        revert_query = f"""
+        alter table `{backup_table_id}`
+        rename to `{old_table_name}`;
+        """
+        try:
+            revert_job = client.query(revert_query)
+            revert_job.result()
+            info(f"Rollback: Renamed {backup_table_id} back to {old_table_id}")
+        except Exception as revert_error:
+            error(f"Failed to roll back rename operation: {revert_error}")
+
+    def _rollback_view_migration(self, client, backup_table_id: str) -> None:
+        """Rollback view migration by deleting backup view."""
+        if client.get_table(backup_table_id, retry=None):
+            client.delete_table(backup_table_id)
+            info(f"Rollback: Deleted {backup_table_id}")

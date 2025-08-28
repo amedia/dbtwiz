@@ -6,7 +6,7 @@ from pathlib import Path
 
 from ruamel.yaml import YAML
 
-from dbtwiz.utils.logger import error, info, status
+from ..utils.logger import error, info, status
 
 
 def _write_file(file_path, file_content):
@@ -95,7 +95,7 @@ def move_model(
                 "partition_expiration_days",
                 "require_partition_filter",
                 "tags",
-                "post-hook"
+                "post-hook",
             ]:
                 if config_key in old_yml_content_updated["models"][0]["config"]:
                     del old_yml_content_updated["models"][0]["config"][config_key]
@@ -161,9 +161,7 @@ def update_model_references(old_model_name: str, new_model_name: str) -> None:
     try:
         # Define the regex pattern to match `ref('model_name')` with flexible spacing
         ref_pattern = re.compile(
-            r"\bref\s*\(\s*['\"]" 
-            + re.escape(old_model_name) 
-            + r"['\"]\s*\)",
+            r"\bref\s*\(\s*['\"]" + re.escape(old_model_name) + r"['\"]\s*\)",
             re.IGNORECASE,
         )
 

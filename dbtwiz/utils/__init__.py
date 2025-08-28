@@ -1,17 +1,45 @@
 """Utility functions for dbtwiz."""
 
-from dbtwiz.utils.logger import debug, info, warn, error, fatal, notice, status
-from dbtwiz.utils.editor import open_in_editor
-from dbtwiz.dbt.support import models_with_local_changes
+from .editor import open_in_editor
+from .exceptions import (
+    BigQueryError,
+    DbtwizError,
+    InvalidArgumentsError,
+    ManifestError,
+    ModelError,
+    ValidationError,
+)
+
+from .logger import (
+    debug,
+    error,
+    fatal,
+    info,
+    log_function_call,
+    log_function_result,
+    notice,
+    status,
+    warn,
+)
 
 __all__ = [
+    # Logging functions
     "debug",
-    "info", 
+    "info",
     "warn",
     "error",
     "fatal",
     "notice",
     "status",
+    "log_function_call",
+    "log_function_result",
+    # Utility functions
     "open_in_editor",
-    "models_with_local_changes"
+    # Exceptions
+    "DbtwizError",
+    "ValidationError",
+    "BigQueryError",
+    "ManifestError",
+    "ModelError",
+    "InvalidArgumentsError",
 ]

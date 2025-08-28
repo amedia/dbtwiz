@@ -2,35 +2,45 @@ import os
 from pathlib import Path
 from typing import Dict, List, Tuple, Union
 
-from dbtwiz.config.project import project_path
-
-from dbtwiz.core.model import ModelBasePath
+from ..config.project import project_path
+from .model import ModelBasePath
 
 
 class Group:
-    """Project's model groups"""
+    """Project's model groups configuration."""
 
+    # ============================================================================
+    # CLASS CONSTANTS
+    # ============================================================================
     YAML_PATH = project_path() / "models" / "model_groups.yml"
 
     def __init__(self):
-        """Initializes the class and reads the model groups"""
+        """Initialize the class and read the model groups."""
         from yaml import safe_load  # Lazy import for improved performance
 
         with open(self.YAML_PATH, "r") as f:
             data = safe_load(f)
         self.groups = data["groups"]
 
+    # ============================================================================
+    # PUBLIC METHODS
+    # ============================================================================
+
     def choices(self):
-        """Return a dict with group names and descriptions"""
+        """Return a dict with group names and descriptions."""
         return dict([(g["name"], g["owner"]["description"]) for g in self.groups])
 
     def yaml_relative_path(self):
-        """Relative path to YAML file for model groups"""
+        """Relative path to YAML file for model groups."""
         return self.YAML_PATH.relative_to(project_path())
 
 
 class Profile:
-    """Project's profiles"""
+    """Project's profiles configuration."""
+
+    # ============================================================================
+    # CLASS CONSTANTS
+    # ============================================================================
     PROFILES_DIR = (
         Path(os.environ.get("DBT_PROFILES_DIR"))
         if os.environ.get("DBT_PROFILES_DIR")
@@ -39,7 +49,7 @@ class Profile:
     YAML_PATH = PROFILES_DIR / "profiles.yml"
 
     def __init__(self):
-        """Initializes the class and reads the model groups"""
+        """Initialize the class and read the profiles."""
         from yaml import safe_load  # Lazy import for improved performance
 
         if not self.YAML_PATH.exists():
@@ -50,9 +60,24 @@ class Profile:
         with open(self.YAML_PATH, "r", encoding="utf-8") as f:
             self.profiles = safe_load(f)[Project().profile()]["outputs"]
 
+    # ============================================================================
+    # PUBLIC METHODS
+    # ============================================================================
+
+    def profile_config(self, target_name):
+        """Return a dict with the profile configuration."""
+        return self._resolve_profile(raw_config=self.profiles[target_name])
+
+    # ============================================================================
+    # PRIVATE METHODS - Internal Helper Functions
+    # ============================================================================
+
     def _resolve_profile(self, raw_config):
-        """Get fully rendered profile values including env_var resolution"""
-        from jinja2 import BaseLoader, Environment  # Lazy import for improved performance
+        """Get fully rendered profile values including env_var resolution."""
+        from jinja2 import (  # Lazy import for improved performance
+            BaseLoader,
+            Environment,
+        )
 
         # Create custom renderer
         def render_value(value):
@@ -65,27 +90,37 @@ class Profile:
         # Return rendered values
         return {k: render_value(v) for k, v in raw_config.items()}
 
-    def profile_config(self, target_name):
-        """Return a dict with the profile configuration"""
-        return self._resolve_profile(raw_config=self.profiles[target_name])
-
 
 class Project:
-    """Project's variable settings"""
+    """Project's variable settings and configuration management."""
 
+    # ============================================================================
+    # CLASS CONSTANTS
+    # ============================================================================
     YAML_PATH = project_path() / "dbt_project.yml"
 
     def __init__(self):
+        """Initialize the project configuration."""
         from yaml import safe_load  # Lazy import for improved performance
 
         with open(self.YAML_PATH, "r") as f:
             self.data = safe_load(f)
 
+    # ============================================================================
+    # PUBLIC METHODS - Core Configuration
+    # ============================================================================
+
     def name(self) -> str:
+        """Get the project name."""
         return self.data.get("name")
 
     def profile(self) -> str:
+        """Get the project profile."""
         return self.data.get("profile")
+
+    # ============================================================================
+    # PUBLIC METHODS - Team and Access Management
+    # ============================================================================
 
     def teams(self) -> List[Dict[str, str]]:
         """List of teams defined in project config"""
