@@ -8,8 +8,11 @@ from ..dbt.target import Target
 from ..utils.decorators import description, examples
 from ..utils.exceptions import InvalidArgumentsError
 from ..utils.logger import error
+from .cleanup import empty_development_dataset
 
 app = typer.Typer(help="Administrative commands for dbt project management")
+
+__all__ = ["app", "empty_development_dataset"]
 
 
 @app.command()
@@ -142,8 +145,6 @@ def cleandev(
     ] = False,
 ) -> None:
     """Delete all materializations in the dbt development dataset"""
-    from .cleanup import empty_development_dataset
-
     empty_development_dataset(target_name=target, force_delete=force_delete)
 
 

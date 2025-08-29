@@ -12,6 +12,8 @@ from .validate import ModelValidator
 
 app = typer.Typer(help="Commands for dbt model management and validation")
 
+__all__ = ["app", "move_model", "update_model_references"]
+
 
 class MoveAction(str, Enum):
     """Enumeration of move actions."""

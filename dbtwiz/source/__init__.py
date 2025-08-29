@@ -7,6 +7,8 @@ from .create import create_source
 
 app = typer.Typer(help="Commands for dbt source management")
 
+__all__ = ["app"]
+
 
 @app.command()
 @description(

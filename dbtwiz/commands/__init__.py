@@ -11,6 +11,8 @@ from .test import test as command_test
 
 app = typer.Typer(help="Core dbt commands for building and testing models")
 
+__all__ = ["app"]
+
 
 @app.command()
 def build(
