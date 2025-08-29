@@ -4,6 +4,8 @@ This package provides various functions that can be useful for dbt development
 and administration, particularly in GCP/BigQuery environments.
 """
 
+from importlib.metadata import metadata
+
 from .cli import main
 from .core import Group, ModelBasePath, Project
 from .utils import (
@@ -24,8 +26,15 @@ from .utils import (
     warn,
 )
 
-__version__ = "0.2.16"
-__author__ = "Amedia Produkt og Teknologi"
+# Get version and author from package metadata
+try:
+    package_metadata = metadata("dbtwiz")
+    __version__ = package_metadata["Version"]
+    __author__ = package_metadata["Author"]
+except Exception:
+    # Fallback values if metadata cannot be read
+    __version__ = "unknown"
+    __author__ = "unknown"
 
 __all__ = [
     # CLI
