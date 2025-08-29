@@ -26,6 +26,10 @@ def invoke(commands: List[str], **args: Any) -> None:
         else:
             dbt_args.extend([f"--{key}", value])
 
+    # Add project directory to dbt args
+    project_root = project_config().root_path()
+    dbt_args.extend(["--project-dir", str(project_root)])
+
     # this import takes almost 2s, so wait until we actually use it
     from dbt.cli.main import dbtRunner
 

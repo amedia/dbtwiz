@@ -46,27 +46,45 @@ class Group:
 class Profile:
     """Project's profiles configuration."""
 
-    # ============================================================================
-    # CLASS CONSTANTS
-    # ============================================================================
-    PROFILES_DIR = (
-        Path(os.environ.get("DBT_PROFILES_DIR"))
-        if os.environ.get("DBT_PROFILES_DIR")
-        else project_path() / ".profiles"
-    )
-    YAML_PATH = PROFILES_DIR / "profiles.yml"
+    def __init__(self, project_root: Path = None):
+        """Initialize the class and read the profiles.
 
-    def __init__(self) -> None:
-        """Initialize the class and read the profiles."""
+        Args:
+            project_root: Optional project root path. If not provided, will be determined automatically.
+        """
         from yaml import safe_load  # Lazy import for improved performance
 
-        if not self.YAML_PATH.exists():
+        # Determine project root if not provided
+        if project_root is None:
+            project_root = project_path()
+
+        # Try multiple possible profiles locations
+        profiles_dirs = [
+            Path(os.environ.get("DBT_PROFILES_DIR"))
+            if os.environ.get("DBT_PROFILES_DIR")
+            else None,
+            project_root / ".profiles",
+            Path.home() / ".dbt",
+        ]
+
+        self.YAML_PATH = None
+        for profiles_dir in profiles_dirs:
+            if profiles_dir and (profiles_dir / "profiles.yml").exists():
+                self.YAML_PATH = profiles_dir / "profiles.yml"
+                break
+
+        if not self.YAML_PATH:
             raise FileNotFoundError(
-                "Couldn't find profiles.yml. Is the DBT_PROFILES_DIR env var set?"
+                "Couldn't find profiles.yml. Checked: "
+                + ", ".join(str(d) for d in profiles_dirs if d)
+                + ". Is the DBT_PROFILES_DIR env var set?"
             )
 
         with open(self.YAML_PATH, "r", encoding="utf-8") as f:
-            self.profiles: Dict[str, Any] = safe_load(f)[Project().profile()]["outputs"]
+            # Get the profile name from the project config
+            project_instance = Project(project_root)
+            profile_name = project_instance.profile()
+            self.profiles: Dict[str, Any] = safe_load(f)[profile_name]["outputs"]
 
     # ============================================================================
     # PUBLIC METHODS
@@ -118,19 +136,19 @@ class Profile:
 class Project:
     """Project's variable settings and configuration management."""
 
-    # ============================================================================
-    # CLASS CONSTANTS
-    # ============================================================================
-    YAML_PATH = project_path() / "dbt_project.yml"
-
-    def __init__(self) -> None:
+    def __init__(self, project_root: Path = None):
         """Initialize the project configuration.
 
-        Raises:
-            FileNotFoundError: If dbt_project.yml cannot be found
-            yaml.YAMLError: If the YAML file is malformed
+        Args:
+            project_root: Optional project root path. If not provided, will be determined automatically.
         """
         from yaml import safe_load  # Lazy import for improved performance
+
+        # Determine project root if not provided
+        if project_root is None:
+            project_root = project_path()
+
+        self.YAML_PATH = project_root / "dbt_project.yml"
 
         with open(self.YAML_PATH, "r") as f:
             self.data: Dict[str, Any] = safe_load(f)

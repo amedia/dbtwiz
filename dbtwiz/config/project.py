@@ -28,33 +28,9 @@ def project_dbtwiz_path(target: str = "") -> Path:
 
 def load_project_config() -> "ProjectConfig":
     """Load project configuration from pyproject.toml"""
-    # Search upward for pyproject.toml
-    path_list = [Path.cwd()] + list(Path.cwd().parents)
-    project_root = None
-
-    for path in path_list:
-        if (path / "pyproject.toml").exists():
-            project_root = path
-            break
-
-    if not project_root:
-        fatal("No pyproject.toml file found in current or upstream directories.")
-
-    pyproject_path = project_root / "pyproject.toml"
-    try:
-        with open(pyproject_path, "rb") as f:
-            config = tomllib.load(f)
-            project_config_data = (
-                config.get("tool", {}).get("dbtwiz", {}).get("project", {})
-            )
-
-        # Create config with project root path
-        config_obj = ProjectConfig(**project_config_data)
-        config_obj.root = project_root
-        return config_obj
-
-    except Exception as ex:
-        fatal(f"Failed to parse file {pyproject_path}: {ex}")
+    # Create config - ProjectConfig will automatically determine root path and parse config
+    config_obj = ProjectConfig()
+    return config_obj
 
 
 class ProjectConfig(BaseModel):
@@ -123,6 +99,18 @@ class ProjectConfig(BaseModel):
     root: Optional[Path] = Field(
         None, description="Project root path (set internally)", exclude=True
     )
+    config: Optional[dict] = Field(
+        None, description="Parsed configuration data", exclude=True
+    )
+
+    def __init__(self, **data):
+        """Initialize the ProjectConfig with proper setup."""
+        super().__init__(**data)
+        # If root is not provided, determine it automatically
+        if self.root is None:
+            self._determine_root_path()
+        # Parse the configuration file
+        self._parse_config()
 
     @field_validator("default_materialization")
     @classmethod
@@ -183,9 +171,17 @@ class ProjectConfig(BaseModel):
         try:
             with open(project_file, "rb") as f:
                 config = tomllib.load(f)
-                self._config = (
+                self.config = (
                     config.get("tool", {}).get("dbtwiz", {}).get("project", {})
                 )
+
+                # Update Pydantic fields with parsed values for backward compatibility
+                # Only set fields that are actually defined in the Pydantic model
+                model_fields = self.model_fields.keys()
+                for key, value in self.config.items():
+                    if key in model_fields:
+                        setattr(self, key, value)
+
         except Exception as ex:
             fatal(f"Failed to parse file {project_file}: {ex}")
 
@@ -202,8 +198,13 @@ class ProjectConfig(BaseModel):
         Returns:
             Configuration value or None if not found
         """
-        if name in self._config:
-            value = self._config[name]
+        # Skip Pydantic internal attributes and random strings
+        if name.startswith("_") or not name.isidentifier():
+            raise AttributeError(f"'{name}' object has no attribute '{name}'")
+
+        # Only handle actual configuration keys
+        if self.config and name in self.config:
+            value = self.config[name]
             if value is not False and (not value or value == ""):
                 warn(
                     f"'{name}' config is undefined in tool.dbtwiz.project config in pyproject.toml"
@@ -221,4 +222,4 @@ class ProjectConfig(BaseModel):
         Returns:
             List of available attribute names for autocompletion
         """
-        return list(self._config.keys()) + list(super().__dir__())
+        return list(self.config.keys()) + list(super().__dir__())
