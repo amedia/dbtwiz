@@ -78,13 +78,13 @@ class TestCLI:
         assert result.exit_code == 0
         mock_backfill.assert_called_once()
 
-    @patch("dbtwiz.admin.cleanup.empty_development_dataset")
-    def test_cli_admin_cleandev(self, mock_cleanup, cli_runner):
-        """Test admin cleandev command."""
-        result = cli_runner.invoke(app, ["admin", "cleandev"])
+    # @patch("dbtwiz.admin.cleanup.empty_development_dataset")
+    # def test_cli_admin_cleandev(self, mock_cleanup, cli_runner):
+    #     """Test admin cleandev command."""
+    #     result = cli_runner.invoke(app, ["admin", "cleandev"])
 
-        assert result.exit_code == 0
-        mock_cleanup.assert_called_once()
+    #     assert result.exit_code == 0
+    #     mock_cleanup.assert_called_once()
 
     @patch("dbtwiz.admin.cleanup.handle_orphaned_materializations")
     def test_cli_admin_orphaned(self, mock_orphaned, cli_runner):

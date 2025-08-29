@@ -20,7 +20,7 @@ def empty_development_dataset(target_name: str, force_delete: bool) -> None:
     tables, _ = client.fetch_tables_in_dataset(project, dataset)
     if not tables:
         info(f"Dataset {project}.{dataset} is already empty.")
-        return
+        return 0
     info(
         f"There are {len(list(tables))} tables/views in the {project}.{dataset} dataset."
     )
