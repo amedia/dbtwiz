@@ -167,9 +167,7 @@ def fix(
     ] = None,
     staged: Annotated[
         bool,
-        typer.Option(
-            "--staged", "-s", is_flag=True, help="Whether to fix staged sql files."
-        ),
+        typer.Option("--staged", "-s", help="Whether to fix staged sql files."),
     ] = False,
 ):
     """Run sqlfmt and sqlfix for staged and/or defined sql files."""
@@ -241,9 +239,7 @@ def lint(
     ] = None,
     staged: Annotated[
         bool,
-        typer.Option(
-            "--staged", "-s", is_flag=True, help="Whether to lint staged sql files."
-        ),
+        typer.Option("--staged", "-s", help="Whether to lint staged sql files."),
     ] = False,
 ):
     """Run sqlfmt --diff and sqlfluff lint for staged and/or defined sql files."""
