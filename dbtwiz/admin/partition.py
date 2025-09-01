@@ -62,7 +62,7 @@ def find_mismatched_models(
             else:
                 difference = model["defined_expiration"] - current_expiration
                 current = current_expiration
-                description = f"Expiration is {current} days currenyly, defined expiration is {defined} days"
+                description = f"Expiration is {current} days currently, defined expiration is {defined} days"
             mismatched_models.append(
                 {
                     # Attributes used by questionary
@@ -112,6 +112,9 @@ def update_partition_expirations(
         )
 
         # Update selected tables
+        if not selected_tables:
+            info("No tables selected. Nothing to update.")
+            return
         for table_id in selected_tables:
             model = next(
                 model for model in mismatched_models if model.get("value") == table_id
