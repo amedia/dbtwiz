@@ -4,6 +4,8 @@ from typing import Annotated, List
 import typer
 
 from ..utils.decorators import description, examples
+from ..utils.exceptions import ModelError
+from ..utils.logger import warn
 from .create import create_model
 from .format import format_sql_files
 from .inspect import inspect_model
@@ -353,4 +355,11 @@ def validate(
     ],
 ):
     """Validates the yml and sql files for a model."""
-    ModelValidator(model_path=model_path).validate()
+    try:
+        ModelValidator(model_path=model_path).validate()
+    except ModelError:
+        warn(
+            "The provided path is not a dbt model under 'models/'. "
+            "Please select a model file located within the dbt 'models/' directory."
+        )
+        return
