@@ -1,3 +1,6 @@
+import os
+import shlex
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -20,16 +23,43 @@ def open_in_editor(path: Path) -> int:
         Otherwise, the path will be appended to the command.
     """
     editor = str(user_config().editor_command)
-    if "{}" in editor:
-        command = editor.replace("{}", str(path))
-        # Split the command into parts for subprocess
-        cmd_parts = command.split()
-    else:
-        # Split the editor command and append the path
-        cmd_parts = editor.split() + [str(path)]
+    # Use absolute path to avoid cwd issues
+    file_path = str(Path(path).resolve())
+
+    # Robustly parse command into args across platforms
+    try:
+        if "{}" in editor:
+            # Keep placeholder as a separate token if possible
+            parts = shlex.split(editor, posix=(os.name != "nt"))
+            replaced = False
+            for i, token in enumerate(parts):
+                if token == "{}":
+                    parts[i] = file_path
+                    replaced = True
+            if not replaced:
+                # Fallback: replace then split
+                parts = shlex.split(
+                    editor.replace("{}", file_path), posix=(os.name != "nt")
+                )
+            cmd_parts = parts
+        else:
+            cmd_parts = shlex.split(editor, posix=(os.name != "nt")) + [file_path]
+    except ValueError:
+        # Fallback to simple split if shlex fails
+        cmd_parts = editor.split() + [file_path]
 
     try:
-        result = subprocess.run(cmd_parts, check=False)
+        # On Windows, resolve the executable explicitly
+        if os.name == "nt" and cmd_parts:
+            exe = cmd_parts[0]
+            resolved = (
+                shutil.which(exe)
+                or shutil.which(f"{exe}.cmd")
+                or shutil.which(f"{exe}.exe")
+            )
+            if resolved:
+                cmd_parts[0] = resolved
+        result = subprocess.run(cmd_parts, check=False, shell=False)
         return result.returncode
     except (FileNotFoundError, OSError) as e:
         warn(f"Failed to open file in editor. '{' '.join(cmd_parts)}' failed: {e}")
