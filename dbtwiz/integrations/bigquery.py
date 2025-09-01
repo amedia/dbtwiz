@@ -510,6 +510,9 @@ class BigQueryClient:
             new_table_id: The full table ID of the new table/view (e.g., 'project_b.dataset_new.table_new').
             backup_table_id: The full table ID of the backup table/view (e.g., 'project_a.dataset_old.table_old__bck').
         """
+        # Initialize view_id for potential rollback
+        view_id = old_table_id
+
         try:
             client = self.get_client()
 
@@ -539,7 +542,6 @@ class BigQueryClient:
             )
 
             # Create replacement view
-            view_id = old_table_id
             status(message=r"\[bigquery] " + f"Creating view [bold]{view_id}[/bold]")
 
             self._create_replacement_view(old_table, view_id, new_table_id)
@@ -740,7 +742,7 @@ class BigQueryClient:
         client.update_table(bck_view, ["schema"])
 
         # Delete the original view
-        client.delete_table(old_table.reference.table_id)
+        client.delete_table(old_table.reference)
 
     def _create_replacement_view(
         self, old_table, view_id: str, new_table_id: str
@@ -777,7 +779,7 @@ class BigQueryClient:
                 self._rollback_view_migration(client, backup_table_id)
 
             # Clean up replacement view if it was created
-            if "view_id" in locals() and client.get_table(view_id, retry=None):
+            if view_id and client.get_table(view_id, retry=None):
                 client.delete_table(view_id)
                 info(f"Rollback: Deleted {view_id}")
         except Exception as rollback_error:
