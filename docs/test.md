@@ -1,6 +1,6 @@
 # `dbtwiz test`
 
-Test dbt models
+Test dbt models with optional date specification.
 
 ## Options
 

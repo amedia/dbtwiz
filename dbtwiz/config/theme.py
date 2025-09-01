@@ -1,4 +1,5 @@
 import functools
+from typing import Dict
 
 
 class Theme:
@@ -13,7 +14,9 @@ class Theme:
     https://en.wikipedia.org/wiki/ANSI_escape_code#8-bit
     """
 
-    # Color attributes and their descriptions
+    # ============================================================================
+    # CLASS CONSTANTS
+    # ============================================================================
     COLOR_ATTRIBUTES = dict(
         name="Model name",
         path="Model file path",
@@ -29,31 +32,70 @@ class Theme:
         deprecated="Model description for deprecated models",
     )
 
-    def __init__(self, **colors):
-        """Construct a new theme with the given color attributes"""
+    def __init__(self, **colors: int) -> None:
+        """Construct a new theme with the given color attributes.
+
+        Args:
+            **colors: Color values as keyword arguments
+
+        Raises:
+            AttributeError: If the color keys don't match expected attributes
+        """
         if colors.keys() != Theme.COLOR_ATTRIBUTES.keys():
             raise AttributeError(f"Bad color list: {colors.keys}")
-        self._colors = colors
+        self._colors: Dict[str, int] = colors
         for key, value in colors.items():
             self.__setattr__(key, value)
 
-    def color(self, name: str):
-        """Get value of color with the given name"""
+    # ============================================================================
+    # PUBLIC METHODS - Instance Methods
+    # ============================================================================
+
+    def color(self, name: str) -> int:
+        """Get value of color with the given name.
+
+        Args:
+            name: Name of the color attribute
+
+        Returns:
+            Integer color value
+
+        Raises:
+            AttributeError: If the color name is invalid
+        """
         try:
             return self._colors[name]
         except KeyError:
             raise AttributeError(f"Invalid color attribute '{name}'")
 
-    def description(self, color: str):
-        """Get description of the given color attribute"""
+    def description(self, color: str) -> str:
+        """Get description of the given color attribute.
+
+        Args:
+            name: Name of the color attribute
+
+        Returns:
+            Description string for the color attribute
+
+        Raises:
+            AttributeError: If the color name is invalid
+        """
         try:
             return self.__class__.COLOR_ATTRIBUTES[color]
         except KeyError:
             raise AttributeError(f"Invalid color attribute '{color}'")
 
+    # ============================================================================
+    # PUBLIC METHODS - Class Methods
+    # ============================================================================
+
     @classmethod
-    def light(cls):
-        """Instantiate a light color theme"""
+    def light(cls) -> "Theme":
+        """Instantiate a light color theme.
+
+        Returns:
+            Theme instance with light color scheme
+        """
         return Theme(
             name=30,
             path=27,
@@ -70,8 +112,12 @@ class Theme:
         )
 
     @classmethod
-    def dark(cls):
-        """Instantiate a dark color theme"""
+    def dark(cls) -> "Theme":
+        """Instantiate a dark color theme.
+
+        Returns:
+            Theme instance with dark color scheme
+        """
         return Theme(
             name=115,
             path=147,
@@ -89,8 +135,18 @@ class Theme:
 
     @classmethod
     @functools.cache
-    def by_name(cls, name: str):
-        """Instantiate theme by name"""
+    def by_name(cls, name: str) -> "Theme":
+        """Instantiate theme by name.
+
+        Args:
+            name: Name of the theme to instantiate
+
+        Returns:
+            Theme instance with the specified color scheme
+
+        Raises:
+            AttributeError: If no theme exists with the given name
+        """
         if name == "light":
             return cls.light()
         if name == "dark":

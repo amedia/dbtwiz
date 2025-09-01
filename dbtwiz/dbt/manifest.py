@@ -2,22 +2,27 @@ import functools
 import json
 import re
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from jinja2 import Template
 
-from dbtwiz.config.project import project_config, project_dbtwiz_path
-from dbtwiz.config.theme import Theme
-from dbtwiz.config.user import user_config
-from dbtwiz.gcp.auth import ensure_app_default_auth
-from dbtwiz.helpers.logger import debug, error, info
-from dbtwiz.templates import path_to_template
-
+from ..config.project import project_config, project_dbtwiz_path
+from ..config.theme import Theme
+from ..config.user import user_config
+from ..integrations.gcp_auth import ensure_app_default_auth
+from ..templates import path_to_template
+from ..utils.exceptions import ManifestError
+from ..utils.logger import debug, error, info
 from .run import invoke
 from .support import models_with_local_changes
 
 
 class Manifest:
+    """Manifest class for managing dbt manifest data and operations."""
+
+    # ============================================================================
+    # CLASS CONSTANTS
+    # ============================================================================
     MANIFEST_PATH = Path(".", "target", "manifest.json")
     PROD_MANIFEST_PATH = project_dbtwiz_path() / "prod-state" / "manifest.json"
     MODELS_CACHE_PATH = project_dbtwiz_path("models-cache.json")
@@ -25,17 +30,41 @@ class Manifest:
 
     def __init__(self, path: Path = MANIFEST_PATH):
         """Initialize the class by loading manifest data from the given path."""
-        # TODO: Check that the manifest file exists, and build it if not
-        with open(path, "r") as f:
-            manifest = json.load(f)
-            self.nodes = manifest["nodes"]
-            self.sources_nodes = manifest["sources"]
-            self.parent_map = manifest["parent_map"]
-            self.child_map = manifest["child_map"]
+        # Ensure manifest file exists, build if not
+        if not path.exists() or path.stat().st_size == 0:
+            debug(f"Manifest file {path} does not exist or is empty, building it...")
+            self.rebuild_manifest()
+            # Wait a moment for the file to be written
+            import time
+
+            time.sleep(1)
+
+        try:
+            with open(path, "r") as f:
+                manifest = json.load(f)
+                self.nodes = manifest["nodes"]
+                self.sources_nodes = manifest["sources"]
+                self.parent_map = manifest["parent_map"]
+                self.child_map = manifest["child_map"]
+        except (FileNotFoundError, json.JSONDecodeError) as e:
+            error(
+                f"Failed to load manifest from {path}",
+                context={"operation": "initialize manifest", "path": str(path)},
+                exception=e,
+            )
+            raise ManifestError(f"Failed to load manifest from {path}") from e
+
+    # ============================================================================
+    # PUBLIC METHODS - Class Methods
+    # ============================================================================
 
     @classmethod
-    def models_cached(cls):
-        """Get dictionary of models in local manifest, with JSON file for caching"""
+    def models_cached(cls) -> Dict[str, Any]:
+        """Get dictionary of models in local manifest, with JSON file for caching.
+
+        Returns:
+            Dictionary containing cached model information
+        """
         if not cls.MODELS_CACHE_PATH.exists() or (
             cls.MODELS_CACHE_PATH.stat().st_mtime < cls.MANIFEST_PATH.stat().st_mtime
         ):
@@ -45,14 +74,24 @@ class Manifest:
             return json.load(f)
 
     @classmethod
-    def rebuild_manifest(cls):
-        """Rebuild local manifest"""
+    def rebuild_manifest(cls) -> None:
+        """Rebuild local manifest.
+
+        This method invokes dbt parse to regenerate the manifest.json file.
+        """
         info("Parsing development manifest")
         invoke(["parse"], quiet=True)
 
     @classmethod
-    def get_local_manifest_age(cls, manifest_path):
-        """Returns the age of the manifest in hours. If it doesn't exist or is empty, 999 is returned."""
+    def get_local_manifest_age(cls, manifest_path: Path) -> int:
+        """Get the age of the manifest in hours.
+
+        Args:
+            manifest_path: Path to the manifest file
+
+        Returns:
+            Age of the manifest in hours, or 999 if it doesn't exist or is empty
+        """
         manifest_file = Path(manifest_path)
         if manifest_file.is_file() and manifest_file.stat().st_size > 0:
             from datetime import datetime
@@ -66,8 +105,12 @@ class Manifest:
         return 999
 
     @classmethod
-    def download_prod_manifest(cls, force=False):
-        """Downloads latest production manifest if force or older than 2 hours."""
+    def download_prod_manifest(cls, force: bool = False) -> None:
+        """Download latest production manifest if force or older than 2 hours.
+
+        Args:
+            force: If True, force download regardless of age
+        """
         if (
             force
             or cls.get_local_manifest_age(manifest_path=cls.PROD_MANIFEST_PATH) >= 2
@@ -88,16 +131,31 @@ class Manifest:
             gcs.close()
 
     @classmethod
-    def update_manifests(cls, type, force=False):
-        """Rebuild local manifest and download latest production manifest"""
+    def update_manifests(cls, type: str, force: bool = False) -> None:
+        """Rebuild local manifest and download latest production manifest.
+
+        Args:
+            type: Type of manifest to update ('all', 'dev', or 'prod')
+            force: If True, force download of production manifest
+        """
         if type in ("all", "dev"):
             cls.rebuild_manifest()
         if type in ("all", "prod"):
             cls.download_prod_manifest(force=force)
 
     @classmethod
-    def get_manifest(cls, manifest_path):
-        """Reads and returns the manifest at the given path."""
+    def get_manifest(cls, manifest_path: Path) -> Dict[str, Any]:
+        """Read and return the manifest at the given path.
+
+        Args:
+            manifest_path: Path to the manifest file
+
+        Returns:
+            Dictionary containing manifest data
+
+        Raises:
+            FileNotFoundError: If the manifest file doesn't exist
+        """
         manifest_path = Path(manifest_path)
 
         if not manifest_path.is_file():
@@ -122,7 +180,7 @@ class Manifest:
                 return None
         else:
             model_names = models.keys()
-        formatter = user_config().model_formatter
+        formatter = user_config().sql_formatter
         chosen_models = iterfzf.iterfzf(
             model_names,
             query=select,
@@ -146,13 +204,17 @@ class Manifest:
             re.search(r"[:+*, ]", select) is not None
         )
 
-    def update_models_cache(self):
+    # ============================================================================
+    # PUBLIC METHODS - Instance Methods
+    # ============================================================================
+
+    def update_models_cache(self) -> None:
         """Save the current models to the models cache file."""
         Path.mkdir(self.MODELS_CACHE_PATH.parent, parents=True, exist_ok=True)
         with open(self.MODELS_CACHE_PATH, "w+") as f:
             json.dump(self.models(), f)
 
-    def update_models_info(self):
+    def update_models_info(self) -> None:
         """Update model information files based on current models."""
         Path.mkdir(self.MODELS_INFO_PATH, parents=True, exist_ok=True)
         for model in self.models().values():
@@ -166,6 +228,20 @@ class Manifest:
                 # combine multiple blank lines into one to avoid
                 # painful handling of it in template
                 f.write(re.sub(r"\n\n+", "\n\n", model_info))
+
+    def model_by_name(self, name: str) -> Optional[Dict[str, Any]]:
+        """Find and return a model by its name.
+
+        Args:
+            name: Name of the model to find
+
+        Returns:
+            Model dictionary if found, None otherwise
+        """
+        for model in self.models().values():
+            if model["name"] == name:
+                return model
+        return None
 
     def model_info_up_to_date(self, model, info_file) -> bool:
         """Is rendered model info up to date?"""
@@ -226,13 +302,6 @@ class Manifest:
                     deprecated=node["description"].lower().startswith("deprecated"),
                 )
         return models
-
-    def model_by_name(self, name):
-        """Find and return a model by its name."""
-        for model in self.models().values():
-            if model["name"] == name:
-                return model
-        return None
 
     def parent_models(self, key):
         """Get and return the sorted list of parent models for the given key."""

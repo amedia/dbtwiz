@@ -3,17 +3,15 @@ from typing import Annotated
 
 import typer
 
-from dbtwiz.dbt.manifest import Manifest
-from dbtwiz.dbt.target import Target
-
+from ..dbt.manifest import Manifest
+from ..dbt.target import Target
+from ..utils.exceptions import InvalidArgumentsError
 from .build import build as command_build
 from .test import test as command_test
 
-app = typer.Typer()
+app = typer.Typer(help="Core dbt commands for building and testing models")
 
-
-class InvalidArgumentsError(ValueError):
-    pass
+__all__ = ["app"]
 
 
 @app.command()
@@ -101,8 +99,8 @@ This will prepend a '+' to your chosen models when passing them on to _dbt_.""",
         typer.Option(
             "--downstream",
             "-d",
-            help="""Also build downstream models that are directly or indirectly depdendent on the selected model(s).
-This will append a '+' to your chosen models when passing them on to _dbt_.""",
+            help="""Also build downstream models that are directly or indirectly dependent on the selected model(s).
+This will append a '+' to your chosen models when passing them on to dbt.""",
         ),
     ] = False,
     work: Annotated[
@@ -119,17 +117,14 @@ have *staged* local modifications according to `git status`.""",
         typer.Option(
             "--last",
             "-l",
-            help="""When you build with _dbtwiz_, it will store a list of selected models in the
+            help="""When you build with dbtwiz, it will store a list of selected models in the
 file `.dbtwiz/last_select.json` in the current project.
 
 Pass this option to rebuild the same models that you most recently built.""",
         ),
     ] = False,
 ) -> None:
-    """
-    Build one or more dbt models, using interactive selection with fuzzy-matching,
-    unless an exact model name is passed.
-    """
+    """Build one or more dbt models with interactive selection or exact names."""
     # Validate
     try:
         start_date = (
@@ -172,7 +167,7 @@ def test(
         str, typer.Option("--date", "-d", help="Date to test model on [YYYY-mm-dd]")
     ] = "",
 ) -> None:
-    """Test dbt models"""
+    """Test dbt models with optional date specification."""
     # Validate
     try:
         if date == "":
@@ -196,5 +191,5 @@ def manifest(
         ),
     ] = "all",
 ):
-    """Update dev and production manifests for fast lookup"""
+    """Update dbt manifests for fast lookup and caching."""
     Manifest.update_manifests(type)

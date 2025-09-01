@@ -1,4 +1,3 @@
-import os
 import re
 from pathlib import Path
 from re import Match
@@ -6,23 +5,116 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 from ruamel.yaml import YAML
 
-from dbtwiz.config.project import ProjectConfig
-from dbtwiz.dbt.manifest import Manifest
-from dbtwiz.dbt.model import ModelBasePath
-from dbtwiz.gcp.auth import ensure_app_default_auth
-from dbtwiz.gcp.bigquery import BigQueryClient
-from dbtwiz.helpers.logger import status, warn
+from ..config.project import ProjectConfig
+from ..core.model import ModelBasePath
+from ..dbt.manifest import Manifest
+from ..integrations.bigquery import BigQueryClient
+from ..integrations.gcp_auth import ensure_app_default_auth
+from ..utils.logger import status, warn
 
 
 class YmlValidator:
-    def __init__(self, model_path: Union[str, Path]):
-        """Init function for yml validator."""
+    """Validator for YML configuration files in dbt models."""
+
+    def __init__(self, model_path: Union[str, Path]) -> None:
+        """Initialize the YML validator with the given model path.
+
+        Args:
+            model_path: Path to the model file to validate
+        """
         ensure_app_default_auth()
         self.bq_client = BigQueryClient()
         self.model_base = ModelBasePath(path=model_path)
         self.ruamel_yaml = YAML()
         self.ruamel_yaml.preserve_quotes = True
         self.ruamel_yaml.indent(mapping=2, sequence=4, offset=2)
+
+    # ============================================================================
+    # PUBLIC METHODS - Validation
+    # ============================================================================
+
+    def validate_yml_exists(self) -> Tuple[bool, str]:
+        """Validates that the yml exists, or triggers yml creation if not."""
+        yml_path = self.model_base.path.with_suffix(".yml")
+        if not yml_path.exists():
+            warn(
+                f"{self.model_base.model_name}: yml file missing - [italic]creating[/italic]"
+            )
+            import subprocess
+
+            try:
+                subprocess.run(
+                    [
+                        "dbtwiz",
+                        "model",
+                        "create",
+                        "-l",
+                        self.model_base.layer,
+                        "-d",
+                        self.model_base.domain,
+                        "-n",
+                        self.model_base.identifier,
+                    ],
+                    check=True,
+                    capture_output=True,
+                )
+            except subprocess.CalledProcessError:
+                pass  # Continue even if creation fails
+            if yml_path.exists():
+                return True, f"yml file created successfully: {yml_path.name}"
+            if not yml_path.exists():
+                return False, f"yml file not found: {yml_path.name}"
+        return True, "yml file ok"
+
+    def validate_yml_definition(self) -> Tuple[bool, str]:
+        """Validates YML definition (currently only the model name)."""
+        yml_path = self.model_base.path.with_suffix(".yml")
+
+        # Load YML content
+        with open(yml_path, "r", encoding="utf-8") as f:
+            yml_content = self.ruamel_yaml.load(f)
+
+        if (
+            not yml_content
+            or "models" not in yml_content
+            or len(yml_content.get("models", [])) == 0
+        ):
+            return False, "yml file is empty or missing 'models' key"
+        elif len(yml_content.get("models", [])) > 1:
+            return False, "yml file contains more than one model definition"
+
+        validation_errors = self._validate_model_name(
+            model_def=yml_content.get("models")[0]
+        )
+
+        if (
+            pk_constraint_error := self._validate_yml_primary_key_constraint(
+                model_def=yml_content.get("models")[0]
+            )
+        ) is not None:
+            validation_errors.append(pk_constraint_error)
+
+        if validation_errors:
+            error_msg = "failed\n" + "\n".join(f"• {e}" for e in validation_errors)
+            return False, error_msg
+        return True, "yml file name ok"
+
+    def validate_yml_columns(self) -> Tuple[bool, str]:
+        """Validate and update YML columns using the initialized path.
+
+        Returns:
+            Tuple of (success, message) indicating validation result
+        """
+        yml_path = self.model_base.path.with_suffix(".yml")
+        table_columns, error = self._get_table_columns(self.model_base.model_name)
+        if error:
+            return False, error
+
+        return self._update_yml_columns(yml_path, table_columns)
+
+    # ============================================================================
+    # PRIVATE METHODS - Internal Helper Functions
+    # ============================================================================
 
     def _get_table_columns(
         self, model_name: str
@@ -136,22 +228,6 @@ class YmlValidator:
         except Exception as e:
             return False, f"yml update failed: {str(e)}"
 
-    def validate_yml_exists(self) -> Tuple[bool, str]:
-        """Validates that the yml exists, or triggers yml creation if not."""
-        yml_path = self.model_base.path.with_suffix(".yml")
-        if not yml_path.exists():
-            warn(
-                f"{self.model_base.model_name}: yml file missing - [italic]creating[/italic]"
-            )
-            os.system(
-                f"dbtwiz model create -l {self.model_base.layer} -d {self.model_base.domain} -n {self.model_base.identifier}"
-            )
-            if yml_path.exists():
-                return True, f"yml file created successfully: {yml_path.name}"
-            if not yml_path.exists():
-                return False, f"yml file not found: {yml_path.name}"
-        return True, "yml file ok"
-
     def _validate_model_name(self, model_def: dict) -> List[str]:
         """Validates that the model has a correct name, and returns identified errors."""
         validation_errors = []
@@ -197,7 +273,7 @@ class YmlValidator:
 
         return validation_errors
 
-    def validate_yml_primary_key_constraint(self, model_def: dict) -> bool:
+    def _validate_yml_primary_key_constraint(self, model_def: dict) -> bool:
         """Validates that a primary key constraint is defined for the model."""
         column_level_pk = False
 
@@ -220,106 +296,28 @@ class YmlValidator:
             return "primary key constraint is defined for multiple columns - it must be changed to a model level constraint"
         return None
 
-    def validate_yml_definition(self) -> Tuple[bool, str]:
-        """Validates YML definition (currently only the model name)."""
-        yml_path = self.model_base.path.with_suffix(".yml")
-
-        # Load YML content
-        with open(yml_path, "r", encoding="utf-8") as f:
-            yml_content = self.ruamel_yaml.load(f)
-
-        if (
-            not yml_content
-            or "models" not in yml_content
-            or len(yml_content.get("models", [])) == 0
-        ):
-            return False, "yml file is empty or missing 'models' key"
-        elif len(yml_content.get("models", [])) > 1:
-            return False, "yml file contains more than one model definition"
-
-        validation_errors = self._validate_model_name(
-            model_def=yml_content.get("models")[0]
-        )
-
-        if (
-            pk_constraint_error := self.validate_yml_primary_key_constraint(
-                model_def=yml_content.get("models")[0]
-            )
-        ) is not None:
-            validation_errors.append(pk_constraint_error)
-
-        if validation_errors:
-            error_msg = "failed\n" + "\n".join(f"• {e}" for e in validation_errors)
-            return False, error_msg
-        return True, "yml file name ok"
-
-    def validate_yml_columns(self) -> Tuple[bool, str]:
-        """Validate and update YML columns using the initialized path."""
-        yml_path = self.model_base.path.with_suffix(".yml")
-        table_columns, error = self._get_table_columns(self.model_base.model_name)
-        if error:
-            return False, error
-
-        return self._update_yml_columns(yml_path, table_columns)
-
 
 class SqlValidator:
-    def __init__(self, model_path: Union[str, Path]):
-        """Init function for sql validator."""
+    """Validator for SQL files in dbt models."""
+
+    def __init__(self, model_path: Union[str, Path]) -> None:
+        """Initialize the SQL validator with the given model path.
+
+        Args:
+            model_path: Path to the model file to validate
+        """
         self.model_base = ModelBasePath(path=model_path)
 
-    def _get_table_replacement(
-        self, match: Match[str], lookup_dict: Dict, unresolved_tables: List[str]
-    ):
-        """Replaces a table match with a corresponding ref or source."""
-        project = match.group(1).strip("`")
-        dataset = match.group(2).strip("`")
-        table = match.group(3).strip("`")
+    # ============================================================================
+    # PUBLIC METHODS - SQL Validation and Formatting
+    # ============================================================================
 
-        lookup_key = f"{project.lower()}.{dataset.lower()}.{table.lower()}"
-        reference = lookup_dict.get(lookup_key)
+    def convert_sql_to_model(self) -> Tuple[bool, str]:
+        """Replace fully-qualified names with dbt ref() / source().
 
-        if reference:
-            ref_type, ref_value = reference
-            if ref_type == "ref":
-                return f'{{{{ ref("{ref_value}") }}}}'
-            else:
-                source_name, table_name = ref_value
-                return f'{{{{ source("{source_name}", "{table_name}") }}}}'
-        else:
-            unresolved_tables.append(f"{project}.{dataset}.{table}")
-            return match.group(0)
-
-    def _replace_table_references(
-        self, sql_content: str, lookup_dict: dict
-    ) -> Tuple[str, List[str]]:
-        """Replace table references while handling backticks."""
-        pattern = r"(`?[a-zA-Z0-9_-]+`?)\.(`?[a-zA-Z0-9_-]+`?)\.(`?[a-zA-Z0-9_-]+`?)"
-        unresolved_tables = []
-
-        new_sql = []
-        last_pos = 0
-
-        # Process content sequentially
-        for match in re.finditer(pattern, sql_content):
-            # Add text before match
-            new_sql.append(sql_content[last_pos : match.start()])
-            # Add replacement
-            new_sql.append(
-                self._get_table_replacement(
-                    match=match,
-                    lookup_dict=lookup_dict,
-                    unresolved_tables=unresolved_tables,
-                )
-            )
-            last_pos = match.end()
-
-        # Add remaining content
-        new_sql.append(sql_content[last_pos:])
-        return "".join(new_sql), list(set(unresolved_tables))
-
-    def convert_sql_to_model(self):
-        """Replace fully-qualified names with dbt ref() / source()."""
+        Returns:
+            Tuple of (success, message) indicating conversion result
+        """
         file_path = self.model_base.path.with_suffix(".sql")
 
         Manifest.download_prod_manifest()
@@ -351,24 +349,6 @@ class SqlValidator:
             results.append("references ok")
 
         return status, "\n".join(results)
-
-    def sqlfluff_format_violations(self, violations: List, file_path: Path) -> str:
-        """Formats SQLFluff violations from SQLBaseError objects."""
-        messages = []
-        for violation in violations:
-            # Get basic error info
-            error_info = (
-                f"{file_path.name}:{violation.line_no}:{violation.line_pos} "
-                f"[{violation.rule_code()}] {violation.description}"
-            )
-
-            # For syntax errors, add the unexpected token if available
-            if hasattr(violation, "unexpected_token"):
-                error_info += f"\nUnexpected token: {violation.unexpected_token}"
-
-            messages.append(error_info)
-
-        return "\n\n".join(messages)
 
     def sqlfluff_validate_and_fix_file(self) -> Tuple[bool, str]:
         """Validate and fix SQL formatting using sqlfluff"""
@@ -453,11 +433,93 @@ class SqlValidator:
         else:
             return True, "validation ok"
 
+    def sqlfluff_format_violations(self, violations: List, file_path: Path) -> str:
+        """Formats SQLFluff violations from SQLBaseError objects."""
+        messages = []
+        for violation in violations:
+            # Get basic error info
+            error_info = (
+                f"{file_path.name}:{violation.line_no}:{violation.line_pos} "
+                f"[{violation.rule_code()}] {violation.description}"
+            )
+
+            # For syntax errors, add the unexpected token if available
+            if hasattr(violation, "unexpected_token"):
+                error_info += f"\nUnexpected token: {violation.unexpected_token}"
+
+            messages.append(error_info)
+
+        return "\n\n".join(messages)
+
+    # ============================================================================
+    # PRIVATE METHODS - Internal Helper Functions
+    # ============================================================================
+
+    def _get_table_replacement(
+        self, match: Match[str], lookup_dict: Dict, unresolved_tables: List[str]
+    ):
+        """Replaces a table match with a corresponding ref or source."""
+        project = match.group(1).strip("`")
+        dataset = match.group(2).strip("`")
+        table = match.group(3).strip("`")
+
+        lookup_key = f"{project.lower()}.{dataset.lower()}.{table.lower()}"
+        reference = lookup_dict.get(lookup_key)
+
+        if reference:
+            ref_type, ref_value = reference
+            if ref_type == "ref":
+                return f'{{{{ ref("{ref_value}") }}}}'
+            else:
+                source_name, table_name = ref_value
+                return f'{{{{ source("{source_name}", "{table_name}") }}}}'
+        else:
+            unresolved_tables.append(f"{project}.{dataset}.{table}")
+            return match.group(0)
+
+    def _replace_table_references(
+        self, sql_content: str, lookup_dict: dict
+    ) -> Tuple[str, List[str]]:
+        """Replace table references while handling backticks."""
+        pattern = r"(`?[a-zA-Z0-9_-]+`?)\.(`?[a-zA-Z0-9_-]+`?)\.(`?[a-zA-Z0-9_-]+`?)"
+        unresolved_tables = []
+
+        new_sql = []
+        last_pos = 0
+
+        # Process content sequentially
+        for match in re.finditer(pattern, sql_content):
+            # Add text before match
+            new_sql.append(sql_content[last_pos : match.start()])
+            # Add replacement
+            new_sql.append(
+                self._get_table_replacement(
+                    match=match,
+                    lookup_dict=lookup_dict,
+                    unresolved_tables=unresolved_tables,
+                )
+            )
+            last_pos = match.end()
+
+        # Add remaining content
+        new_sql.append(sql_content[last_pos:])
+        return "".join(new_sql), list(set(unresolved_tables))
+
 
 class ModelValidator:
-    def __init__(self, model_path: Union[str, Path]):
-        """Init function for model validator."""
+    """Main validator class that orchestrates validation of dbt models."""
+
+    def __init__(self, model_path: Union[str, Path]) -> None:
+        """Initialize the model validator with the given model path.
+
+        Args:
+            model_path: Path to the model file to validate
+        """
         self.model_base = ModelBasePath(path=model_path)
+
+    # ============================================================================
+    # PUBLIC METHODS
+    # ============================================================================
 
     def validate(self) -> bool:
         """Run complete model validation"""

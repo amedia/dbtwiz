@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dbtwiz"
-version = "0.2.16"
+version = "0.2.17"
 authors = [
     {name = "Amedia Produkt og Teknologi"}
 ]
@@ -14,18 +14,19 @@ license = {text = "MIT"}
 urls = {"Homepage" = "https://github.com/amedia/dbtwiz"}
 requires-python = ">=3.11.0,<4"
 dependencies = [
-    "dbt-core>=1.9.1",
-    "google-cloud-storage>=2.19.0",
-    "iterfzf>=1.4.0",
+    "dbt-core>=1.10.1",
+    "google-cloud-storage>=2.4,<3.0",
+    "iterfzf>=1.8.0",
     "questionary>=2.1.0",
-    "rich>=13.9.0",
-    "ruamel.yaml>=0.18.10",
-    "typer>=0.15.0",
-    "shandy-sqlfmt>=0.27.0"
+    "rich>=14.1.0",
+    "ruamel.yaml>=0.18.15",
+    "typer>=0.16.1",
+    "shandy-sqlfmt>=0.27.0",
+    "pydantic>=2.9.1"
 ]
 
 [project.scripts]
-dbtwiz = "dbtwiz.main:main"
+dbtwiz = "dbtwiz.cli.main:main"
 
 [tool.ruff]
 line-length = 88
@@ -33,34 +34,111 @@ lint.select = ["E", "F", "W", "C90"]
 lint.ignore = ["E501"]
 target-version = "py311"
 
-[tool.isort]
-line_length = 88
-known_third_party = [
-    "dbt-core",
-    "google-cloud-storage",
-    "iterfzf",
-    "questionary",
-    "rich",
-    "ruamel",
-    "typer",
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = false
+warn_unused_configs = false
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+check_untyped_defs = false
+disallow_untyped_decorators = false
+no_implicit_optional = false
+warn_redundant_casts = false
+warn_unused_ignores = false
+warn_no_return = false
+warn_unreachable = false
+strict_equality = false
+show_error_codes = true
+ignore_missing_imports = true
+ignore_errors = true
+exclude = [
+    "tests/",
+    ".*venv/",
+    ".*\\.venv/",
+    "build/",
+    "dist/"
 ]
-# profile = "ruff" 
-#   ruff isn't supported as profile yet
-#   As a result, the following config is added to align with ruff
-multi_line_output = 3
-include_trailing_comma = true
-force_grid_wrap = 0
-use_parentheses = true
-ensure_newline_before_comments = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "--strict-markers",
+    "--strict-config",
+    "--cov=dbtwiz",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+    "--cov-report=xml",
+    "--cov-fail-under=10",
+    "--durations=10",
+    "--tb=short"
+]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+    "cli: marks tests as CLI tests",
+    "gcp: marks tests that require GCP access",
+    "dbt: marks tests that require dbt",
+    "skip_ci: marks tests to skip in CI"
+]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning"
+]
+
+[tool.coverage.run]
+source = ["dbtwiz"]
+omit = [
+    "*/tests/*",
+    "*/test_*",
+    "*/__pycache__/*",
+    "*/migrations/*",
+    "*/venv/*",
+    "*/env/*",
+    "*/build/*",
+    "*/dist/*"
+]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if settings.DEBUG",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if __name__ == .__main__.:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+]
+show_missing = true
+precision = 2
 
 [tool.poetry]
 requires-poetry = ">=2.0"
 
 [tool.poetry.group.dev.dependencies]
-ruff = "^0.11.3"
-isort = "^6.0.1"
-typer = "^0.15.2"
+ruff = "^0.12.10"
+typer = "^0.16.1"
 questionary = "^2.1.0"
-pre-commit = "^4.0.1"
+pre-commit = "^4.3.0"
+mypy = "^1.17.1"
+bandit = "^1.8.6"
 # Not used directly, but seems to be a dependency. Force newer version due to https://github.com/advisories/GHSA-xrx6-fmxq-rjj2
 rsa = ">=4.7.0"
+
+[tool.poetry.group.test.dependencies]
+pytest = "^8.4.1"
+pytest-cov = "^6.2.1"
+pytest-mock = "^3.14.1"
+pytest-xdist = "^3.8.0"
+pytest-asyncio = "^1.1.0"
+pytest-freezer = "^0.4.9"
+pytest-randomly = "^3.16.0"
+pytest-timeout = "^2.4.0"
+coverage = "^7.10.5"

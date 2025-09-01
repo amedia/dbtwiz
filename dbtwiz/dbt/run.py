@@ -1,11 +1,19 @@
-from typing import List
+from typing import Any, List
 
-from dbtwiz.config.project import project_config
-from dbtwiz.helpers.logger import debug, fatal
+from ..config.project import project_config
+from ..utils.logger import debug, fatal
 
 
-def invoke(commands: List[str], **args: dict):
-    """Invokes a dbt run."""
+def invoke(commands: List[str], **args: Any) -> None:
+    """Invoke a dbt run.
+
+    Args:
+        commands: List of dbt commands to execute
+        **args: Additional arguments to pass to dbt
+
+    Raises:
+        SystemExit: If dbt invocation fails (via fatal function)
+    """
     if args.get("target", "dev") != "dev":
         args["use-colors"] = False
         args["profiles-dir"] = project_config().docker_image_profiles_path
@@ -18,6 +26,10 @@ def invoke(commands: List[str], **args: dict):
         else:
             dbt_args.extend([f"--{key}", value])
 
+    # Add project directory to dbt args
+    project_root = project_config().root_path()
+    dbt_args.extend(["--project-dir", str(project_root)])
+
     # this import takes almost 2s, so wait until we actually use it
     from dbt.cli.main import dbtRunner
 
@@ -26,6 +38,6 @@ def invoke(commands: List[str], **args: dict):
 
     if not result.success:
         if result.exception:
-            fatal(result.exception, exit_code=2)
+            fatal(str(result.exception), exit_code=2)
         else:
             fatal("dbt invocation failed.", exit_code=1)

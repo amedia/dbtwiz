@@ -1,6 +1,6 @@
 # `dbtwiz manifest`
 
-Update dev and production manifests for fast lookup
+Update dbt manifests for fast lookup and caching.
 
 ## Options
 

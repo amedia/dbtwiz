@@ -1,4 +1,4 @@
-from dbtwiz.config.user import user_config
+from ..config.user import user_config
 
 
 def custom_style():
@@ -25,17 +25,17 @@ def custom_style():
             disabled="fg:#858585 italic",  # disabled choices for select and checkbox prompts
         )
     else:
-        # FIXME: Adjust to fit with bright background
+        # Light theme with colors adjusted for bright background
         style_dict = dict(
-            qmark="fg:#30d0d0 bold",  # token in front of the question
+            qmark="fg:#0066cc bold",  # token in front of the question (blue)
             question="bold",  # question text
-            answer="fg:#d08030 bg:#333333 bold",  # submitted answer text behind the question
-            pointer="fg:#30d0d0 bold",  # pointer used in select and checkbox prompts
-            highlighted="fg:#d08030 bold",  # pointed-at choice in select and checkbox prompts
-            selected="fg:#505050 bg:#ffffff",  # style for a selected item of a checkbox
-            separator="fg:#c03030",  # separator in lists
-            instruction="",  # user instructions for select, rawselect, checkbox
+            answer="fg:#cc6600 bg:#f0f0f0 bold",  # submitted answer text (orange with light gray background)
+            pointer="fg:#0066cc bold",  # pointer used in select and checkbox prompts (blue)
+            highlighted="fg:#cc6600 bold",  # pointed-at choice in select and checkbox prompts (orange)
+            selected="fg:#ffffff bg:#0066cc",  # style for a selected item (white text on blue background)
+            separator="fg:#cc0000",  # separator in lists (red)
+            instruction="fg:#666666",  # user instructions (gray)
             text="",  # plain text
-            disabled="fg:#858585 italic",  # disabled choices for select and checkbox prompts
+            disabled="fg:#999999 italic",  # disabled choices (light gray)
         )
     return Style.from_dict(style_dict)

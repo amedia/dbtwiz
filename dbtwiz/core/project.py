@@ -1,91 +1,173 @@
 import os
 from pathlib import Path
-from typing import Dict, List, Tuple, Union
+from typing import Any, Dict, List, Tuple, Union
 
-from dbtwiz.config.project import project_path
-
+from ..config.project import project_path
 from .model import ModelBasePath
 
 
 class Group:
-    """Project's model groups"""
+    """Project's model groups configuration."""
 
+    # ============================================================================
+    # CLASS CONSTANTS
+    # ============================================================================
     YAML_PATH = project_path() / "models" / "model_groups.yml"
 
-    def __init__(self):
-        """Initializes the class and reads the model groups"""
+    def __init__(self) -> None:
+        """Initialize the class and read the model groups."""
         from yaml import safe_load  # Lazy import for improved performance
 
         with open(self.YAML_PATH, "r") as f:
             data = safe_load(f)
-        self.groups = data["groups"]
+        self.groups: List[Dict[str, Any]] = data["groups"]
 
-    def choices(self):
-        """Return a dict with group names and descriptions"""
+    # ============================================================================
+    # PUBLIC METHODS
+    # ============================================================================
+
+    def choices(self) -> Dict[str, str]:
+        """Return a dict with group names and descriptions.
+
+        Returns:
+            Dictionary mapping group names to their owner descriptions
+        """
         return dict([(g["name"], g["owner"]["description"]) for g in self.groups])
 
-    def yaml_relative_path(self):
-        """Relative path to YAML file for model groups"""
+    def yaml_relative_path(self) -> Path:
+        """Relative path to YAML file for model groups.
+
+        Returns:
+            Path object relative to the project root
+        """
         return self.YAML_PATH.relative_to(project_path())
 
 
 class Profile:
-    """Project's profiles"""
-    PROFILES_DIR = (
-        Path(os.environ.get("DBT_PROFILES_DIR"))
-        if os.environ.get("DBT_PROFILES_DIR")
-        else project_path() / ".profiles"
-    )
-    YAML_PATH = PROFILES_DIR / "profiles.yml"
+    """Project's profiles configuration."""
 
-    def __init__(self):
-        """Initializes the class and reads the model groups"""
+    def __init__(self, project_root: Path = None):
+        """Initialize the class and read the profiles.
+
+        Args:
+            project_root: Optional project root path. If not provided, will be determined automatically.
+        """
         from yaml import safe_load  # Lazy import for improved performance
 
-        if not self.YAML_PATH.exists():
+        # Determine project root if not provided
+        if project_root is None:
+            project_root = project_path()
+
+        # Try multiple possible profiles locations
+        profiles_dirs = [
+            Path(os.environ.get("DBT_PROFILES_DIR"))
+            if os.environ.get("DBT_PROFILES_DIR")
+            else None,
+            project_root / ".profiles",
+            Path.home() / ".dbt",
+        ]
+
+        self.YAML_PATH = None
+        for profiles_dir in profiles_dirs:
+            if profiles_dir and (profiles_dir / "profiles.yml").exists():
+                self.YAML_PATH = profiles_dir / "profiles.yml"
+                break
+
+        if not self.YAML_PATH:
             raise FileNotFoundError(
-                "Couldn't find profiles.yml. Is the DBT_PROFILES_DIR env var set?"
+                "Couldn't find profiles.yml. Checked: "
+                + ", ".join(str(d) for d in profiles_dirs if d)
+                + ". Is the DBT_PROFILES_DIR env var set?"
             )
 
         with open(self.YAML_PATH, "r", encoding="utf-8") as f:
-            self.profiles = safe_load(f)[Project().profile()]["outputs"]
+            # Get the profile name from the project config
+            project_instance = Project(project_root)
+            profile_name = project_instance.profile()
+            self.profiles: Dict[str, Any] = safe_load(f)[profile_name]["outputs"]
 
-    def _resolve_profile(self, raw_config):
-        """Get fully rendered profile values including env_var resolution"""
-        from jinja2 import BaseLoader, Environment  # Lazy import for improved performance
+    # ============================================================================
+    # PUBLIC METHODS
+    # ============================================================================
+
+    def profile_config(self, target_name: str) -> Dict[str, Any]:
+        """Return a dict with the profile configuration.
+
+        Args:
+            target_name: Name of the target profile to retrieve
+
+        Returns:
+            Dictionary containing the resolved profile configuration
+        """
+        return self._resolve_profile(raw_config=self.profiles[target_name])
+
+    # ============================================================================
+    # PRIVATE METHODS - Internal Helper Functions
+    # ============================================================================
+
+    def _resolve_profile(self, raw_config: Dict[str, Any]) -> Dict[str, Any]:
+        """Get fully rendered profile values including env_var resolution.
+
+        Args:
+            raw_config: Raw profile configuration dictionary
+
+        Returns:
+            Dictionary with resolved profile values
+        """
+        from jinja2 import (  # Lazy import for improved performance
+            BaseLoader,
+            Environment,
+        )
 
         # Create custom renderer
-        def render_value(value):
+        def render_value(value: Any) -> Any:
             if not isinstance(value, str):
                 return value
 
-            template = Environment(loader=BaseLoader()).from_string(value)
+            template = Environment(loader=BaseLoader(), autoescape=True).from_string(
+                value
+            )
             return template.render(env_var=os.getenv)
 
         # Return rendered values
         return {k: render_value(v) for k, v in raw_config.items()}
 
-    def profile_config(self, target_name):
-        """Return a dict with the profile configuration"""
-        return self._resolve_profile(raw_config=self.profiles[target_name])
-
 
 class Project:
-    """Project's variable settings"""
+    """Project's variable settings and configuration management."""
 
-    YAML_PATH = project_path() / "dbt_project.yml"
+    def __init__(self, project_root: Path = None):
+        """Initialize the project configuration.
 
-    def __init__(self):
+        Args:
+            project_root: Optional project root path. If not provided, will be determined automatically.
+        """
         from yaml import safe_load  # Lazy import for improved performance
 
+        # Determine project root if not provided
+        if project_root is None:
+            project_root = project_path()
+
+        self.YAML_PATH = project_root / "dbt_project.yml"
+
         with open(self.YAML_PATH, "r") as f:
-            self.data = safe_load(f)
+            self.data: Dict[str, Any] = safe_load(f)
+
+    # ============================================================================
+    # PUBLIC METHODS - Core Configuration
+    # ============================================================================
 
     def name(self) -> str:
+        """Get the project name."""
         return self.data.get("name")
 
     def profile(self) -> str:
+        """Get the project profile."""
         return self.data.get("profile")
+
+    # ============================================================================
+    # PUBLIC METHODS - Team and Access Management
+    # ============================================================================
 
     def teams(self) -> List[Dict[str, str]]:
         """List of teams defined in project config"""
@@ -125,7 +207,11 @@ class Project:
 
 
 def layer_choices() -> List[Dict[str, str]]:
-    """Dict of dbt layers and descriptions"""
+    """Get available dbt layers with descriptions.
+
+    Returns:
+        List of dictionaries containing layer names and descriptions
+    """
     return [
         {
             "name": "staging",
@@ -147,7 +233,11 @@ def layer_choices() -> List[Dict[str, str]]:
 
 
 def materialization_choices() -> List[Dict[str, str]]:
-    """Dict of dbt materializations and descriptions"""
+    """Get available dbt materializations with descriptions.
+
+    Returns:
+        List of dictionaries containing materialization names and descriptions
+    """
     return [
         {"name": "view", "description": "Default"},
         {"name": "table", "description": "Typically used for smaller mart models"},
@@ -160,7 +250,11 @@ def materialization_choices() -> List[Dict[str, str]]:
 
 
 def access_choices() -> List[Dict[str, str]]:
-    """Dict of access levels and descriptions"""
+    """Get available access levels with descriptions.
+
+    Returns:
+        List of dictionaries containing access level names and descriptions
+    """
     return [
         {
             "name": "private",
@@ -172,7 +266,11 @@ def access_choices() -> List[Dict[str, str]]:
 
 
 def frequency_choices() -> List[Dict[str, str]]:
-    """Dict of frequencies and descriptions"""
+    """Get available update frequencies with descriptions.
+
+    Returns:
+        List of dictionaries containing frequency names and descriptions
+    """
     return [
         {"name": "hourly", "description": "Model needs to be updated every hour"},
         {"name": "daily", "description": "Model needs to be updated once a day"},
@@ -223,14 +321,29 @@ def get_source_tables() -> Tuple[
     return dbt_source_tables, dbt_sources
 
 
-def domains_for_layer(layer: str):
-    """List of domains in the given layer for this project"""
+def domains_for_layer(layer: str) -> List[str]:
+    """Get list of domains in the given layer for this project.
+
+    Args:
+        layer: Layer name to get domains for
+
+    Returns:
+        Sorted list of domain names
+    """
     domains = [f.name for f in (project_path() / "models").glob(f"*_{layer}/*")]
     return sorted(domains)
 
 
-def list_domain_models(base_path: ModelBasePath, domain: str):
-    """List of existing models in the given layer/domain for this project"""
+def list_domain_models(base_path: ModelBasePath, domain: str) -> List[str]:
+    """List existing models in the given layer/domain for this project.
+
+    Args:
+        base_path: ModelBasePath instance for the layer
+        domain: Domain name to list models for
+
+    Returns:
+        List of model names (without .yml extension)
+    """
     yml_files = []
     for path in base_path.get_domain_path(domain).rglob("*.yml"):
         yml_files.append(str(path.stem))

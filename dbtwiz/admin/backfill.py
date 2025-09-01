@@ -1,3 +1,5 @@
+import os
+import shutil
 import subprocess
 import time
 import webbrowser
@@ -7,9 +9,9 @@ from textwrap import dedent
 
 from jinja2 import Template
 
-from dbtwiz.config.project import project_config, project_dbtwiz_path
-from dbtwiz.gcp.auth import ensure_auth
-from dbtwiz.helpers.logger import debug, info
+from ..config.project import project_config, project_dbtwiz_path
+from ..integrations.gcp_auth import ensure_auth
+from ..utils.logger import debug, info
 
 MAX_CONCURRENT_TASKS = 8
 YAML_FILE = project_dbtwiz_path("backfill-cloudrun.yaml")
@@ -120,10 +122,28 @@ def job_spec_template():
 
 def run_command(args: list[str], verbose: bool = False, check: bool = True):
     """Run the given command in a subprocess"""
-    command = " ".join([str(arg) for arg in args])
     if verbose:
-        debug(f"Running command: {command}")
-    result = subprocess.run(command, shell=True)
+        debug(f"Running command: {' '.join([str(arg) for arg in args])}")
+
+    # Ensure all arguments are strings (handles Path objects)
+    str_args = [str(arg) for arg in args]
+
+    # On Windows, resolve the executable explicitly to avoid FileNotFoundError
+    if os.name == "nt":
+        executable = str_args[0]
+        resolved_executable = (
+            shutil.which(executable)
+            or shutil.which(f"{executable}.cmd")
+            or shutil.which(f"{executable}.exe")
+        )
+        if resolved_executable is None:
+            raise FileNotFoundError(
+                f"Executable '{executable}' not found on PATH. "
+                "Ensure it is installed and available (e.g., install Google Cloud SDK to use 'gcloud')."
+            )
+        str_args[0] = resolved_executable
+
+    result = subprocess.run(str_args, shell=False)
     if check:
         result.check_returncode()
     return result

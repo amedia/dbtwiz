@@ -3,17 +3,16 @@ from typing import Annotated, List
 
 import typer
 
-from dbtwiz.config.project import project_config
-from dbtwiz.dbt.target import Target
-from dbtwiz.helpers.decorators import description, examples
-from dbtwiz.helpers.logger import error
+from ..config.project import project_config
+from ..dbt.target import Target
+from ..utils.decorators import description, examples
+from ..utils.exceptions import InvalidArgumentsError
+from ..utils.logger import error
+from .cleanup import empty_development_dataset
 
+app = typer.Typer(help="Administrative commands for dbt project management")
 
-class InvalidArgumentsError(ValueError):
-    pass
-
-
-app = typer.Typer()
+__all__ = ["app", "empty_development_dataset"]
 
 
 @app.command()
@@ -40,7 +39,8 @@ def backfill(
     date_last: Annotated[
         str,
         typer.Argument(
-            help="End of backfill period (inclusive) [YYYY-mm-dd]. Defaults to date_first.", metavar="TEXT"
+            help="End of backfill period (inclusive) [YYYY-mm-dd]. Defaults to date_first.",
+            metavar="TEXT",
         ),
     ] = None,
     batch_size: Annotated[
@@ -89,10 +89,9 @@ def backfill(
         typer.Option("--verbose", "-v", help="Output more info about what is going on"),
     ] = False,
 ) -> None:
-    """
-    The _backfill_ subcommand allows you to (re)run date-partitioned models in production for a
-    period spanning one or multiple days. It will spawn a Cloud Run job that will run `dbt` for
-    a configurable number of days in parallel.
+    """Backfill date-partitioned models in production for a specified date range.
+
+    Spawns Cloud Run jobs to process multiple dates in parallel with configurable batch sizes.
     """
     # Validate
     try:
@@ -146,8 +145,6 @@ def cleandev(
     ] = False,
 ) -> None:
     """Delete all materializations in the dbt development dataset"""
-    from .cleanup import empty_development_dataset
-
     empty_development_dataset(target_name=target, force_delete=force_delete)
 
 

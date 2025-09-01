@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sample-dbt-project"
+version = "0.1.0"
+description = "Sample dbt project for testing"
+
+[tool.dbtwiz.project]
+backfill_default_batch_size = 15
+docker_image_url_dbt = "gcr.io/test/dbt:latest"
+docker_image_manifest_path = "/app/manifest.json"
+docker_image_profiles_path = "/app/profiles"
+service_account_identifier = "test-service@test.iam.gserviceaccount.com"
+service_account_project = "test-project"
+service_account_region = "europe-west1"
+user_project = "test-user-project"
+bucket_state_project = "test-bucket-project"
+bucket_state_identifier = "test-bucket"
+default_materialization = "table"
+default_partition_expiration_days = 365
+teams = ["team1", "team2"]
+access_policies = ["policy1", "policy2"]
+service_consumers = ["consumer1", "consumer2"]

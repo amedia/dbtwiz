@@ -1,6 +1,6 @@
-from dbtwiz.dbt.manifest import Manifest
-from dbtwiz.dbt.project import Project
-from dbtwiz.helpers.logger import error
+from ..core.project import Project
+from ..dbt.manifest import Manifest
+from ..utils.logger import error
 
 
 def inspect_model(name: str) -> None:

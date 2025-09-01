@@ -2,12 +2,18 @@
 
 Create new dbt source
 
-When creating a new source, the function will ask a number of questions about the new source.
+Creates a new dbt source definition interactively.
 
-1. Project name: You can manually input the project, but it will autocomplete for the existing source projects.
-2. Dataset name: Select one of the listed datasets that exist in the given project. If the dataset is new, it will ask for a description.
-3. Table name(s): Select one or more of the listed tables that exist in the dataset and aren't defined as source yet. If you only selected one table, it will ask for a description.
+    Guides you through selecting project, dataset, and tables with autocomplete.
+    Automatically generates source YAML files with proper descriptions.
 
+    The command will:
+    1. Help you select the appropriate project and dataset
+    2. Provide autocomplete for available tables
+    3. Generate proper source YAML structure
+    4. Set appropriate descriptions and metadata
+    5. Handle both new source definitions and adding to existing ones
+    
 ## Options
 
 ### `--source-name`, `-s`

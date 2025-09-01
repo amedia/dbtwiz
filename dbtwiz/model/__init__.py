@@ -3,15 +3,18 @@ from typing import Annotated, List
 
 import typer
 
-from dbtwiz.helpers.decorators import description, examples
-
+from ..utils.decorators import description, examples
+from ..utils.exceptions import ModelError
+from ..utils.logger import warn
 from .create import create_model
 from .format import format_sql_files
 from .inspect import inspect_model
 from .move import move_model, update_model_references
 from .validate import ModelValidator
 
-app = typer.Typer()
+app = typer.Typer(help="Commands for dbt model management and validation")
+
+__all__ = ["app", "move_model", "update_model_references"]
 
 
 class MoveAction(str, Enum):
@@ -23,45 +26,21 @@ class MoveAction(str, Enum):
 
 @app.command()
 @description(
-    """The dbt model creation functions assume a dbt project folder structure that is models -> layer -> domain:
-```
-models:
-  1_staging (stg as abbreviation)
-    <folders for each domain>
-      <models prefixed by abbreviated layer and domain, e.g. stg_<domain>__model_identifier>
-  2_intermediate (int as abbreviation)
-    <as above>
-  3_marts (mrt as abbreviation)
-    <as above>
-  4_bespoke (bsp as abbreviation)
-    <as above>
-```
+    """Creates a new dbt model with proper folder structure and YAML configuration.
 
-This function also has some expectations for the definition of `dbt_project.yml`.
-In `dbt_project.yml` it expects variables like these:
-```
-vars:
-  # <partition expiration type name>-expiration: 30 # expiration in days
-  ...
-  # Access configs - to be used in models for granting access
-  access-policies:
-    <access policy name>:
-      principal: group:<gcp group email>
-      description: ""
-    ...
-  teams:
-    <team name>:
-      principal: group:<team email>
-      description: ""
-    ...
-  service-consumers:
-    <service consumer name>:
-      principal: serviceAccount:<service account email>
-      description: ""
-    ...
-```
-Using this information, the create model function will populate the model yml.
-"""
+    Assumes dbt project structure: models/layer/domain/model_name.sql
+    - Layers: staging (stg), intermediate (int), marts (mrt), bespoke (bsp)
+    - Models are prefixed: stg_domain__name, int_domain__name, etc.
+
+    Requires dbt_project.yml with teams, access-policies, and service-consumers variables.
+
+    The command will guide you through:
+    1. Selecting the appropriate layer and domain
+    2. Naming the model with proper conventions
+    3. Setting access policies and team ownership
+    4. Configuring materialization and expiration settings
+    5. Defining service consumer access requirements
+    """
 )
 def create(
     quick: Annotated[
@@ -190,9 +169,7 @@ def fix(
     ] = None,
     staged: Annotated[
         bool,
-        typer.Option(
-            "--staged", "-s", is_flag=True, help="Whether to fix staged sql files."
-        ),
+        typer.Option("--staged", "-s", help="Whether to fix staged sql files."),
     ] = False,
 ):
     """Run sqlfmt and sqlfix for staged and/or defined sql files."""
@@ -264,9 +241,7 @@ def lint(
     ] = None,
     staged: Annotated[
         bool,
-        typer.Option(
-            "--staged", "-s", is_flag=True, help="Whether to lint staged sql files."
-        ),
+        typer.Option("--staged", "-s", help="Whether to lint staged sql files."),
     ] = False,
 ):
     """Run sqlfmt --diff and sqlfluff lint for staged and/or defined sql files."""
@@ -280,13 +255,20 @@ def lint(
 
 @app.command()
 @description(
-    """By default, it will create the new model in the new location as a copy of the original but with its name changed.
-It will also leave the original model in place, but will change the materialization to a view (unless it's an ephemeral model),
-and will change the sql to be "select * from <new model name>". But if setting the parameter `safe` to False, the original model will be deleted.
+    """Moves or renames a dbt model with optional reference updates.
 
-The function also supports updating the references in all other dbt models from the old name to the new model name.
-To do this, make sure "update-references" is one of the options used for the parameter `actions`.
-"""
+    By default, creates a copy at the new location and converts the original to a view
+    pointing to the new model. Use --safe=false to delete the original instead.
+
+    Use --action update-references to update all model references automatically.
+
+    This command handles:
+    1. Moving the model file to a new location
+    2. Updating the model name in the file content
+    3. Converting the old model to a view that references the new one
+    4. Optionally updating all references in other models
+    5. Maintaining data lineage and dependencies
+    """
 )
 def move(
     old_model_name: Annotated[
@@ -373,4 +355,11 @@ def validate(
     ],
 ):
     """Validates the yml and sql files for a model."""
-    ModelValidator(model_path=model_path).validate()
+    try:
+        ModelValidator(model_path=model_path).validate()
+    except ModelError:
+        warn(
+            "The provided path is not a dbt model under 'models/'. "
+            "Please select a model file located within the dbt 'models/' directory."
+        )
+        return

@@ -2,11 +2,11 @@ import json
 import os
 from datetime import date, timedelta
 
-from dbtwiz.config.project import project_config, project_dbtwiz_path
-from dbtwiz.dbt.manifest import Manifest
-from dbtwiz.dbt.run import invoke
-from dbtwiz.gcp.auth import ensure_auth
-from dbtwiz.helpers.logger import debug, error, info
+from ..config.project import project_config, project_dbtwiz_path
+from ..dbt.manifest import Manifest
+from ..dbt.run import invoke
+from ..integrations.gcp_auth import ensure_auth
+from ..utils.logger import debug, error, info
 
 LAST_SELECT_FILE = project_dbtwiz_path("last_select.json")
 
@@ -70,7 +70,7 @@ def build(
     args = {
         "target": target,
         "vars": f'{{data_interval_start: "{start_date}", data_interval_end: "{end_date}"}}',
-        "exclude": "tag:no_backfill"
+        "exclude": "tag:no_backfill",
     }
 
     if len(select) > 0:

@@ -1,7 +1,6 @@
 # `dbtwiz build`
 
-Build one or more dbt models, using interactive selection with fuzzy-matching,
-unless an exact model name is passed.
+Build one or more dbt models with interactive selection or exact names.
 
 ## Options
 
@@ -53,8 +52,8 @@ This will prepend a '+' to your chosen models when passing them on to _dbt_.
 
 ### `--downstream`, `-d`
 
-Also build downstream models that are directly or indirectly depdendent on the selected model(s).
-This will append a '+' to your chosen models when passing them on to _dbt_.
+Also build downstream models that are directly or indirectly dependent on the selected model(s).
+This will append a '+' to your chosen models when passing them on to dbt.
 
 ### `--work`, `-w`
 
@@ -63,7 +62,7 @@ have *staged* local modifications according to `git status`.
 
 ### `--repeat-last`, `-l`
 
-When you build with _dbtwiz_, it will store a list of selected models in the
+When you build with dbtwiz, it will store a list of selected models in the
 file `.dbtwiz/last_select.json` in the current project.
 
 Pass this option to rebuild the same models that you most recently built.

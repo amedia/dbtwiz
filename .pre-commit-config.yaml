@@ -1,9 +1,15 @@
 repos:
+- repo: https://github.com/astral-sh/ruff-pre-commit
+  rev: v0.12.10
+  hooks:
+    - id: ruff
+      args: ["check", "--select", "I", "--fix"]
+    - id: ruff-format
 -   repo: local
     hooks:
     -   id: update-command-docs
         name: Update command docs
-        entry: poetry run python dbtwiz/helpers/typer_docs.py
+        entry: poetry run python dbtwiz/utils/typer_docs.py
         language: system
         pass_filenames: false
         always_run: false

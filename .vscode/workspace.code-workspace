@@ -1,0 +1,47 @@
+{
+    "folders": [
+        {
+            "name": "dbtwiz",
+            "path": "."
+        }
+    ],
+    "settings": {
+        "python.testing.pytestEnabled": true,
+        "python.testing.unittestEnabled": false,
+        "python.testing.pytestArgs": [
+            "tests"
+        ],
+        "python.defaultInterpreterPath": "./.venv/Scripts/python.exe",
+        "python.testing.autoTestDiscoverOnSaveEnabled": true,
+        "debugpy.testing.pytestEnabled": true,
+        "debugpy.testing.unittestEnabled": false,
+        "debugpy.testing.pytestArgs": [
+            "tests"
+        ],
+        "debugpy.defaultInterpreterPath": "./.venv/Scripts/python.exe",
+        "debugpy.testing.autoTestDiscoverOnSaveEnabled": true,
+        "files.exclude": {
+            "**/__pycache__": true,
+            "**/*.pyc": true,
+            "**/.pytest_cache": true,
+            "**/htmlcov": true,
+            "**/.coverage": true,
+            "**/coverage.xml": true
+        },
+        "search.exclude": {
+            "**/__pycache__": true,
+            "**/*.pyc": true,
+            "**/.pytest_cache": true,
+            "**/htmlcov": true,
+            "**/.coverage": true,
+            "**/coverage.xml": true
+        }
+    },
+    "extensions": {
+        "recommendations": [
+            "ms-python.python",
+            "ms-python.vscode-pylance",
+            "charliermarsh.ruff"
+        ]
+    }
+}

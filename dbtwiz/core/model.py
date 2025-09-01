@@ -1,7 +1,8 @@
 from pathlib import Path
-from typing import Optional, Union
+from typing import Dict, Optional, Tuple, Union
 
-from dbtwiz.config.project import project_path
+from ..config.project import project_path
+from ..utils.exceptions import ModelError, ValidationError
 
 
 class ModelBasePath:
@@ -9,22 +10,45 @@ class ModelBasePath:
 
     def __init__(
         self, layer: Optional[str] = None, path: Optional[Union[str, Path]] = None
-    ):
+    ) -> None:
+        """Initialize ModelBasePath with either a layer name or a model path.
+
+        Args:
+            layer: Optional layer name (staging, intermediate, marts, bespoke)
+            path: Optional path to a model file
+
+        Raises:
+            ValidationError: If neither layer nor path is provided
+        """
         if path is not None:
             self._init_with_path(path)
         elif layer is not None:
             self._init_with_layer(layer)
         else:
-            raise ValueError("Must provide either layer or path")
+            raise ValidationError("Must provide either layer or path")
 
-    def _init_with_layer(self, layer: str):
-        """Initialize with just layer name"""
+    def _init_with_layer(self, layer: str) -> None:
+        """Initialize with just layer name.
+
+        Args:
+            layer: Layer name to initialize with
+
+        Raises:
+            ValidationError: If the layer name is invalid
+        """
         if layer not in self.layer_details:
-            raise ValueError(f"Invalid layer: {layer}")
+            raise ValidationError(f"Invalid layer: {layer}")
         self._layer = layer
 
-    def _init_with_path(self, path: Union[str, Path]):
-        """Initialize with model path and extract all metadata"""
+    def _init_with_path(self, path: Union[str, Path]) -> None:
+        """Initialize with model path and extract all metadata.
+
+        Args:
+            path: Path to the model file
+
+        Raises:
+            ModelError: If the path structure is invalid
+        """
         path = Path(path)
         self._original_path = path
         self.path = path.parent / path.stem
@@ -63,10 +87,15 @@ class ModelBasePath:
                 )
                 self._full_path = self._domain_path / self._model_name
         except (ValueError, IndexError) as e:
-            raise ValueError(f"Invalid model path structure: {path}") from e
+            raise ModelError(f"Invalid model path structure: {path}") from e
 
     @property
-    def layer_details(self):
+    def layer_details(self) -> Dict[str, Tuple[str, str]]:
+        """Get mapping of layer names to folder names and abbreviations.
+
+        Returns:
+            Dictionary mapping layer names to (folder_name, abbreviation) tuples
+        """
         return {
             "staging": ("1_staging", "stg"),
             "intermediate": ("2_intermediate", "int"),
@@ -77,7 +106,7 @@ class ModelBasePath:
     @property
     def layer(self) -> str:
         if not hasattr(self, "_layer"):
-            raise AttributeError("Layer not available")
+            raise ModelError("Layer not available")
         return self._layer
 
     @property
@@ -91,40 +120,62 @@ class ModelBasePath:
     @property
     def domain(self) -> str:
         if not hasattr(self, "_domain"):
-            raise AttributeError("Domain not available - initialize with path")
+            raise ModelError("Domain not available - initialize with path")
         return self._domain
 
     @property
     def identifier(self) -> str:
         """The base model name without prefix (e.g. 'customers')"""
         if not hasattr(self, "_identifier"):
-            raise AttributeError("Identifier not available - initialize with path")
+            raise ModelError("Identifier not available - initialize with path")
         return self._identifier
 
     @property
     def model_name(self) -> str:
         """The full model name with prefix (e.g. 'stg_marketing__customers')"""
         if not hasattr(self, "_model_name"):
-            raise AttributeError("Model name not available - initialize with path")
+            raise ModelError("Model name not available - initialize with path")
         return self._model_name
 
     @property
     def prefix(self) -> str:
         if not hasattr(self, "_prefix"):
-            raise AttributeError("Prefix not available - initialize with path")
+            raise ModelError("Prefix not available - initialize with path")
         return self._prefix
 
     def get_prefix(self, domain: Optional[str] = None) -> str:
+        """Get the prefix for a model name.
+
+        Args:
+            domain: Optional domain name to use in the prefix
+
+        Returns:
+            Model prefix string (e.g., 'stg_marketing__')
+
+        Raises:
+            ModelError: If no domain is available and none is provided
+        """
         if domain:
             return f"{self.layer_abbreviation}_{domain}__"
         if hasattr(self, "_prefix"):
             return self._prefix
-        raise AttributeError("Must provide domain when initialized with layer")
+        raise ModelError("Must provide domain when initialized with layer")
 
     def get_domain_path(self, domain: Optional[str] = None) -> Path:
+        """Get the path to a domain directory.
+
+        Args:
+            domain: Optional domain name, uses cached domain if not provided
+
+        Returns:
+            Path to the domain directory
+
+        Raises:
+            ModelError: If no domain is available and none is provided
+        """
         domain = domain or (self._domain if hasattr(self, "_domain") else None)
         if not domain:
-            raise AttributeError("Must provide domain when initialized with layer")
+            raise ModelError("Must provide domain when initialized with layer")
         if domain == getattr(self, "_domain", None):
             return self._domain_path
         return project_path() / "models" / self.layer_folder / domain
@@ -132,9 +183,18 @@ class ModelBasePath:
     def get_path(
         self, name: Optional[str] = None, domain: Optional[str] = None
     ) -> Path:
-        """Get full model path using either:
-        - Cached values when initialized with path (name=None)
-        - Explicit name/domain when initialized with layer
+        """Get full model path using either cached values or explicit parameters.
+
+        Args:
+            name: Optional model name, uses cached identifier if not provided
+            domain: Optional domain name, uses cached domain if not provided
+
+        Returns:
+            Full path to the model file
+
+        Note:
+            - When initialized with path: uses cached values if name/domain not provided
+            - When initialized with layer: requires explicit name/domain parameters
         """
         if name is None and hasattr(self, "_full_path"):
             return self._full_path
