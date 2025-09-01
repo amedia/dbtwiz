@@ -1,3 +1,5 @@
+import os
+import shutil
 import subprocess
 import time
 import webbrowser
@@ -122,7 +124,26 @@ def run_command(args: list[str], verbose: bool = False, check: bool = True):
     """Run the given command in a subprocess"""
     if verbose:
         debug(f"Running command: {' '.join([str(arg) for arg in args])}")
-    result = subprocess.run(args, shell=False)
+
+    # Ensure all arguments are strings (handles Path objects)
+    str_args = [str(arg) for arg in args]
+
+    # On Windows, resolve the executable explicitly to avoid FileNotFoundError
+    if os.name == "nt":
+        executable = str_args[0]
+        resolved_executable = (
+            shutil.which(executable)
+            or shutil.which(f"{executable}.cmd")
+            or shutil.which(f"{executable}.exe")
+        )
+        if resolved_executable is None:
+            raise FileNotFoundError(
+                f"Executable '{executable}' not found on PATH. "
+                "Ensure it is installed and available (e.g., install Google Cloud SDK to use 'gcloud')."
+            )
+        str_args[0] = resolved_executable
+
+    result = subprocess.run(str_args, shell=False)
     if check:
         result.check_returncode()
     return result
