@@ -698,7 +698,7 @@ class BigQueryClient:
 
         # Remove constraints before renaming
         self.update_table_constraints(
-            table_id=old_table.reference.table_id,
+            table_id=old_table.reference,
             table_constraints=None,
             should_update=old_table.table_constraints is not None,
         )
@@ -706,9 +706,10 @@ class BigQueryClient:
         # Rename table
         backup_table_name = backup_table_id.split(".")[-1]
         query = f"""
-        alter table `{old_table.reference.table_id}`
+        alter table `{old_table.reference}`
         rename to `{backup_table_name}`;
         """
+
         query_job = client.query(query)
         query_job.result()  # Wait for the job to complete
 
