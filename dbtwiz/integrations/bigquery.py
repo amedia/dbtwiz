@@ -389,9 +389,13 @@ class BigQueryClient:
                 )
                 schema_details.extend(nested_fields)
             else:
+                if field.mode == "REPEATED":
+                    data_type = f"array<{field.field_type.lower()}>"
+                else:
+                    data_type = field.field_type.lower()
                 column = {
                     "name": f"{prefix}{field.name}",
-                    "data_type": field.field_type.lower(),
+                    "data_type": data_type,
                 }
                 column["description"] = (
                     PreservedScalarString(field.description)
