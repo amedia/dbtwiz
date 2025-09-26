@@ -243,6 +243,10 @@ def materialization_choices() -> List[Dict[str, str]]:
         {"name": "table", "description": "Typically used for smaller mart models"},
         {"name": "incremental", "description": "Used for large models"},
         {
+            "name": "scd2",
+            "description": "Used for slowly changing dimensions built from a partitioned table",
+        },
+        {
             "name": "ephemeral",
             "description": "Should very rarely be used, only for logically splitting up the code",
         },

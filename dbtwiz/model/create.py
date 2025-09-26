@@ -179,6 +179,7 @@ def select_materialization(context):
     has_invalid_selection = context.get("materialization") and not any(
         item["name"] == context.get("materialization")
         for item in valid_materializations
+        if item["name"] != "scd2"
     )
     if (
         context.get("materialization")
@@ -356,10 +357,11 @@ def select_access_policy(context):
         )
 
 
-def get_stg_sql(source):
-    """Returns the SQL definition for a staging model"""
-    source_name, table_name = source.split(".")
-    return f"""with
+def get_sql(layer, materialization, source):
+    """Returns the SQL definition for a model"""
+    if layer == "staging":
+        source_name, table_name = source.split(".")
+        return f"""with
     source as (select * from {{{{ source("{source_name}", "{table_name}") }}}}),
 
     renamed as (
@@ -371,6 +373,20 @@ def get_stg_sql(source):
 select *
 from renamed
 """
+    elif materialization and materialization == "scd2":
+        return f"""{{{{ scd2(
+    source_model = ref(""),
+    partition_date_column = "",
+    primary_key_columns = [""],
+    tracked_columns = [""],
+    untracked_columns = [],
+    custom_filter = none,
+    custom_column_expressions = none,
+    initial_partition="2023-01-01"
+) }}}}
+"""
+    else:
+        return "{# SQL placeholder #}"
 
 
 def get_config(
@@ -397,6 +413,9 @@ def get_config(
             config["partition_expiration_days"] = f"{{{{ var('{expiration}') }}}}"
         config["require_partition_filter"] = True
         config["on_schema_change"] = "append_new_columns"
+    elif materialization == "scd2":
+        config["materialized"] = "incremental"
+        config["incremental_strategy"] = "merge"
 
     if frequency:
         config["tags"] = CommentedSeq([frequency])
@@ -504,7 +523,7 @@ def create_model_files(
 
     if not sql_path.exists():
         info("Creating model sql file")
-        sql = get_stg_sql(source) if layer == "staging" else "{# SQL placeholder #}"
+        sql = get_sql(layer=layer, materialization=materialization, source=source)
         with open(sql_path, "w+") as f:
             f.write(sql)
         open_in_editor(sql_path)
