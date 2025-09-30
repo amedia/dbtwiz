@@ -113,7 +113,7 @@ def job_spec_template():
                   limits:
                     cpu: 1000m
                     memory: 2Gi
-              maxRetries: 2
+              maxRetries: 0
               timeoutSeconds: 900
               serviceAccountName: {{ service_account }}
     """
