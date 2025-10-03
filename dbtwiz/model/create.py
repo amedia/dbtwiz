@@ -389,6 +389,12 @@ from renamed
         return "{# SQL placeholder #}"
 
 
+def set_config_value(config, key, value):
+    """Set config values in a simplified way, while keeping get_config complexity low."""
+    if value is not None:
+        config[key] = value
+
+
 def get_config(
     materialization: str,
     expiration=None,
@@ -404,34 +410,33 @@ def get_config(
 
     config = CommentedMap()
 
-    config["materialized"] = materialization
-
+    set_config_value(config, "materialized", materialization)
     if materialization == "incremental":
-        config["incremental_strategy"] = "insert_overwrite"
-        config["partition_by"] = {"field": "partitiondate", "data_type": "date"}
+        set_config_value(config, "incremental_strategy", "insert_overwrite")
+        set_config_value(
+            config, "partition_by", {"field": "partitiondate", "data_type": "date"}
+        )
         if expiration:
-            config["partition_expiration_days"] = f"{{{{ var('{expiration}') }}}}"
-        config["require_partition_filter"] = True
-        config["on_schema_change"] = "append_new_columns"
+            set_config_value(
+                config, "partition_expiration_days", f"{{{{ var('{expiration}') }}}}"
+            )
+        set_config_value(config, "require_partition_filter", True)
+        set_config_value(config, "on_schema_change", "append_new_columns")
     elif materialization == "scd2":
-        config["materialized"] = "incremental"
-        config["incremental_strategy"] = "merge"
-        config["unique_key"] = [""]
-
+        set_config_value(config, "materialized", "incremental")
+        set_config_value(config, "incremental_strategy", "merge")
+        set_config_value(config, "unique_key", [""])
     if frequency:
-        config["tags"] = CommentedSeq([frequency])
-    if access:
-        config["access"] = access
-    if group:
-        config["group"] = group
+        set_config_value(config, "tags", CommentedSeq([frequency]))
+    set_config_value(config, "access", access)
+    set_config_value(config, "group", group)
     if teams or service_consumers or access_policy:
         config["meta"] = CommentedMap()
-        if teams:
-            config["meta"]["teams"] = CommentedSeq(teams)
-        if access_policy:
-            config["meta"]["access-policy"] = access_policy
-        if service_consumers:
-            config["meta"]["service-consumers"] = CommentedSeq(service_consumers)
+        set_config_value(config["meta"], "teams", CommentedSeq(teams))
+        set_config_value(config["meta"], "access-policy", access_policy)
+        set_config_value(
+            config["meta"], "service-consumers", CommentedSeq(service_consumers)
+        )
 
     return config
 
