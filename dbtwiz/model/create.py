@@ -374,7 +374,7 @@ select *
 from renamed
 """
     elif materialization and materialization == "scd2":
-        return f"""{{{{ scd2(
+        return """{{ scd2(
     source_model = ref(""),
     partition_date_column = "",
     primary_key_columns = [""],
@@ -383,7 +383,7 @@ from renamed
     custom_filter = none,
     custom_column_expressions = none,
     initial_partition="2023-01-01"
-) }}}}
+) }}
 """
     else:
         return "{# SQL placeholder #}"
