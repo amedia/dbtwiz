@@ -12,5 +12,7 @@
         "tests"
     ],
     "debugpy.defaultInterpreterPath": "./.venv/Scripts/python.exe",
-    "debugpy.testing.autoTestDiscoverOnSaveEnabled": true
+    "debugpy.testing.autoTestDiscoverOnSaveEnabled": true,
+    "scm.workingSets.enabled": true,
+    "scm.workingSets.default": "current"
 }
