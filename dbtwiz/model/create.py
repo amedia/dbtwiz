@@ -416,6 +416,7 @@ def get_config(
     elif materialization == "scd2":
         config["materialized"] = "incremental"
         config["incremental_strategy"] = "merge"
+        config["unique_key"] = [""]
 
     if frequency:
         config["tags"] = CommentedSeq([frequency])
