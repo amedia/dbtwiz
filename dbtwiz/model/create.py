@@ -432,11 +432,14 @@ def get_config(
     set_config_value(config, "group", group)
     if teams or service_consumers or access_policy:
         config["meta"] = CommentedMap()
-        set_config_value(config["meta"], "teams", CommentedSeq(teams))
-        set_config_value(config["meta"], "access-policy", access_policy)
-        set_config_value(
-            config["meta"], "service-consumers", CommentedSeq(service_consumers)
-        )
+        if teams:
+            set_config_value(config["meta"], "teams", CommentedSeq(teams))
+        if access_policy:
+            set_config_value(config["meta"], "access-policy", access_policy)
+        if service_consumers:
+            set_config_value(
+                config["meta"], "service-consumers", CommentedSeq(service_consumers)
+            )
 
     return config
 
