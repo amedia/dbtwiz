@@ -107,6 +107,9 @@ def parse_git_log_output(models_path):
     a model was deleted.
     """
     try:
+        # Ensure full history is available
+        subprocess.run(["git", "fetch", "--unshallow"], stderr=subprocess.DEVNULL)
+
         git_output = subprocess.check_output(
             [
                 "git",
