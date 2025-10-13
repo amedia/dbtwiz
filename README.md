@@ -50,21 +50,26 @@ The tool will give you a warning when you run a commmand that needs one of the c
 # Config for default number of days per batch when running backfill
 backfill_default_batch_size = 30
 # Config for bucket containing dbt manifest.json at the top level
-bucket_state_project = ""         # Project name for bucket
-bucket_state_identifier = ""      # Bucket name
+bucket_state_project = ""           # Project name for bucket
+bucket_state_identifier = ""        # Bucket name
 
 # Config for service account used for backfill and cleanup of orphaned models in prod
-service_account_project = ""      # Project name for where service account actions are run
-service_account_identifier = ""   # Name of service account
-service_account_region = ""       # Region for where service account actions are run
+service_account_project = ""        # Project name for where service account actions are run
+service_account_identifier = ""     # Name of service account
+service_account_region = ""         # Region for where service account actions are run
 
 # Config for user actions
-user_project = ""                 # Project name for where user queries are run
+user_project = ""                   # Project name for where user queries are run
 
 # Config for docker image used for backfill
-docker_image_url_dbt = ""         # Url for docker image
-docker_image_profiles_path = ""   # Path to profiles dir in docker image
-docker_image_manifest_path = ""   # Path to manifest in docker image
+docker_image_url_dbt = ""           # Url for docker image
+docker_image_profiles_path = ""     # Path to profiles dir in docker image
+docker_image_manifest_path = ""     # Path to manifest in docker image
+
+# Config for orphaned dbt models cleanup
+orphan_cleanup_bq_region = ""       # The region where data is materialized (e.g. region-eu)
+orphan_cleanup_projects = [""]      # Which projects to look for orphaned models in (e.g. prod)
+orphan_cleanup_skip_projects = [""] # Which projects not to look for orphaned moels in (e.g. dev)
 ```
 
 ### User config
