@@ -241,8 +241,13 @@ def handle_orphaned_materializations(
     target: Target, list_only: bool, force_delete: bool
 ) -> None:
     """List or delete orphaned materializations"""
-    ensure_auth()
+    if (
+        not project_config().orphan_cleanup_bq_region
+        and not project_config().orphan_cleanup_projects
+    ):
+        return
 
+    ensure_auth()
     Manifest.update_manifests(target, force=True)
 
     if target == Target.dev:
