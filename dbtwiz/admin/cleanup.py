@@ -228,7 +228,7 @@ def add_git_deletion_info(orphaned_tables, models_path="models"):
                 {
                     "name": f"{fq_table:<95} {formatted_time:>5} | {match['commit']:>5}",
                     "value": fq_table,
-                    "description": f"deleted by {match['author']} - {commit_url}",
+                    "description": f"deleted by {match['author']} in {commit_url}",
                 }
             )
         else:
