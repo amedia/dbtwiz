@@ -367,6 +367,40 @@ class BigQueryClient:
         except Exception as e:
             error(f"Error updating table constraints for {table_id}: {e}")
 
+    def get_sql_type_name(self, field_type: str) -> str:
+        """Maps a field type to the correct SQL type name."""
+        type_map = {
+            "INTEGER": "INT64",
+            "INT": "INT64",
+            "SMALLINT": "INT64",
+            "BIGINT": "INT64",
+            "TINYINT": "INT64",
+            "BYTEINT": "INT64",
+            "FLOAT": "FLOAT64",
+            "FLOAT64": "FLOAT64",
+            "NUMERIC": "NUMERIC",
+            "DECIMAL": "NUMERIC",
+            "BIGNUMERIC": "BIGNUMERIC",
+            "BIGDECIMAL": "BIGNUMERIC",
+            "STRING": "STRING",
+            "BYTES": "BYTES",
+            "BOOLEAN": "BOOL",
+            "BOOL": "BOOL",
+            "DATE": "DATE",
+            "DATETIME": "DATETIME",
+            "TIME": "TIME",
+            "TIMESTAMP": "TIMESTAMP",
+            "INTERVAL": "INTERVAL",
+            "RANGE": "RANGE",
+            "GEOGRAPHY": "GEOGRAPHY",
+            "JSON": "JSON",
+            "RECORD": "STRUCT",
+            "STRUCT": "STRUCT",
+            "ARRAY": "ARRAY",
+        }
+
+        return type_map.get(field_type.upper(), field_type.upper())
+
     def parse_schema(self, fields: List[Any], prefix: str = "") -> List[Dict[str, Any]]:
         """Parse the schema for a table and return all columns with their details.
 
@@ -389,10 +423,11 @@ class BigQueryClient:
                 )
                 schema_details.extend(nested_fields)
             else:
+                field_type = self.get_sql_type_name(field.field_type).lower()
                 if field.mode == "REPEATED":
-                    data_type = f"array<{field.field_type.lower()}>"
+                    data_type = f"array<{field_type}>"
                 else:
-                    data_type = field.field_type.lower()
+                    data_type = field_type
                 column = {
                     "name": f"{prefix}{field.name}",
                     "data_type": data_type,
