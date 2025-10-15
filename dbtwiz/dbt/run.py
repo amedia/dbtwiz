@@ -1,6 +1,7 @@
 from typing import Any, List
 
 from ..config.project import project_config
+from ..utils.contextmanagers import suppress_output
 from ..utils.logger import debug, fatal
 
 
@@ -41,3 +42,33 @@ def invoke(commands: List[str], **args: Any) -> None:
             fatal(str(result.exception), exit_code=2)
         else:
             fatal("dbt invocation failed.", exit_code=1)
+
+
+def get_select_model_count(select: str) -> int:
+    """Returns the number of models identified by the given dbt selector."""
+    from dbt.cli.main import dbtRunner  # Lazy import
+
+    dbt_args = [
+        "ls",
+        "--resource-type",
+        "model",
+        "--select",
+        select,
+        "--project-dir",
+        str(project_config().root_path()),
+        "--output",
+        "json",
+    ]
+
+    debug(f"Invoking dbt with args: {dbt_args}")
+
+    with suppress_output():
+        result = dbtRunner().invoke(dbt_args)
+
+    if not result.success:
+        message = (
+            str(result.exception) if result.exception else "dbt invocation failed."
+        )
+        fatal(message, exit_code=2 if result.exception else 1)
+
+    return len(result.result)

@@ -10,11 +10,22 @@ from textwrap import dedent
 from jinja2 import Template
 
 from ..config.project import project_config, project_dbtwiz_path
+from ..dbt.run import get_select_model_count
 from ..integrations.gcp_auth import ensure_auth
-from ..utils.logger import debug, info
+from ..utils.logger import debug, fatal, info
 
 MAX_CONCURRENT_TASKS = 8
 YAML_FILE = project_dbtwiz_path("backfill-cloudrun.yaml")
+
+
+def halve_str(word: str) -> str:
+    """Halve a string by keeping the first and last quarter of the string"""
+    word_len = len(word)
+    word_len_quart = max(1, word_len // 4)
+    first_quart = word[:word_len_quart]
+    from_idx = word_len - word_len_quart
+    last_quart = word[from_idx:]
+    return f"{first_quart}{last_quart}"
 
 
 def backfill_job_name(selector: str) -> str:
@@ -37,40 +48,6 @@ def backfill_job_name(selector: str) -> str:
             words.pop()
             name = "-".join(words)
     return name
-
-
-def generate_job_spec(
-    selector: str,
-    date_first: date,
-    date_last: date,
-    full_refresh: bool,
-    parallelism: int,
-    batch_size: int,
-) -> str:
-    """Generate job specification YAML file"""
-    number_of_days = (date_last - date_first).days + 1
-    task_count = ceil(number_of_days / batch_size)
-    parallelism = min(task_count, parallelism)
-    job_name = backfill_job_name(selector)
-    if full_refresh:
-        assert number_of_days == 1
-        assert "+" not in selector
-    job_spec_yaml = job_spec_template().render(
-        job_name=job_name,
-        parallelism=parallelism,
-        task_count=task_count,
-        image=project_config().docker_image_url_dbt,
-        selector=selector,
-        start_date=date_first.strftime("%Y-%m-%d"),
-        end_date=date_last.strftime("%Y-%m-%d"),
-        batch_size=batch_size,
-        full_refresh=full_refresh,
-        service_account=project_config().service_account_identifier,
-        service_account_region=project_config().service_account_region,
-    )
-    with open(YAML_FILE, "w+") as f:
-        f.write(job_spec_yaml)
-    return job_name
 
 
 def job_spec_template():
@@ -120,6 +97,40 @@ def job_spec_template():
     return Template(dedent(yaml).lstrip("\n"))
 
 
+def generate_job_spec(
+    selector: str,
+    date_first: date,
+    date_last: date,
+    full_refresh: bool,
+    parallelism: int,
+    batch_size: int,
+) -> str:
+    """Generate job specification YAML file"""
+    number_of_days = (date_last - date_first).days + 1
+    task_count = ceil(number_of_days / batch_size)
+    parallelism = min(task_count, parallelism)
+    job_name = backfill_job_name(selector)
+    if full_refresh:
+        assert number_of_days == 1
+        assert "+" not in selector
+    job_spec_yaml = job_spec_template().render(
+        job_name=job_name,
+        parallelism=parallelism,
+        task_count=task_count,
+        image=project_config().docker_image_url_dbt,
+        selector=selector,
+        start_date=date_first.strftime("%Y-%m-%d"),
+        end_date=date_last.strftime("%Y-%m-%d"),
+        batch_size=batch_size,
+        full_refresh=full_refresh,
+        service_account=project_config().service_account_identifier,
+        service_account_region=project_config().service_account_region,
+    )
+    with open(YAML_FILE, "w+") as f:
+        f.write(job_spec_yaml)
+    return job_name
+
+
 def run_command(args: list[str], verbose: bool = False, check: bool = True):
     """Run the given command in a subprocess"""
     if verbose:
@@ -160,6 +171,12 @@ def backfill(
     batch_size: int,
 ):
     """Runs backfill for the given selector and date interval."""
+    ensure_auth()
+
+    # Verify valid selector
+    if get_select_model_count(select=selector) == 0:
+        fatal(f"The given select statement, {selector}, selected 0 models.")
+
     job_name = generate_job_spec(
         selector=selector,
         date_first=first_date,
@@ -169,8 +186,7 @@ def backfill(
         batch_size=batch_size,
     )
 
-    ensure_auth(check_app_default_auth=True, check_gcloud_auth=True)
-
+    ensure_auth(check_app_default_auth=False, check_gcloud_auth=True)
     service_account_project = project_config().service_account_project
     service_account_region = project_config().service_account_region
 
@@ -209,13 +225,3 @@ def backfill(
     if status:
         webbrowser.open(job_url)
         time.sleep(0.5)
-
-
-def halve_str(word: str) -> str:
-    """Halve a string by keeping the first and last quarter of the string"""
-    word_len = len(word)
-    word_len_quart = max(1, word_len // 4)
-    first_quart = word[:word_len_quart]
-    from_idx = word_len - word_len_quart
-    last_quart = word[from_idx:]
-    return f"{first_quart}{last_quart}"
