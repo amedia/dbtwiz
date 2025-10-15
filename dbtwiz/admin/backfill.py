@@ -177,8 +177,6 @@ def backfill(
     if get_select_model_count(select=selector) == 0:
         fatal(f"The given select statement, {selector}, selected 0 models.")
 
-    exit(0)
-
     job_name = generate_job_spec(
         selector=selector,
         date_first=first_date,
