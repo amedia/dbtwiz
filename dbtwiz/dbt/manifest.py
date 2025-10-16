@@ -40,7 +40,7 @@ class Manifest:
             time.sleep(1)
 
         try:
-            with open(path, "r") as f:
+            with open(path, "r", encoding="utf-8") as f:
                 manifest = json.load(f)
                 self.nodes = manifest["nodes"]
                 self.sources_nodes = manifest["sources"]
@@ -70,7 +70,7 @@ class Manifest:
         ):
             debug("Updating models cache")
             Manifest().update_models_cache()
-        with open(cls.MODELS_CACHE_PATH, "r") as f:
+        with open(cls.MODELS_CACHE_PATH, "r", encoding="utf-8") as f:
             return json.load(f)
 
     @classmethod
@@ -211,7 +211,7 @@ class Manifest:
     def update_models_cache(self) -> None:
         """Save the current models to the models cache file."""
         Path.mkdir(self.MODELS_CACHE_PATH.parent, parents=True, exist_ok=True)
-        with open(self.MODELS_CACHE_PATH, "w+") as f:
+        with open(self.MODELS_CACHE_PATH, "w+", encoding="utf-8") as f:
             json.dump(self.models(), f)
 
     def update_models_info(self) -> None:
@@ -224,7 +224,7 @@ class Manifest:
                 continue
             debug(f"Rendering model info to {info_file}")
             model_info = self.model_info_template(clear=True).render(model=model)
-            with open(info_file, "w+") as f:
+            with open(info_file, "w+", encoding="utf-8") as f:
                 # combine multiple blank lines into one to avoid
                 # painful handling of it in template
                 f.write(re.sub(r"\n\n+", "\n\n", model_info))
@@ -259,7 +259,7 @@ class Manifest:
         """Generate and return the model information template with optional clearing."""
         theme = Theme.by_name(user_config().theme)
         debug(theme)
-        with open(path_to_template("model_info"), "r+") as f:
+        with open(path_to_template("model_info"), "r+", encoding="utf-8") as f:
             template = f.read()
         if clear:
             template = "\033[2J\033[H" + template
@@ -285,21 +285,21 @@ class Manifest:
                 child_models = self.child_models(key)
                 models[node["name"]] = dict(
                     unique_id=key,
-                    database=node["database"],
-                    schema=node["schema"],
-                    name=node["name"],
-                    alias=node["alias"],
-                    path=node["path"],
+                    database=node.get("database"),
+                    schema=node.get("schema"),
+                    name=node.get("name"),
+                    alias=node.get("alias"),
+                    path=node.get("path"),
                     folder=str(folder),
-                    tags=node["tags"],
-                    meta=node["meta"],
-                    group=node["group"],
-                    relation_name=node["relation_name"],
-                    description=node["description"],
+                    tags=node.get("tags"),
+                    meta=node.get("meta"),
+                    group=node.get("group"),
+                    relation_name=node.get("relation_name"),
+                    description=node.get("description"),
                     materialized=config["materialized"],
                     parent_models=parent_models,
                     child_models=child_models,
-                    deprecated=node["description"].lower().startswith("deprecated"),
+                    deprecated=node.get("description").lower().startswith("deprecated"),
                 )
         return models
 
@@ -314,9 +314,11 @@ class Manifest:
 
     def child_models(self, key):
         """Get and return the sorted list of child models for the given key."""
+        if key not in self.child_map.keys():
+            return []
         children = [
             self.nodes[nk]["name"]
-            for nk in self.child_map[key]
+            for nk in self.child_map.get(key)
             if nk in self.nodes and self.nodes[nk]["resource_type"] == "model"
         ]
         return sorted(children, key=self.model_ordering)

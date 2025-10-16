@@ -527,13 +527,13 @@ def create_model_files(
     base_path.parent.mkdir(parents=True, exist_ok=True)
 
     info("Creating model yml file")
-    with open(yml_path, "w+") as f:
+    with open(yml_path, "w+", encoding="utf-8") as f:
         ruamel_yaml.dump(yml_content, f)
 
     if not sql_path.exists():
         info("Creating model sql file")
         sql = get_sql(layer=layer, materialization=materialization, source=source)
-        with open(sql_path, "w+") as f:
+        with open(sql_path, "w+", encoding="utf-8") as f:
             f.write(sql)
         open_in_editor(sql_path)
     open_in_editor(yml_path)

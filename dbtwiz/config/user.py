@@ -208,7 +208,7 @@ class UserConfig(BaseModel):
         default values, creating them if they don't exist.
         """
         self.config_path().mkdir(parents=True, exist_ok=True)
-        with open(self._config_file(), "a") as f:
+        with open(self._config_file(), "a", encoding="utf-8") as f:
             for setting in UserConfig.SETTINGS:
                 key = setting["key"]
                 if key not in self._config:

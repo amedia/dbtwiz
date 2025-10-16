@@ -98,7 +98,7 @@ def build(
 
 def save_selected_models(models):
     """Saves the selected models."""
-    with open(LAST_SELECT_FILE, "w+") as f:
+    with open(LAST_SELECT_FILE, "w+", encoding="utf-8") as f:
         f.write(json.dumps(models))
 
 
@@ -107,6 +107,6 @@ def load_selected_models():
     if not LAST_SELECT_FILE.exists():
         error("No previously selected models found.")
         return None
-    with open(LAST_SELECT_FILE, "r") as f:
+    with open(LAST_SELECT_FILE, "r", encoding="utf-8") as f:
         models = json.loads(f.read())
     return models
