@@ -18,7 +18,7 @@ class Group:
         """Initialize the class and read the model groups."""
         from yaml import safe_load  # Lazy import for improved performance
 
-        with open(self.YAML_PATH, "r") as f:
+        with open(self.YAML_PATH, "r", encoding="utf-8") as f:
             data = safe_load(f)
         self.groups: List[Dict[str, Any]] = data["groups"]
 
@@ -150,7 +150,7 @@ class Project:
 
         self.YAML_PATH = project_root / "dbt_project.yml"
 
-        with open(self.YAML_PATH, "r") as f:
+        with open(self.YAML_PATH, "r", encoding="utf-8") as f:
             self.data: Dict[str, Any] = safe_load(f)
 
     # ============================================================================
@@ -296,7 +296,7 @@ def get_source_tables() -> Tuple[
     dbt_sources = []
     for yml_file in Path("sources").rglob("*"):
         if yml_file.suffix in {".yml", ".yaml"}:
-            with open(yml_file, "r") as f:
+            with open(yml_file, "r", encoding="utf-8") as f:
                 content = safe_load(f)
                 sources = content.get("sources", [])
                 for source in sources:

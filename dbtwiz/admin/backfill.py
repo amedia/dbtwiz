@@ -126,7 +126,7 @@ def generate_job_spec(
         service_account=project_config().service_account_identifier,
         service_account_region=project_config().service_account_region,
     )
-    with open(YAML_FILE, "w+") as f:
+    with open(YAML_FILE, "w+", encoding="utf-8") as f:
         f.write(job_spec_yaml)
     return job_name
 
