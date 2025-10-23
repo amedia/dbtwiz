@@ -10,9 +10,10 @@ from textwrap import dedent
 from jinja2 import Template
 
 from ..config.project import project_config, project_dbtwiz_path
-from ..dbt.run import get_select_model_count
+from ..dbt.run import get_selected_models
 from ..integrations.gcp_auth import ensure_auth
-from ..utils.logger import debug, fatal, info
+from ..ui.interact import confirm
+from ..utils.logger import debug, fatal, info, warn
 
 MAX_CONCURRENT_TASKS = 8
 YAML_FILE = project_dbtwiz_path("backfill-cloudrun.yaml")
@@ -174,8 +175,25 @@ def backfill(
     ensure_auth()
 
     # Verify valid selector
-    if get_select_model_count(select=selector) == 0:
-        fatal(f"The given select statement, {selector}, selected 0 models.")
+    selected_models = get_selected_models(select=selector)
+
+    if len(selected_models) == 0:
+        fatal(
+            f"No models selected by statement '{selector}'. Please check the model name(s)."
+        )
+    else:
+        materialized_counts = {}
+        for item in selected_models:
+            key = item["config"]["materialized"]
+            materialized_counts[key] = materialized_counts.get(key, 0) + 1
+
+        if materialized_counts.get("incremental", 0) == 0:
+            warn(
+                f"No incremental models were selected, so provided dates will be ignored."
+            )
+            if not confirm(f"Would you still like to run?"):
+                return
+            first_date = last_date = date.today()
 
     job_name = generate_job_spec(
         selector=selector,

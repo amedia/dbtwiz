@@ -44,8 +44,10 @@ def invoke(commands: List[str], **args: Any) -> None:
             fatal("dbt invocation failed.", exit_code=1)
 
 
-def get_select_model_count(select: str) -> int:
-    """Returns the number of models identified by the given dbt selector."""
+def get_selected_models(select: str) -> int:
+    """Returns the models identified by the given dbt select statement."""
+    import json
+
     from dbt.cli.main import dbtRunner  # Lazy import
 
     dbt_args = [
@@ -71,4 +73,4 @@ def get_select_model_count(select: str) -> int:
         )
         fatal(message, exit_code=2 if result.exception else 1)
 
-    return len(result.result)
+    return [json.loads(item) for item in result.result]
