@@ -179,7 +179,7 @@ def backfill(
 
     if len(selected_models) == 0:
         fatal(
-            "No models selected by statement '{selector}'. Please check the model name(s)."
+            f"No models selected by statement '{selector}'. Please check the model name(s)."
         )
     else:
         materialized_counts = {}
