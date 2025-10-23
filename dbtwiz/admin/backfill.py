@@ -179,7 +179,7 @@ def backfill(
 
     if len(selected_models) == 0:
         fatal(
-            f"No models selected by statement '{selector}'. Please check the model name(s)."
+            "No models selected by statement '{selector}'. Please check the model name(s)."
         )
     else:
         materialized_counts = {}
@@ -189,9 +189,9 @@ def backfill(
 
         if materialized_counts.get("incremental", 0) == 0:
             warn(
-                f"No incremental models were selected, so provided dates will be ignored."
+                "No incremental models were selected, so provided dates will be ignored."
             )
-            if not confirm(f"Would you still like to run?"):
+            if not confirm("Would you still like to run?"):
                 return
             first_date = last_date = date.today()
 
