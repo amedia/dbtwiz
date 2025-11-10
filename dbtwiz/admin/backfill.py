@@ -52,14 +52,14 @@ def backfill_job_name(selector: str) -> str:
     return name
 
 
-def job_timeout(target_name="prod") -> int:
+def job_timeout(target_name="prod", default=900, leeway=60) -> int:
     """Get job timeout from profile and add some leeway"""
     try:
         profile = Profile().profile_config("prod")
         timeout = profile["job_execution_timeout_seconds"]
     except RuntimeError:
-        timeout = 900  # Default if unable to get from profile
-    return timeout + 60
+        timeout = default  # Default if unable to get from profile
+    return timeout + leeway
 
 
 def job_spec_template():
