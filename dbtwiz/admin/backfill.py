@@ -10,6 +10,7 @@ from textwrap import dedent
 from jinja2 import Template
 
 from ..config.project import project_config, project_dbtwiz_path
+from ..core.project import Profile
 from ..dbt.run import get_selected_models
 from ..integrations.gcp_auth import ensure_auth
 from ..ui.interact import confirm
@@ -49,6 +50,16 @@ def backfill_job_name(selector: str) -> str:
             words.pop()
             name = "-".join(words)
     return name
+
+
+def job_timeout(target_name="prod") -> int:
+    """Get job timeout from profile and add some leeway"""
+    try:
+        profile = Profile().profile_config("prod")
+        timeout = profile["job_execution_timeout_seconds"]
+    except RuntimeError:
+        timeout = 900  # Default if unable to get from profile
+    return timeout + 60
 
 
 def job_spec_template():
@@ -92,7 +103,7 @@ def job_spec_template():
                     cpu: 1000m
                     memory: 2Gi
               maxRetries: 0
-              timeoutSeconds: 900
+              timeoutSeconds: {{ job_timeout }}
               serviceAccountName: {{ service_account }}
     """
     return Template(dedent(yaml).lstrip("\n"))
@@ -126,6 +137,7 @@ def generate_job_spec(
         full_refresh=full_refresh,
         service_account=project_config().service_account_identifier,
         service_account_region=project_config().service_account_region,
+        job_timeout=job_timeout(),
     )
     with open(YAML_FILE, "w+", encoding="utf-8") as f:
         f.write(job_spec_yaml)
