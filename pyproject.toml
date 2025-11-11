@@ -22,7 +22,10 @@ dependencies = [
     "ruamel.yaml>=0.18.15",
     "typer>=0.16.1",
     "shandy-sqlfmt>=0.27.0",
-    "pydantic>=2.9.1"
+    "pydantic>=2.9.1",
+    "ipywidgets>=8.0.0",
+    # Bug in newer versions: https://github.com/googleapis/google-auth-library-python/issues/1850
+    "google-auth<2.42.0"
 ]
 
 [project.scripts]
