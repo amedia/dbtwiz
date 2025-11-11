@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dbtwiz"
-version = "0.2.26"
+version = "0.2.27"
 authors = [
     {name = "Amedia Produkt og Teknologi"}
 ]
@@ -22,7 +22,10 @@ dependencies = [
     "ruamel.yaml>=0.18.15",
     "typer>=0.16.1",
     "shandy-sqlfmt>=0.27.0",
-    "pydantic>=2.9.1"
+    "pydantic>=2.9.1",
+    "ipywidgets>=8.0.0",
+    # Bug in newer versions: https://github.com/googleapis/google-auth-library-python/issues/1850
+    "google-auth<2.42.0"
 ]
 
 [project.scripts]
