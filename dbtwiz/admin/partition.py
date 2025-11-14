@@ -82,7 +82,7 @@ def update_partition_expirations(
 ):
     """Main function to compare and update partition expiration in BigQuery."""
     # Update and read the prod manifest
-    Manifest.update_manifests("prod")
+    Manifest.update_manifests("prod", force=True)
     prod_manifest = Manifest.get_manifest(Manifest.PROD_MANIFEST_PATH)
 
     info("Identifying mismatched partition expirations...")
