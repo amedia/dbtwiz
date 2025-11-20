@@ -101,7 +101,7 @@ def find_orphaned_tables(data: dict) -> list:
     return orphaned
 
 
-def parse_git_log_output(models_path):
+def parse_git_log_output(models_path):  # noqa: C901
     """
     Parses the git log output in order to fetch information about when and by whom
     a model was deleted.
@@ -114,7 +114,7 @@ def parse_git_log_output(models_path):
             [
                 "git",
                 "log",
-                "--diff-filter=D",
+                "--diff-filter=DR",
                 "--summary",
                 "--pretty=format:commit %H%nAuthor: %an <%ae>%nDate: %ad%n%n%s%n",
                 models_path,
@@ -128,11 +128,13 @@ def parse_git_log_output(models_path):
     lines = git_output.splitlines()
     deleted_files = []
     current_commit = current_date = current_author = current_message = None
+    pending_rename_from = None
 
     for line in lines:
         if line.startswith("commit "):
             current_commit = line.split()[1]
             current_author = current_date = current_message = None
+            pending_rename_from = None
         elif line.startswith("Author:"):
             raw_author = line.replace("Author:", "").strip()
             current_author = raw_author.split(" <")[0]
@@ -149,8 +151,57 @@ def parse_git_log_output(models_path):
                     "timestamp": current_date,
                     "author": current_author,
                     "message": current_message,
+                    "change_type": "deleted",
                 }
             )
+        elif " rename " in line and "=>" in line:
+            # Handle format: rename path/{old => new}
+            parts = line.split("=>")
+            if len(parts) == 2:
+                # Extract old and new filenames
+                old_part = parts[0].strip()
+                new_part = parts[1].strip().rstrip(")")
+
+                # Handle {old => new} format
+                if "{" in old_part:
+                    prefix = old_part.split("{")[0].strip()
+                    old_name = old_part.split("{")[1].strip()
+                    new_name = new_part.strip()
+                    old_file = prefix + old_name if prefix else old_name
+                    new_file = prefix + new_name if prefix else new_name
+                else:
+                    old_file = old_part.replace("rename", "").strip()
+                    new_file = new_part
+
+                deleted_files.append(
+                    {
+                        "file": old_file,
+                        "commit": current_commit,
+                        "timestamp": current_date,
+                        "author": current_author,
+                        "message": current_message,
+                        "change_type": "renamed",
+                        "renamed_to": new_file,
+                    }
+                )
+        elif line.strip().startswith("rename from "):
+            # Handle format: rename from old_path
+            pending_rename_from = line.replace("rename from", "").strip()
+        elif line.strip().startswith("rename to ") and pending_rename_from:
+            # Handle format: rename to new_path
+            renamed_to = line.replace("rename to", "").strip()
+            deleted_files.append(
+                {
+                    "file": pending_rename_from,
+                    "commit": current_commit,
+                    "timestamp": current_date,
+                    "author": current_author,
+                    "message": current_message,
+                    "change_type": "renamed",
+                    "renamed_to": renamed_to,
+                }
+            )
+            pending_rename_from = None
 
     return deleted_files
 
@@ -224,11 +275,24 @@ def add_git_deletion_info(orphaned_tables, models_path="models"):
         if match:
             formatted_time = format_deletion_timestamp(match["timestamp"])
             commit_url = get_github_commit_url(match["commit"])
+
+            # Check if the model was renamed or deleted
+            change_type = match.get("change_type", "deleted")
+            if change_type == "renamed":
+                # Extract just the filename from the new path for display
+                new_path = match.get("renamed_to", "")
+                new_name = os.path.splitext(os.path.basename(new_path))[0]
+                description = (
+                    f"renamed to {new_name} by {match['author']} in {commit_url}"
+                )
+            else:
+                description = f"deleted by {match['author']} in {commit_url}"
+
             choices.append(
                 {
                     "name": f"{fq_table:<95} {formatted_time:>5} | {match['commit']:>5}",
                     "value": fq_table,
-                    "description": f"deleted by {match['author']} in {commit_url}",
+                    "description": description,
                 }
             )
         else:
