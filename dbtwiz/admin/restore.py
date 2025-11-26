@@ -109,8 +109,8 @@ def restore(
         recovered_table_id: Optional full table ID for the recovered table
         verbose: Enable verbose output
     """
-    # Ensure authentication with service account impersonation
-    ensure_auth(check_app_default_auth=False, check_gcloud_auth=True)
+    # Ensure authentication
+    ensure_auth()
 
     # Parse the timestamp
     try:
