@@ -212,3 +212,74 @@ def partition_expiry(
     from .partition import update_partition_expirations
 
     update_partition_expirations(model_names)
+
+
+@app.command()
+@description(
+    """Restores a deleted BigQuery table from a snapshot using BigQuery time travel.
+
+The command will:
+1. Verify that the table is actually deleted
+2. Parse the provided timestamp into the correct format
+3. Use BigQuery's time travel feature to restore from the snapshot
+4. Create the recovered table with the specified name (or default to table_name_recovered)
+
+**Note:** BigQuery time travel is limited to 7 days. You can only restore tables that were deleted within the past 7 days.
+
+**Timestamp formats supported:**
+- Epoch milliseconds (e.g., 1705315800000)
+- ISO 8601 format (e.g., 2024-01-15T10:30:00)
+- Date format (e.g., 2024-01-15 10:30:00)
+"""
+)
+@examples(
+    """Basic restore example with default recovered table name:
+```shell
+$ dbtwiz admin restore my-project.my_dataset.my_table 2024-01-15T10:30:00
+```
+
+Restore with custom recovered table name:
+```shell
+$ dbtwiz admin restore my-project.my_dataset.my_table 1705315800000 --recovered-table my-project.my_dataset.my_table_backup
+```
+
+Restore with epoch milliseconds:
+```shell
+$ dbtwiz admin restore my-project.my_dataset.my_table 1705315800000
+```"""
+)
+def restore(
+    table_id: Annotated[
+        str,
+        typer.Argument(
+            help="Full table ID (project.dataset.table) of the deleted table to restore"
+        ),
+    ],
+    timestamp: Annotated[
+        str,
+        typer.Argument(
+            help="Snapshot timestamp as epoch milliseconds or date format (YYYY-MM-DD HH:MM:SS or YYYY-MM-DDTHH:MM:SS)"
+        ),
+    ],
+    recovered_table_id: Annotated[
+        str,
+        typer.Option(
+            "--recovered-table",
+            "-r",
+            help="Full table ID for the recovered table. Defaults to original table name with '_recovered' suffix",
+        ),
+    ] = None,
+    verbose: Annotated[
+        bool,
+        typer.Option("--verbose", "-v", help="Output more info about what is going on"),
+    ] = False,
+) -> None:
+    """Restore a deleted BigQuery table from a snapshot using time travel."""
+    from .restore import restore as command_restore
+
+    command_restore(
+        table_id=table_id,
+        timestamp=timestamp,
+        recovered_table_id=recovered_table_id,
+        verbose=verbose,
+    )
