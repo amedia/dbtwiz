@@ -261,6 +261,73 @@ class BigQueryClient:
         """
         self.get_client().delete_table(table_id)
 
+    def check_table_exists(self, table_id: str) -> bool:
+        """Check if a table exist in BigQuery.
+
+        Args:
+            table_id: Full table ID (project.dataset.table)
+
+        Returns:
+            True if table exist, False if it doesn't
+        """
+        try:
+            self.get_client().get_table(table_id)
+            return True  # Table exists
+        except self.NotFound:
+            return False  # Table is missing/deleted
+
+    def restore_table(
+        self, table_id: str, snapshot_timestamp_ms: int, recovered_table_id: str = None
+    ) -> str:
+        """Restore a deleted table from a snapshot using BigQuery time travel.
+
+        Args:
+            table_id: Full table ID of the deleted table (project.dataset.table)
+            snapshot_timestamp_ms: Snapshot timestamp in epoch milliseconds
+            recovered_table_id: Optional full table ID for the recovered table.
+                              If not provided, defaults to table_id
+
+        Returns:
+            The full table ID of the recovered table
+
+        Raises:
+            NotFound: If the snapshot doesn't exist
+            Forbidden: If access is denied
+            Exception: For other BigQuery errors
+        """
+        client = self.get_client()
+
+        # Default recovered table ID if not provided
+        if not recovered_table_id:
+            project, dataset, table = table_id.split(".")
+            recovered_table_id = f"{project}.{dataset}.{table}"
+
+        # Construct the snapshot table ID using the decorator
+        snapshot_table_id = f"{table_id}@{snapshot_timestamp_ms}"
+
+        # Get the location of the table from the source dataset
+        project_id, dataset_name, _ = table_id.split(".")
+        dataset_id = f"{project_id}.{dataset_name}"
+        dataset = client.get_dataset(dataset_id)
+        location = dataset.location
+
+        # Run the copy job to restore the table
+        info(
+            f"Restoring table from snapshot {snapshot_table_id} to {recovered_table_id}"
+        )
+        job = client.copy_table(
+            snapshot_table_id,
+            recovered_table_id,
+            location=location,
+        )
+        job.result()  # Wait for the job to complete
+
+        info(
+            f"Successfully restored data from {table_id} to {recovered_table_id}",
+            style="green",
+        )
+        return recovered_table_id
+
     def get_bigquery_partition_expiration(self, table_id: str) -> int:
         """Get the current partition expiration for a table in BigQuery."""
         table = self.get_client().get_table(table_id)

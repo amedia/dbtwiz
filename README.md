@@ -35,6 +35,7 @@ Spawns Cloud Run jobs to process multiple dates in parallel with configurable ba
   - [`cleandev`](docs/admin_cleandev.md) - Delete all materializations in the dbt development dataset
   - [`orphaned`](docs/admin_orphaned.md) - List or delete orphaned materializations in the data warehouse
   - [`partition-expiry`](docs/admin_partition_expiry.md) - Checks for mismatched partition expiry and allows updating to correct.
+  - [`restore`](docs/admin_restore.md) - Restore a deleted BigQuery table from a snapshot using time travel.
 
 [comment]: <> (END COMMAND DOCS)
 
