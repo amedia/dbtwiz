@@ -121,12 +121,12 @@ def select_name(context):
 
 
 def select_description(context):
-    """Function for selecting model description."""
+    """Function for selecting model description. Ensures the first letter is upper case."""
     if not context.get("description"):
         context["description"] = input_text(
             "Give a short description of your model and its purpose",
             validate=description_validator(),
-        )
+        ).capitalize()
 
 
 def select_group(context):

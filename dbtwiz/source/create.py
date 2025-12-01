@@ -137,13 +137,13 @@ def set_source_name(context):
 
 
 def select_source_description(context):
-    """Function for selecting source description."""
+    """Function for selecting source description. Ensures the first letter is upper case."""
     if not context.get("source"):
         context["source_description"] = input_text(
             f"Describe the type of data that reside in '{context['source_name']}'",
             allow_blank=False,
             validate=description_validator(),
-        )
+        ).capitalize()
 
 
 def configure_missing_source(context):
@@ -236,12 +236,15 @@ def select_tables(context):
 
 
 def select_table_description(context):
-    """Function for selecting table description. Skipped if multiple tables selected."""
+    """
+    Function for selecting table description. Skipped if multiple tables selected.
+    Ensures the first letter is upper case.
+    """
     if context.get("tables") and len(context.get("tables")) == 1:
         context["table_description"] = input_text(
             "Give a short description for the source table",
             validate=description_validator(),
-        )
+        ).capitalize()
 
 
 def write_source_file(
