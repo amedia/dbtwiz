@@ -173,7 +173,9 @@ def _get_command_description(cmd) -> str:
         return cmd.help
 
     if hasattr(cmd, "callback") and cmd.callback and cmd.callback.__doc__:
-        return inspect.cleandoc(cmd.callback.__doc__)
+        # Use cleandoc to normalize indentation, then replace newlines with spaces
+        # to ensure the description is a single line for README formatting
+        return " ".join(inspect.cleandoc(cmd.callback.__doc__).split())
 
     return "No description available."
 

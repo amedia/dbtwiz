@@ -20,8 +20,7 @@ You can also run `dbtwiz --help`/`dbtwiz -h`, which will list the commands with 
   - [`fix`](docs/model_fix.md) - Run sqlfmt and sqlfix for staged and/or defined sql files.
   - [`inspect`](docs/model_inspect.md) - Output information about a given model.
   - [`lint`](docs/model_lint.md) - Run sqlfmt --diff and sqlfluff lint for staged and/or defined sql files.
-  - [`move`](docs/model_move.md) - Moves a model by copying to a new location with a new name,
-and/or by updating the references to the model by other dbt models.
+  - [`move`](docs/model_move.md) - Moves a model by copying to a new location with a new name, and/or by updating the references to the model by other dbt models.
   - [`validate`](docs/model_validate.md) - Validates the yml and sql files for a model.
 - `source` - Create and manage dbt sources
   - [`create`](docs/source_create.md) - Create new dbt source
@@ -29,9 +28,7 @@ and/or by updating the references to the model by other dbt models.
 - [`test`](docs/test.md) - Test dbt models with optional date specification.
 - [`manifest`](docs/manifest.md) - Update dbt manifests for fast lookup and caching.
 - `admin` - Production backfilling and administrative tasks
-  - [`backfill`](docs/admin_backfill.md) - Backfill date-partitioned models in production for a specified date range.
-
-Spawns Cloud Run jobs to process multiple dates in parallel with configurable batch sizes.
+  - [`backfill`](docs/admin_backfill.md) - Backfill date-partitioned models in production for a specified date range. Spawns Cloud Run jobs to process multiple dates in parallel with configurable batch sizes.
   - [`cleandev`](docs/admin_cleandev.md) - Delete all materializations in the dbt development dataset
   - [`orphaned`](docs/admin_orphaned.md) - List or delete orphaned materializations in the data warehouse
   - [`partition-expiry`](docs/admin_partition_expiry.md) - Checks for mismatched partition expiry and allows updating to correct.
