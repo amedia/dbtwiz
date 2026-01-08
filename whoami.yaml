@@ -4,7 +4,7 @@ description: Python package with CLI helper tool for dbt in GCP using BigQuery
 integrity: false
 name: dbtwiz
 owner: data-analyseplattform
-private-channel: "#team-data-intern"
+private-channel: "#team-data-alerts"
 public-channel: "#team-data"
 system: []
 type: library
