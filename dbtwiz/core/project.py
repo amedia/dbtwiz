@@ -30,9 +30,14 @@ class Group:
         """Return a dict with group names and descriptions.
 
         Returns:
-            Dictionary mapping group names to their owner descriptions
+            Dictionary mapping group names to their descriptions
         """
-        return dict([(g["name"], g["owner"]["description"]) for g in self.groups])
+        return dict(
+            [
+                (g["name"], g.get("config", {}).get("meta", {}).get("description", ""))
+                for g in self.groups
+            ]
+        )
 
     def yaml_relative_path(self) -> Path:
         """Relative path to YAML file for model groups.
