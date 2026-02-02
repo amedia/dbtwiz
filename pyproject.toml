@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dbtwiz"
-version = "0.2.35"
+version = "0.2.36"
 authors = [
     {name = "Amedia Produkt og Teknologi"}
 ]
@@ -15,7 +15,7 @@ urls = {"Homepage" = "https://github.com/amedia/dbtwiz"}
 requires-python = ">=3.11.0,<4"
 dependencies = [
     "dbt-core>=1.10.1",
-    "google-cloud-storage>=2.4,<3.0",
+    "google-cloud-storage>=2.4,<3.2",
     "iterfzf>=1.8.0",
     "questionary>=2.1.0",
     "rich>=14.1.0",
