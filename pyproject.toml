@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dbtwiz"
-version = "0.2.36"
+version = "0.2.37"
 authors = [
     {name = "Amedia Produkt og Teknologi"}
 ]
