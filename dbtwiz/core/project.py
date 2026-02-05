@@ -210,6 +210,44 @@ class Project:
             if key.endswith("-data-expiration")
         ]
 
+    def get_inherited_model_config(
+        self, layer_folder: str, domain: str
+    ) -> Dict[str, Any]:
+        """Get inherited group and access config for a model path.
+
+        Traverses the models section of dbt_project.yml following the hierarchy:
+        project_name -> layer_folder -> domain
+
+        Args:
+            layer_folder: The layer folder name (e.g., "1_staging", "3_marts")
+            domain: The domain name (e.g., "adplogger", "subscription")
+
+        Returns:
+            Dict with 'group' and 'access' keys, values are the inherited
+            setting or None if not defined
+        """
+        result: Dict[str, Any] = {"group": None, "access": None}
+        project_name = self.name()
+
+        models_config = self.data.get("models", {})
+
+        # Traverse hierarchy: project -> layer -> domain
+        # Each level can override the previous
+        paths_to_check = [
+            models_config.get(project_name, {}),
+            models_config.get(project_name, {}).get(layer_folder, {}),
+            models_config.get(project_name, {}).get(layer_folder, {}).get(domain, {}),
+        ]
+
+        for config in paths_to_check:
+            if isinstance(config, dict):
+                if "+group" in config:
+                    result["group"] = config["+group"]
+                if "+access" in config:
+                    result["access"] = config["+access"]
+
+        return result
+
 
 def layer_choices() -> List[Dict[str, str]]:
     """Get available dbt layers with descriptions.

@@ -133,6 +133,16 @@ def select_group(context):
     """Function for selecting group."""
     if context["quick"] and not context.get("group"):
         return
+
+    # Check for inherited group from dbt_project.yml
+    model_base_path = ModelBasePath(layer=context["layer"])
+    layer_folder = model_base_path.layer_folder
+    inherited_config = context["project"].get_inherited_model_config(
+        layer_folder, context.get("domain")
+    )
+    inherited_group = inherited_config.get("group")
+
+    # If group was provided via CLI, validate it
     valid_groups = Group().choices()
     has_invalid_selection = context.get("group") and not any(
         item == context.get("group") for item in valid_groups.keys()
@@ -141,7 +151,18 @@ def select_group(context):
         warn(
             f"The provided value ({context.get('group')}) for group is invalid. Please re-select."
         )
+
+    # If no CLI value or invalid, check inheritance or prompt
     if has_invalid_selection or not context.get("group"):
+        if inherited_group:
+            info(
+                f"This model will inherit group '{inherited_group}' from dbt_project.yml.",
+                style="yellow",
+            )
+            if confirm("Are you happy with the inherited group"):
+                context["group"] = None
+                return
+
         context["group"] = autocomplete_from_list(
             "Which group should the model belong to",
             valid_groups,
@@ -157,6 +178,16 @@ def select_access(context):
     """Function for selecting access."""
     if context["quick"] and not context.get("access"):
         return
+
+    # Check for inherited access from dbt_project.yml
+    model_base_path = ModelBasePath(layer=context["layer"])
+    layer_folder = model_base_path.layer_folder
+    inherited_config = context["project"].get_inherited_model_config(
+        layer_folder, context.get("domain")
+    )
+    inherited_access = inherited_config.get("access")
+
+    # If access was provided via CLI, validate it
     valid_accesses = access_choices()
     has_invalid_selection = context.get("access") and not any(
         item["name"] == context.get("access") for item in valid_accesses
@@ -165,7 +196,18 @@ def select_access(context):
         warn(
             f"The provided value ({context.get('access')}) for access is invalid. Please re-select."
         )
+
+    # If no CLI value or invalid, check inheritance or prompt
     if has_invalid_selection or not context.get("access"):
+        if inherited_access:
+            info(
+                f"This model will inherit access '{inherited_access}' from dbt_project.yml.",
+                style="yellow",
+            )
+            if confirm("Are you happy with the inherited access"):
+                context["access"] = None
+                return
+
         context["access"] = select_from_list(
             "What should the access level be for the model", access_choices()
         )
