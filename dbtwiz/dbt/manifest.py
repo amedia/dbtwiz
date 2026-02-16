@@ -105,29 +105,34 @@ class Manifest:
         return 999
 
     @classmethod
-    def download_prod_manifest(cls, force: bool = False) -> None:
+    def download_prod_manifest(
+        cls,
+        force: bool = False,
+        blob_name: str = "manifest.json",
+        target_path: Optional[Path] = None,
+    ) -> None:
         """Download latest production manifest if force or older than 2 hours.
 
         Args:
-            force: If True, force download regardless of age
+            force: If True, force download regardless of age (default: False)
+            blob_name: Name of the blob in GCS (default: "manifest.json")
+            target_path: Path to download to (default: PROD_MANIFEST_PATH)
         """
-        if (
-            force
-            or cls.get_local_manifest_age(manifest_path=cls.PROD_MANIFEST_PATH) >= 2
-        ):
+        if target_path is None:
+            target_path = cls.PROD_MANIFEST_PATH
+
+        if force or cls.get_local_manifest_age(manifest_path=target_path) >= 2:
             ensure_app_default_auth()
 
-            info("Fetching production manifest")
+            info(f"Fetching production manifest: {blob_name}")
             from google.cloud import storage  # Only when used
 
             gcs = storage.Client(project=project_config().bucket_state_project)
-            blob = gcs.bucket(project_config().bucket_state_identifier).blob(
-                "manifest.json"
-            )
+            blob = gcs.bucket(project_config().bucket_state_identifier).blob(blob_name)
             # Create path if missing
-            cls.PROD_MANIFEST_PATH.parent.mkdir(parents=True, exist_ok=True)
+            target_path.parent.mkdir(parents=True, exist_ok=True)
             # Download prod manifest to path
-            blob.download_to_filename(cls.PROD_MANIFEST_PATH)
+            blob.download_to_filename(target_path)
             gcs.close()
 
     @classmethod
