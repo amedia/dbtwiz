@@ -332,8 +332,14 @@ def handle_orphaned_materializations(
         if m["materialized"] in ["view", "table", "incremental"]
     ]
 
+    manifest_snapshots = [
+        node
+        for node in manifest.nodes.values()
+        if node["resource_type"] == "snapshot" and node.get("relation_name")
+    ]
+
     # Build structure of all relations appearing in the target's manifest
-    data = build_data_structure(manifest_models, client)
+    data = build_data_structure(manifest_models + manifest_snapshots, client)
 
     # Build list of orphaned DWH materializations that are no longer in the manifest
     orphaned = find_orphaned_tables(data)
