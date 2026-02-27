@@ -16,7 +16,7 @@ from ..ui.interact import (
     table_name_validator,
 )
 from ..utils.editor import open_in_editor
-from ..utils.logger import fatal, info, warn
+from ..utils.logger import fatal, info, notice, warn
 
 
 def get_existing_source(
@@ -267,18 +267,41 @@ def check_source_reader_access(context):
         return
 
     if missing:
+        project = context["source"]["project"]
+        dataset = context["source"]["dataset"]
         sa_lines = "\n".join(
             f"  - [cyan]{sa}[/cyan] ({service_accounts[sa]}): {', '.join(f'[yellow]{t}[/yellow]' for t in tables)}"
             for sa, tables in missing.items()
         )
         warn(
             f"The following service accounts are missing read access to one or more "
-            f"tables in {context['source']['project']}.{context['source']['dataset']}:\n"
-            f"{sa_lines}\n\n"
-            f"Grant them the 'BigQuery Data Viewer' role on the specific "
-            f"table(s) before building dbt models on top of this source."
+            f"tables in {project}.{dataset}:\n"
+            f"{sa_lines}"
         )
-        if not confirm("Do you wish to continue anyway"):
+        if confirm("Would you like to try granting table-level access now"):
+            grant_error = context["client"].grant_table_access(
+                project=project,
+                dataset=dataset,
+                missing=missing,
+            )
+            if not grant_error:
+                notice(
+                    "Table-level access successfully granted to all service accounts."
+                )
+            elif grant_error:
+                sql = "\n".join(
+                    f"GRANT `roles/bigquery.dataViewer` ON TABLE `{project}.{dataset}.{table}`"
+                    f' TO "serviceAccount:{sa}";'
+                    for sa, tables in missing.items()
+                    for table in tables
+                )
+                warn(
+                    f"Could not grant access ({grant_error}). "
+                    f"Run the following SQL to grant access manually:\n\n{sql}"
+                )
+                if not confirm("Do you wish to continue anyway"):
+                    fatal("Cancelled due to missing service account access.")
+        elif not confirm("Do you wish to continue anyway"):
             fatal("Cancelled due to missing service account access.")
 
 
