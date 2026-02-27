@@ -290,14 +290,14 @@ def check_source_reader_access(context):
                 )
             elif grant_error:
                 sql = "\n".join(
-                    f"GRANT `roles/bigquery.dataViewer` ON TABLE `{project}.{dataset}.{table}`"
-                    f' TO "serviceAccount:{sa}";'
+                    f"[cyan]GRANT `roles/bigquery.dataViewer` ON TABLE `{project}.{dataset}.{table}`"
+                    f' TO "serviceAccount:{sa}";[/cyan]'
                     for sa, tables in missing.items()
                     for table in tables
                 )
                 warn(
                     f"Could not grant access ({grant_error}). "
-                    f"Run the following SQL to grant access manually:\n\n{sql}"
+                    f"Ask someone with required permissions to run the following SQL to grant access manually:\n\n{sql}"
                 )
                 if not confirm("Do you wish to continue anyway"):
                     fatal("Cancelled due to missing service account access.")
