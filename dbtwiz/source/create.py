@@ -2,6 +2,7 @@ from io import StringIO
 from pathlib import Path
 from typing import List
 
+from ..config.project import project_config
 from ..core.project import get_source_tables
 from ..integrations.bigquery import BigQueryClient
 from ..ui.interact import (
@@ -15,7 +16,7 @@ from ..ui.interact import (
     table_name_validator,
 )
 from ..utils.editor import open_in_editor
-from ..utils.logger import fatal, info, warn
+from ..utils.logger import fatal, info, notice, warn
 
 
 def get_existing_source(
@@ -235,6 +236,75 @@ def select_tables(context):
         context["columns"] = []
 
 
+def check_source_reader_access(context):
+    """Warn if configured service accounts lack read access to the selected tables."""
+    service_accounts = project_config().source_reader_service_accounts
+    if not service_accounts:
+        return
+
+    source_project = context["source"]["project"]
+    if source_project in project_config().source_reader_unchecked_projects:
+        return
+
+    missing, error_message = context["client"].check_source_reader_access(
+        project=context["source"]["project"],
+        dataset=context["source"]["dataset"],
+        tables=context.get("tables", []),
+        service_accounts=service_accounts,
+    )
+
+    if error_message:
+        sa_lines = "\n".join(
+            f"  - [cyan]{sa}[/cyan] ({desc})" for sa, desc in service_accounts.items()
+        )
+        warn(
+            f"Could not verify read access for {context['source']['project']}.{context['source']['dataset']} "
+            f"({error_message}).\n\n"
+            f"Please ensure the following service accounts have been granted the "
+            f"'BigQuery Data Viewer' role for the table(s):\n"
+            f"{sa_lines}"
+        )
+        return
+
+    if missing:
+        project = context["source"]["project"]
+        dataset = context["source"]["dataset"]
+        sa_lines = "\n".join(
+            f"  - [cyan]{sa}[/cyan] ({service_accounts[sa]}): {', '.join(f'[yellow]{t}[/yellow]' for t in tables)}"
+            for sa, tables in missing.items()
+        )
+        warn(
+            f"The following service accounts are missing read access to one or more "
+            f"tables in {project}.{dataset}:\n"
+            f"{sa_lines}"
+        )
+        if confirm("Would you like to try granting table-level access now"):
+            grant_error = context["client"].grant_table_access(
+                project=project,
+                dataset=dataset,
+                missing=missing,
+            )
+            if not grant_error:
+                notice(
+                    "Table-level access successfully granted to all service accounts."
+                )
+            elif grant_error:
+                sql = "\n".join(
+                    f"[cyan]GRANT `roles/bigquery.dataViewer` ON TABLE `{project}.{dataset}.{table}`"
+                    f' TO "serviceAccount:{sa}";[/cyan]'
+                    for sa, tables in missing.items()
+                    for table in tables
+                )
+                warn(
+                    f"Could not grant access ({grant_error}). "
+                    f"Ask someone with required permissions to run the following SQL to grant access manually:\n\n{sql}"
+                )
+                if not confirm("Do you wish to continue anyway"):
+                    fatal("Cancelled due to missing service account access.")
+        elif not confirm("Do you wish to continue anyway"):
+            fatal("Cancelled due to missing service account access.")
+
+
 def select_table_description(context):
     """
     Function for selecting table description. Skipped if multiple tables selected.
@@ -359,6 +429,7 @@ def create_source(
         select_source_description,
         configure_missing_source,
         select_tables,
+        check_source_reader_access,
         select_table_description,
     ]:
         func(context)
