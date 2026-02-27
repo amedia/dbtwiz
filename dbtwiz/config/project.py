@@ -1,7 +1,7 @@
 import functools
 import tomllib
 from pathlib import Path
-from typing import Any, List, Optional
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -93,6 +93,12 @@ class ProjectConfig(BaseModel):
     )
     service_consumers: List[str] = Field(
         default_factory=list, description="Available service consumers"
+    )
+
+    # Source settings
+    source_reader_service_accounts: Dict[str, str] = Field(
+        default_factory=dict,
+        description="Service account emails mapped to a description of their purpose, all of which must have read access to source tables",
     )
 
     # Internal fields (not from config file)

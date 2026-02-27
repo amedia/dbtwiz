@@ -185,6 +185,107 @@ class BigQueryClient:
         except Exception as e:
             return None, f"Error: Failed to fetch table details from BigQuery: {e}"
 
+    def check_source_reader_access(
+        self,
+        project: str,
+        dataset: str,
+        tables: List[str],
+        service_accounts: Dict[str, str],
+    ) -> Tuple[Dict[str, List[str]], str]:
+        """Check if service accounts have read access to a dataset or its tables.
+
+        A service account is considered to have sufficient access if it has a
+        read-granting role at either the dataset level or the table level for
+        any of the specified tables.
+
+        Args:
+            project: GCP project ID
+            dataset: BigQuery dataset ID
+            tables: List of table names to check table-level access for
+            service_accounts: Dict mapping service account emails to descriptions
+
+        Returns:
+            Tuple of (missing_accounts, error_message). missing_accounts maps
+            each service account email to the list of tables it is missing access
+            to (i.e. has neither dataset-level nor table-level access for).
+            error_message is non-empty if the check could not be performed.
+        """
+        dataset_level_emails, error = self._get_dataset_reader_emails(project, dataset)
+        if error:
+            return {}, error
+
+        table_level_emails = {
+            table: self._get_table_reader_emails(project, dataset, table)
+            for table in tables
+        }
+
+        missing: Dict[str, List[str]] = {}
+        for sa in service_accounts:
+            if sa in dataset_level_emails:
+                continue
+            missing_tables = [
+                table
+                for table in tables
+                if sa not in table_level_emails.get(table, set())
+            ]
+            if missing_tables:
+                missing[sa] = missing_tables
+
+        return missing, ""
+
+    def _get_dataset_reader_emails(self, project: str, dataset: str) -> Tuple[set, str]:
+        """Get service account emails with read access to a dataset via legacy ACL entries.
+
+        Uses access_entries rather than getIamPolicy, which requires allowlisting for datasets.
+
+        Returns:
+            Tuple of (emails, error_message)
+        """
+        READ_ACL_ROLES = {"OWNER", "WRITER", "READER"}
+        emails: set = set()
+        try:
+            dataset_obj = self.get_client().get_dataset(f"{project}.{dataset}")
+            for entry in dataset_obj.access_entries:
+                if entry.role not in READ_ACL_ROLES:
+                    continue
+                if entry.entity_type == "userByEmail":
+                    emails.add(entry.entity_id)
+                elif entry.entity_type == "iamMember":
+                    entity_id = entry.entity_id
+                    if entity_id.startswith("serviceAccount:"):
+                        emails.add(entity_id[len("serviceAccount:") :])
+            return emails, ""
+        except self.Forbidden:
+            return set(), (
+                f"Could not check access for dataset {project}.{dataset} "
+                "(insufficient permissions)"
+            )
+        except Exception as e:
+            return set(), f"Could not check access for dataset {project}.{dataset}: {e}"
+
+    def _get_table_reader_emails(self, project: str, dataset: str, table: str) -> set:
+        """Get service account emails with read access to a table via IAM policy.
+
+        Returns an empty set if the policy cannot be read (best-effort).
+        """
+        READ_IAM_ROLES = {
+            "roles/bigquery.dataViewer",
+            "roles/bigquery.dataEditor",
+            "roles/bigquery.dataOwner",
+            "roles/bigquery.admin",
+        }
+        emails: set = set()
+        try:
+            policy = self.get_client().get_iam_policy(f"{project}.{dataset}.{table}")
+            for role, members in policy.items():
+                if role in READ_IAM_ROLES:
+                    for member in members:
+                        if member.startswith("serviceAccount:"):
+                            emails.add(member[len("serviceAccount:") :])
+        except Exception:
+            pass
+        return emails
+
     def check_project_exists(self, project: str) -> str:
         """Check whether the given project exists in BigQuery.
 

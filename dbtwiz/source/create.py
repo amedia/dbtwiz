@@ -2,6 +2,7 @@ from io import StringIO
 from pathlib import Path
 from typing import List
 
+from ..config.project import project_config
 from ..core.project import get_source_tables
 from ..integrations.bigquery import BigQueryClient
 from ..ui.interact import (
@@ -235,6 +236,39 @@ def select_tables(context):
         context["columns"] = []
 
 
+def check_source_reader_access(context):
+    """Warn if configured service accounts lack read access to the selected tables."""
+    service_accounts = project_config().source_reader_service_accounts
+    if not service_accounts:
+        return
+
+    missing, error_message = context["client"].check_source_reader_access(
+        project=context["source"]["project"],
+        dataset=context["source"]["dataset"],
+        tables=context.get("tables", []),
+        service_accounts=service_accounts,
+    )
+
+    if error_message:
+        warn(f"Could not verify source reader access: {error_message}")
+        return
+
+    if missing:
+        sa_lines = "\n".join(
+            f"  - [cyan]{sa}[/cyan] ({service_accounts[sa]}): {', '.join(f'[yellow]{t}[/yellow]' for t in tables)}"
+            for sa, tables in missing.items()
+        )
+        warn(
+            f"The following service accounts are missing read access to one or more "
+            f"tables in {context['source']['project']}.{context['source']['dataset']}:\n"
+            f"{sa_lines}\n\n"
+            f"Grant them the 'BigQuery Data Viewer' role on the dataset (preferred) "
+            f"or on the specific table(s) before building dbt models on top of this source."
+        )
+        if not confirm("Do you wish to continue anyway"):
+            fatal("Cancelled due to missing service account access.")
+
+
 def select_table_description(context):
     """
     Function for selecting table description. Skipped if multiple tables selected.
@@ -359,6 +393,7 @@ def create_source(
         select_source_description,
         configure_missing_source,
         select_tables,
+        check_source_reader_access,
         select_table_description,
     ]:
         func(context)
