@@ -196,7 +196,7 @@ class BigQueryClient:
 
         A service account is considered to have sufficient access if it has a
         read-granting role at either the dataset level or the table level for
-        any of the specified tables.
+        any of the specified tables. Table-level checks are best-effort.
 
         Args:
             project: GCP project ID
@@ -205,10 +205,9 @@ class BigQueryClient:
             service_accounts: Dict mapping service account emails to descriptions
 
         Returns:
-            Tuple of (missing_accounts, error_message). missing_accounts maps
-            each service account email to the list of tables it is missing access
-            to (i.e. has neither dataset-level nor table-level access for).
-            error_message is non-empty if the check could not be performed.
+            Tuple of (missing_accounts, error_message). If error_message is
+            non-empty, the check could not be performed and the caller should
+            prompt the user to verify access manually.
         """
         dataset_level_emails, error = self._get_dataset_reader_emails(project, dataset)
         if error:
@@ -256,12 +255,9 @@ class BigQueryClient:
                         emails.add(entity_id[len("serviceAccount:") :])
             return emails, ""
         except self.Forbidden:
-            return set(), (
-                f"Could not check access for dataset {project}.{dataset} "
-                "(insufficient permissions)"
-            )
+            return set(), "insufficient permissions"
         except Exception as e:
-            return set(), f"Could not check access for dataset {project}.{dataset}: {e}"
+            return set(), str(e)
 
     def _get_table_reader_emails(self, project: str, dataset: str, table: str) -> set:
         """Get service account emails with read access to a table via IAM policy.

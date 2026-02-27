@@ -242,6 +242,10 @@ def check_source_reader_access(context):
     if not service_accounts:
         return
 
+    source_project = context["source"]["project"]
+    if source_project in project_config().source_reader_unchecked_projects:
+        return
+
     missing, error_message = context["client"].check_source_reader_access(
         project=context["source"]["project"],
         dataset=context["source"]["dataset"],
@@ -250,7 +254,16 @@ def check_source_reader_access(context):
     )
 
     if error_message:
-        warn(f"Could not verify source reader access: {error_message}")
+        sa_lines = "\n".join(
+            f"  - [cyan]{sa}[/cyan] ({desc})" for sa, desc in service_accounts.items()
+        )
+        warn(
+            f"Could not verify read access for {context['source']['project']}.{context['source']['dataset']} "
+            f"({error_message}).\n\n"
+            f"Please ensure the following service accounts have been granted the "
+            f"'BigQuery Data Viewer' role for the table(s):\n"
+            f"{sa_lines}"
+        )
         return
 
     if missing:
@@ -262,8 +275,8 @@ def check_source_reader_access(context):
             f"The following service accounts are missing read access to one or more "
             f"tables in {context['source']['project']}.{context['source']['dataset']}:\n"
             f"{sa_lines}\n\n"
-            f"Grant them the 'BigQuery Data Viewer' role on the dataset (preferred) "
-            f"or on the specific table(s) before building dbt models on top of this source."
+            f"Grant them the 'BigQuery Data Viewer' role on the specific "
+            f"table(s) before building dbt models on top of this source."
         )
         if not confirm("Do you wish to continue anyway"):
             fatal("Cancelled due to missing service account access.")
