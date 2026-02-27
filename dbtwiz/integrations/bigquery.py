@@ -259,6 +259,42 @@ class BigQueryClient:
         except Exception as e:
             return set(), str(e)
 
+    def grant_table_access(
+        self,
+        project: str,
+        dataset: str,
+        missing: Dict[str, List[str]],
+    ) -> str:
+        """Grant BigQuery Data Viewer role to service accounts at table level.
+
+        Args:
+            project: GCP project ID
+            dataset: BigQuery dataset ID
+            missing: Dict mapping SA emails to the tables they should be granted access to
+
+        Returns:
+            Error message if the grant could not be performed, empty string on success.
+        """
+        tables_to_sas: Dict[str, List[str]] = {}
+        for sa, tables in missing.items():
+            for table in tables:
+                tables_to_sas.setdefault(table, []).append(sa)
+
+        try:
+            client = self.get_client()
+            for table, sas in tables_to_sas.items():
+                table_ref = f"{project}.{dataset}.{table}"
+                policy = client.get_iam_policy(table_ref)
+                current = set(policy.get("roles/bigquery.dataViewer") or [])
+                current.update(f"serviceAccount:{sa}" for sa in sas)
+                policy["roles/bigquery.dataViewer"] = current
+                client.set_iam_policy(table_ref, policy)
+            return ""
+        except self.Forbidden:
+            return "insufficient permissions"
+        except Exception as e:
+            return str(e)
+
     def _get_table_reader_emails(self, project: str, dataset: str, table: str) -> set:
         """Get service account emails with read access to a table via IAM policy.
 
