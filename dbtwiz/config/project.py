@@ -95,6 +95,20 @@ class ProjectConfig(BaseModel):
         default_factory=list, description="Available service consumers"
     )
 
+    # Grants settings
+    grants_skip_schemas: List[str] = Field(
+        default_factory=list,
+        description="Schemas to skip when validating and applying grants",
+    )
+    grants_open_access_group: Optional[str] = Field(
+        None,
+        description="Group principal auto-granted viewer access on models with access: protected or public",
+    )
+    grants_role: Optional[str] = Field(
+        None,
+        description="IAM role to manage (defaults to roles/bigquery.dataViewer)",
+    )
+
     # Source settings
     source_reader_service_accounts: Dict[str, str] = Field(
         default_factory=dict,

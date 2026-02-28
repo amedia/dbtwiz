@@ -1,9 +1,11 @@
 import datetime
-from typing import Annotated, List
+from pathlib import Path
+from typing import Annotated, List, Optional
 
 import typer
 
 from ..config.project import project_config
+from ..dbt.manifest import Manifest
 from ..dbt.target import Target
 from ..utils.decorators import description, examples
 from ..utils.exceptions import InvalidArgumentsError
@@ -282,4 +284,62 @@ def restore(
         timestamp=timestamp,
         recovered_table_id=recovered_table_id,
         verbose=verbose,
+    )
+
+
+@app.command()
+@description(
+    """Reads the dbt manifest and dbt_project.yml vars to resolve the desired IAM grants
+for every model, then fetches current table-level IAM policies in parallel and applies
+the minimal set of changes needed to reach the desired state.
+
+Grant configuration is resolved from the following sources (in order):
+- Explicit `grants` config on the model
+- `meta.teams` resolved via the `teams` var in dbt_project.yml
+- `meta.access-policy` resolved via the `access-policies` var in dbt_project.yml
+- `meta.service-consumers` resolved via the `service-consumers` var in dbt_project.yml
+- Auto-grant to `grants_open_access_group` for models with `access: protected` or `access: public`
+
+Models are skipped when they have `meta.skip_grants: true`, use Iceberg (`catalog_name`),
+are ephemeral, or belong to a schema listed in `grants_skip_schemas` (pyproject.toml).
+"""
+)
+def update_grants(
+    manifest_path: Annotated[
+        Path,
+        typer.Option(
+            "--manifest-path",
+            help="Path to dbt manifest.json. Defaults to the prod manifest download location.",
+        ),
+    ] = Manifest.PROD_MANIFEST_PATH,
+    dry_run: Annotated[
+        bool,
+        typer.Option("--dry-run", help="Show changes without executing them"),
+    ] = False,
+    resolve_only: Annotated[
+        bool,
+        typer.Option(
+            "--resolve-only",
+            help="Only resolve desired grants from the manifest without querying BigQuery",
+        ),
+    ] = False,
+    impersonate: Annotated[
+        Optional[str],
+        typer.Option(
+            "--impersonate",
+            help=(
+                "Service account to impersonate for BigQuery access. "
+                "Defaults to service_account_identifier from project config."
+            ),
+        ),
+    ] = None,
+) -> None:
+    """Update BigQuery table IAM grants for all dbt models based on manifest configuration."""
+    from .grants import update_grants as command_update_grants
+
+    command_update_grants(
+        manifest_path=manifest_path,
+        dry_run=dry_run,
+        resolve_only=resolve_only,
+        impersonate=impersonate,
     )
