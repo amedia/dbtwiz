@@ -1,4 +1,5 @@
 import json
+import threading
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
@@ -9,6 +10,8 @@ from ..core.project import Project
 from ..integrations.bigquery import BigQueryClient
 from ..integrations.gcp_auth import ensure_auth
 from ..utils.logger import error, info
+
+_thread_local = threading.local()
 
 
 def _collect_principals(
@@ -179,11 +182,32 @@ def _resolve_all_grants(
     return desired_by_dataset
 
 
+def _thread_bq_client(credentials: Any, default_project: str | None) -> Any:
+    """Return a thread-local BigQuery client, creating one if needed.
+
+    Each thread gets its own client and HTTP session, enabling true parallel
+    execution rather than serializing on a shared connection pool.
+    """
+    if not hasattr(_thread_local, "client"):
+        from google.cloud import bigquery
+
+        _thread_local.client = bigquery.Client(
+            credentials=credentials, project=default_project
+        )
+    return _thread_local.client
+
+
 def _fetch_table_policy(
-    client: BigQueryClient, project: str, dataset: str, table_name: str
+    credentials: Any,
+    default_project: str | None,
+    project: str,
+    dataset: str,
+    table_name: str,
 ) -> tuple[str, str, str, Any]:
     """Fetch the IAM policy for a single table."""
-    policy = client.get_client().get_iam_policy(f"{project}.{dataset}.{table_name}")
+    policy = _thread_bq_client(credentials, default_project).get_iam_policy(
+        f"{project}.{dataset}.{table_name}"
+    )
     return project, dataset, table_name, policy
 
 
@@ -195,15 +219,20 @@ def _fetch_all_current_policies(
 
     Returns {(project, dataset): {table_name: policy_object}}
     """
+    credentials = client.get_credentials()
+    default_project = client.default_project
     results: dict[tuple[str, str], dict[str, Any]] = defaultdict(dict)
 
     with ThreadPoolExecutor(max_workers=32) as executor:
         futures = {
-            executor.submit(_fetch_table_policy, client, proj, dataset, table_name): (
+            executor.submit(
+                _fetch_table_policy,
+                credentials,
+                default_project,
                 proj,
                 dataset,
                 table_name,
-            )
+            ): (proj, dataset, table_name)
             for (proj, dataset), desired_tables in desired_by_dataset.items()
             for table_name in desired_tables
         }
@@ -268,7 +297,8 @@ def _collect_pending_changes(
 
 
 def _set_table_policy(
-    client: BigQueryClient,
+    credentials: Any,
+    default_project: str | None,
     proj: str,
     dataset: str,
     table_name: str,
@@ -278,7 +308,9 @@ def _set_table_policy(
 ) -> None:
     """Apply a single IAM policy update."""
     policy[role] = sorted(desired_members)
-    client.get_client().set_iam_policy(f"{proj}.{dataset}.{table_name}", policy)
+    _thread_bq_client(credentials, default_project).set_iam_policy(
+        f"{proj}.{dataset}.{table_name}", policy
+    )
 
 
 def _apply_grants_changes(
@@ -308,11 +340,15 @@ def _apply_grants_changes(
     if dry_run or not pending:
         return total_grants, total_revokes
 
+    credentials = client.get_credentials()
+    default_project = client.default_project
+
     with ThreadPoolExecutor(max_workers=32) as executor:
         futures = {
             executor.submit(
                 _set_table_policy,
-                client,
+                credentials,
+                default_project,
                 proj,
                 dataset,
                 table_name,
