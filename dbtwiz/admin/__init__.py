@@ -314,8 +314,10 @@ def update_grants(
     ] = Manifest.PROD_MANIFEST_PATH,
     dry_run: Annotated[
         bool,
-        typer.Option("--dry-run", help="Show changes without executing them"),
-    ] = False,
+        typer.Option(
+            "--dry-run/--apply", help="Show changes without executing them (default)"
+        ),
+    ] = True,
     resolve_only: Annotated[
         bool,
         typer.Option(

@@ -24,7 +24,7 @@ Path to dbt manifest.json. Defaults to the prod manifest download location.
 
 ### `--dry-run`
 
-Show changes without executing them
+Show changes without executing them (default)
 
 ### `--resolve-only`
 
