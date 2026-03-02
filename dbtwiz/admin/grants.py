@@ -1,5 +1,4 @@
 import json
-import threading
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
@@ -10,8 +9,6 @@ from ..core.project import Project
 from ..integrations.bigquery import BigQueryClient
 from ..integrations.gcp_auth import ensure_auth
 from ..utils.logger import error, info
-
-_thread_local = threading.local()
 
 
 def _collect_principals(
@@ -182,53 +179,41 @@ def _resolve_all_grants(
     return desired_by_dataset
 
 
-def _thread_bq_client(credentials: Any, default_project: str | None) -> Any:
-    """Return a thread-local BigQuery client, creating one if needed.
+def _expand_bq_connection_pool(native_client: Any) -> None:
+    """Patch the BigQuery client's HTTP adapter to allow parallel connections."""
+    from requests.adapters import HTTPAdapter
 
-    Each thread gets its own client and HTTP session, enabling true parallel
-    execution rather than serializing on a shared connection pool.
-    """
-    if not hasattr(_thread_local, "client"):
-        from google.cloud import bigquery
-
-        _thread_local.client = bigquery.Client(
-            credentials=credentials, project=default_project
-        )
-    return _thread_local.client
+    adapter = HTTPAdapter(pool_connections=128, pool_maxsize=128, max_retries=3)
+    native_client._http.mount("https://", adapter)
+    native_client._http._auth_request.session.mount("https://", adapter)
 
 
 def _fetch_table_policy(
-    credentials: Any,
-    default_project: str | None,
+    native_client: Any,
     project: str,
     dataset: str,
     table_name: str,
 ) -> tuple[str, str, str, Any]:
     """Fetch the IAM policy for a single table."""
-    policy = _thread_bq_client(credentials, default_project).get_iam_policy(
-        f"{project}.{dataset}.{table_name}"
-    )
+    policy = native_client.get_iam_policy(f"{project}.{dataset}.{table_name}")
     return project, dataset, table_name, policy
 
 
 def _fetch_all_current_policies(
-    client: BigQueryClient,
+    native_client: Any,
     desired_by_dataset: dict[tuple[str, str], dict[str, dict]],
 ) -> dict[tuple[str, str], dict[str, Any]]:
     """Fetch IAM policies for all tables across all datasets in parallel.
 
     Returns {(project, dataset): {table_name: policy_object}}
     """
-    credentials = client.get_credentials()
-    default_project = client.default_project
     results: dict[tuple[str, str], dict[str, Any]] = defaultdict(dict)
 
     with ThreadPoolExecutor(max_workers=32) as executor:
         futures = {
             executor.submit(
                 _fetch_table_policy,
-                credentials,
-                default_project,
+                native_client,
                 proj,
                 dataset,
                 table_name,
@@ -297,8 +282,7 @@ def _collect_pending_changes(
 
 
 def _set_table_policy(
-    credentials: Any,
-    default_project: str | None,
+    native_client: Any,
     proj: str,
     dataset: str,
     table_name: str,
@@ -308,13 +292,11 @@ def _set_table_policy(
 ) -> None:
     """Apply a single IAM policy update."""
     policy[role] = sorted(desired_members)
-    _thread_bq_client(credentials, default_project).set_iam_policy(
-        f"{proj}.{dataset}.{table_name}", policy
-    )
+    native_client.set_iam_policy(f"{proj}.{dataset}.{table_name}", policy)
 
 
 def _apply_grants_changes(
-    client: BigQueryClient,
+    native_client: Any,
     desired_by_dataset: dict[tuple[str, str], dict[str, dict]],
     current_policies: dict[tuple[str, str], dict[str, Any]],
     role: str,
@@ -340,15 +322,11 @@ def _apply_grants_changes(
     if dry_run or not pending:
         return total_grants, total_revokes
 
-    credentials = client.get_credentials()
-    default_project = client.default_project
-
     with ThreadPoolExecutor(max_workers=32) as executor:
         futures = {
             executor.submit(
                 _set_table_policy,
-                credentials,
-                default_project,
+                native_client,
                 proj,
                 dataset,
                 table_name,
@@ -412,10 +390,12 @@ def update_grants(
         default_project=config.service_account_project,
         impersonation_service_account=impersonation_sa or None,
     )
+    native_client = client.get_client()
+    _expand_bq_connection_pool(native_client)
 
-    current_policies = _fetch_all_current_policies(client, desired_by_dataset)
+    current_policies = _fetch_all_current_policies(native_client, desired_by_dataset)
     total_grants, total_revokes = _apply_grants_changes(
-        client, desired_by_dataset, current_policies, role, dry_run
+        native_client, desired_by_dataset, current_policies, role, dry_run
     )
 
     action = "Would apply" if dry_run else "Applied"
