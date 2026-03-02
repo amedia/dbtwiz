@@ -272,10 +272,16 @@ def _apply_grants_changes(
             total_revokes += len(needs_revoking)
 
             if not dry_run:
-                policy[role] = sorted(desired_members)
-                client.get_client().set_iam_policy(
-                    f"{proj}.{dataset}.{table_name}", policy
-                )
+                try:
+                    policy[role] = sorted(desired_members)
+                    client.get_client().set_iam_policy(
+                        f"{proj}.{dataset}.{table_name}", policy
+                    )
+                except Exception as e:
+                    error(
+                        f"Could not update IAM policy for {proj}.{dataset}.{table_name}",
+                        exception=e,
+                    )
 
     return total_grants, total_revokes
 
