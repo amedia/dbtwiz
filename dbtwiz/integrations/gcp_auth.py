@@ -1,5 +1,6 @@
 import shutil
 import subprocess
+import sys
 
 from google.auth import default
 from google.auth.exceptions import DefaultCredentialsError, RefreshError
@@ -39,9 +40,12 @@ def ensure_app_default_auth() -> None:
                 # Attempt to refresh credentials
                 request = requests.Request()
                 credentials.refresh(request)
-            else:
+            elif sys.stdin.isatty():
                 app_default_auth_login()
     except (DefaultCredentialsError, RefreshError) as e:
+        if not sys.stdin.isatty():
+            warn(f"ADC check failed (non-interactive): {e}")
+            return
         warn(str(e))
         app_default_auth_login()
 
@@ -67,7 +71,7 @@ def ensure_gcloud_auth() -> None:
         or "There was a problem refreshing your current auth tokens" in result.stderr
         or "You do not currently have an active account selected" in result.stderr
     ):
-        if confirm("Do you wish to reauthenticate now?"):
+        if sys.stdin.isatty() and confirm("Do you wish to reauthenticate now?"):
             subprocess.run("gcloud auth login", check=True, shell=True)
 
 
