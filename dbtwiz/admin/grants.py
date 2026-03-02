@@ -232,6 +232,55 @@ def _print_resolved_grants(
             info(f"  {table_name}: {len(grants.get(role, []))} grantees", style="white")
 
 
+def _collect_pending_changes(
+    desired_by_dataset: dict[tuple[str, str], dict[str, dict]],
+    current_policies: dict[tuple[str, str], dict[str, Any]],
+    role: str,
+) -> list[tuple]:
+    """Compute IAM diffs for all tables.
+
+    Returns a sorted list of (proj, dataset, table_name, policy, desired_members, granting, revoking).
+    """
+    pending = []
+    for (proj, dataset), desired_tables in sorted(desired_by_dataset.items()):
+        dataset_policies = current_policies.get((proj, dataset), {})
+        for table_name, desired in sorted(desired_tables.items()):
+            policy = dataset_policies.get(table_name)
+            if policy is None:
+                continue
+            desired_members = set(desired.get(role, []))
+            current_members = set(policy.get(role) or [])
+            needs_granting = desired_members - current_members
+            needs_revoking = current_members - desired_members
+            if needs_granting or needs_revoking:
+                pending.append(
+                    (
+                        proj,
+                        dataset,
+                        table_name,
+                        policy,
+                        desired_members,
+                        needs_granting,
+                        needs_revoking,
+                    )
+                )
+    return pending
+
+
+def _set_table_policy(
+    client: BigQueryClient,
+    proj: str,
+    dataset: str,
+    table_name: str,
+    policy: Any,
+    role: str,
+    desired_members: set[str],
+) -> None:
+    """Apply a single IAM policy update."""
+    policy[role] = sorted(desired_members)
+    client.get_client().set_iam_policy(f"{proj}.{dataset}.{table_name}", policy)
+
+
 def _apply_grants_changes(
     client: BigQueryClient,
     desired_by_dataset: dict[tuple[str, str], dict[str, dict]],
@@ -239,49 +288,49 @@ def _apply_grants_changes(
     role: str,
     dry_run: bool,
 ) -> tuple[int, int]:
-    """Diff and apply IAM policy changes for all tables. Returns (grants, revokes)."""
+    """Diff, log, and apply IAM policy changes for all tables. Returns (grants, revokes)."""
+    pending = _collect_pending_changes(desired_by_dataset, current_policies, role)
+
     total_grants = 0
     total_revokes = 0
+    for proj, dataset, table_name, _, _, needs_granting, needs_revoking in pending:
+        parts = []
+        if needs_granting:
+            g = len(needs_granting)
+            parts.append(f"{g} grant{'s' if g > 1 else ''}")
+        if needs_revoking:
+            r = len(needs_revoking)
+            parts.append(f"{r} revoke{'s' if r > 1 else ''}")
+        info(f"- {dataset}.{table_name} ({', '.join(parts)})", style="white")
+        total_grants += len(needs_granting)
+        total_revokes += len(needs_revoking)
 
-    for (proj, dataset), desired_tables in sorted(desired_by_dataset.items()):
-        dataset_policies = current_policies.get((proj, dataset), {})
+    if dry_run or not pending:
+        return total_grants, total_revokes
 
-        for table_name, desired in sorted(desired_tables.items()):
-            policy = dataset_policies.get(table_name)
-            if policy is None:
-                continue
-
-            desired_members = set(desired.get(role, []))
-            current_members = set(policy.get(role) or [])
-            needs_granting = desired_members - current_members
-            needs_revoking = current_members - desired_members
-
-            if not needs_granting and not needs_revoking:
-                continue
-
-            parts = []
-            if needs_granting:
-                g = len(needs_granting)
-                parts.append(f"{g} grant{'s' if g > 1 else ''}")
-            if needs_revoking:
-                r = len(needs_revoking)
-                parts.append(f"{r} revoke{'s' if r > 1 else ''}")
-            info(f"- {dataset}.{table_name} ({', '.join(parts)})", style="white")
-
-            total_grants += len(needs_granting)
-            total_revokes += len(needs_revoking)
-
-            if not dry_run:
-                try:
-                    policy[role] = sorted(desired_members)
-                    client.get_client().set_iam_policy(
-                        f"{proj}.{dataset}.{table_name}", policy
-                    )
-                except Exception as e:
-                    error(
-                        f"Could not update IAM policy for {proj}.{dataset}.{table_name}",
-                        exception=e,
-                    )
+    with ThreadPoolExecutor(max_workers=32) as executor:
+        futures = {
+            executor.submit(
+                _set_table_policy,
+                client,
+                proj,
+                dataset,
+                table_name,
+                policy,
+                role,
+                desired_members,
+            ): (proj, dataset, table_name)
+            for proj, dataset, table_name, policy, desired_members, _, _ in pending
+        }
+        for future in as_completed(futures):
+            try:
+                future.result()
+            except Exception as e:
+                proj, dataset, table_name = futures[future]
+                error(
+                    f"Could not update IAM policy for {proj}.{dataset}.{table_name}",
+                    exception=e,
+                )
 
     return total_grants, total_revokes
 
