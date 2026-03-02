@@ -32,4 +32,4 @@ Only resolve desired grants from the manifest without querying BigQuery
 
 ### `--impersonate`
 
-Service account to impersonate for BigQuery access. Defaults to service_account_identifier from project config.
+Impersonate the service account configured as service_account_identifier in pyproject.toml.

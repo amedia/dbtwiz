@@ -375,7 +375,7 @@ def update_grants(
     manifest_path: Path,
     dry_run: bool,
     resolve_only: bool,
-    impersonate: str | None,
+    impersonate: bool,
 ) -> None:
     """Update BigQuery grants for all dbt models based on manifest configuration."""
     ensure_auth()
@@ -384,7 +384,7 @@ def update_grants(
     role = config.grants_role or "roles/bigquery.dataViewer"
     open_access_group = config.grants_open_access_group or ""
     skip_schemas = set(config.grants_skip_schemas or [])
-    impersonation_sa = impersonate or config.service_account_identifier
+    impersonation_sa = config.service_account_identifier if impersonate else None
 
     with open(manifest_path) as f:
         manifest = json.load(f)

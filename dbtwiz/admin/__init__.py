@@ -1,6 +1,6 @@
 import datetime
 from pathlib import Path
-from typing import Annotated, List, Optional
+from typing import Annotated, List
 
 import typer
 
@@ -324,15 +324,15 @@ def update_grants(
         ),
     ] = False,
     impersonate: Annotated[
-        Optional[str],
+        bool,
         typer.Option(
             "--impersonate",
             help=(
-                "Service account to impersonate for BigQuery access. "
-                "Defaults to service_account_identifier from project config."
+                "Impersonate the service account configured as "
+                "service_account_identifier in pyproject.toml."
             ),
         ),
-    ] = None,
+    ] = False,
 ) -> None:
     """Update BigQuery table IAM grants for all dbt models based on manifest configuration."""
     from .grants import update_grants as command_update_grants
