@@ -180,7 +180,15 @@ def _resolve_all_grants(
 
 
 def _expand_bq_connection_pool(native_client: Any) -> None:
-    """Patch the BigQuery client's HTTP adapter to allow parallel connections."""
+    """Patch a GCP client's HTTP adapter to allow parallel connections.
+
+    NOTE: Thread safety is only guaranteed for modern GCP client libraries
+    (e.g. google-cloud-bigquery, google-cloud-storage). Legacy GCP APIs are
+    not necessarily thread-safe and should not be passed here.
+
+    Args:
+        native_client: A thread-safe GCP client (e.g. google.cloud.bigquery.Client).
+    """
     from requests.adapters import HTTPAdapter
 
     adapter = HTTPAdapter(pool_connections=128, pool_maxsize=128, max_retries=3)
@@ -204,6 +212,9 @@ def _fetch_all_current_policies(
     desired_by_dataset: dict[tuple[str, str], dict[str, dict]],
 ) -> dict[tuple[str, str], dict[str, Any]]:
     """Fetch IAM policies for all tables across all datasets in parallel.
+
+    Args:
+        native_client: A thread-safe GCP client (e.g. google.cloud.bigquery.Client).
 
     Returns {(project, dataset): {table_name: policy_object}}
     """
@@ -302,7 +313,13 @@ def _apply_grants_changes(
     role: str,
     dry_run: bool,
 ) -> tuple[int, int]:
-    """Diff, log, and apply IAM policy changes for all tables. Returns (grants, revokes)."""
+    """Diff, log, and apply IAM policy changes for all tables.
+
+    Args:
+        native_client: A thread-safe GCP client (e.g. google.cloud.bigquery.Client).
+
+    Returns (grants, revokes) counts.
+    """
     pending = _collect_pending_changes(desired_by_dataset, current_policies, role)
 
     total_grants = 0
