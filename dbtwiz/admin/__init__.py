@@ -289,6 +289,62 @@ def restore(
 
 @app.command()
 @description(
+    """Reads descriptions from the production dbt manifest and compares them with the current
+BigQuery table and column descriptions. In dry-run mode (default), it lists which tables
+have outdated descriptions without making any changes. Use `--apply` to push the updates.
+
+Only columns documented in the manifest are updated; undocumented columns keep their
+existing BigQuery descriptions unchanged. Ephemeral models and tables not found in
+BigQuery are skipped.
+"""
+)
+def sync_descriptions(
+    manifest_path: Annotated[
+        Path,
+        typer.Option(
+            "--manifest-path",
+            help="Path to dbt manifest.json. Defaults to the prod manifest download location.",
+        ),
+    ] = Manifest.PROD_MANIFEST_PATH,
+    model_names: Annotated[
+        List[str],
+        typer.Option(
+            "--model-name",
+            "-m",
+            help="Limit sync to specific model name(s). Can be repeated.",
+        ),
+    ] = None,
+    dry_run: Annotated[
+        bool,
+        typer.Option(
+            "--dry-run/--apply",
+            help="Show changes without applying them (default: --dry-run)",
+        ),
+    ] = True,
+    impersonate: Annotated[
+        bool,
+        typer.Option(
+            "--impersonate",
+            help=(
+                "Impersonate the service account configured as "
+                "service_account_identifier in pyproject.toml."
+            ),
+        ),
+    ] = False,
+) -> None:
+    """Sync dbt descriptions from a manifest to BigQuery tables and columns."""
+    from .descriptions import sync_descriptions as command_sync_descriptions
+
+    command_sync_descriptions(
+        dry_run=dry_run,
+        model_names=model_names or None,
+        manifest_path=manifest_path,
+        impersonate=impersonate,
+    )
+
+
+@app.command()
+@description(
     """Reads the dbt manifest and dbt_project.yml vars to resolve the desired IAM grants
 for every model, then fetches current table-level IAM policies in parallel and applies
 the minimal set of changes needed to reach the desired state.

@@ -33,6 +33,7 @@ You can also run `dbtwiz --help`/`dbtwiz -h`, which will list the commands with 
   - [`orphaned`](docs/admin_orphaned.md) - List or delete orphaned materializations in the data warehouse
   - [`partition-expiry`](docs/admin_partition_expiry.md) - Checks for mismatched partition expiry and allows updating to correct.
   - [`restore`](docs/admin_restore.md) - Restore a deleted BigQuery table from a snapshot using time travel.
+  - [`sync-descriptions`](docs/admin_sync_descriptions.md) - Sync dbt descriptions from a manifest to BigQuery tables and columns.
   - [`update-grants`](docs/admin_update_grants.md) - Update BigQuery table IAM grants for all dbt models based on manifest configuration.
 
 [comment]: <> (END COMMAND DOCS)
