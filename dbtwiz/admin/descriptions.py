@@ -171,14 +171,16 @@ def _report_and_apply(tables_to_update: list, dry_run: bool, bq_client: Any) -> 
         info(f"Updating descriptions for {len(tables_to_update)} table(s)...")
 
     for item in tables_to_update:
-        parts = []
-        if item["table_desc_changed"]:
-            parts.append("table description")
-        if item["column_changes"]:
-            cols = ", ".join(col for col, _, _ in item["column_changes"])
-            parts.append(f"{len(item['column_changes'])} column(s): {cols}")
-        info(f"  {item['table_id']}  ({' | '.join(parts)})", style="bold")
-        if not dry_run:
+        if dry_run:
+            parts = []
+            if item["table_desc_changed"]:
+                parts.append("table description")
+            if item["column_changes"]:
+                cols = ", ".join(col for col, _, _ in item["column_changes"])
+                parts.append(f"{len(item['column_changes'])} column(s): {cols}")
+            info(f"- {item['table_id']}  ({' | '.join(parts)})", style="bold")
+        else:
+            info(f"- {item['table_id']}", style="bold")
             _apply_update(bq_client, item)
 
     if not dry_run:
@@ -195,7 +197,6 @@ def _apply_update(bq_client: Any, item: dict) -> None:
         table.description = item["desired_table_desc"]
         table.schema = item["new_schema"]
         bq_client.update_table(table, ["description", "schema"])
-        info("    Updated.", style="green")
     except Exception as e:
         error(f"Failed to update {item['table_id']}", exception=e)
 
