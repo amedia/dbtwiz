@@ -8,6 +8,19 @@ from ..integrations.bigquery import BigQueryClient
 from ..utils.logger import error, info, warn
 
 _MAX_WORKERS = 32
+_AUGMENTED_START = "[comment]: <> (START AUGMENTED DOCS)"
+_AUGMENTED_END = "[comment]: <> (END AUGMENTED DOCS)"
+
+
+def _strip_augmented_docs(description: str) -> str:
+    """Strip the deploy-augmented section from a description, keeping only the dbt-authored text."""
+    if not description or _AUGMENTED_START not in description:
+        return description
+    start = description.find(_AUGMENTED_START)
+    end = description.find(_AUGMENTED_END)
+    if end == -1:
+        return description[:start].strip()
+    return description[end + len(_AUGMENTED_END) :].strip()
 
 
 def _expand_bq_connection_pool(native_client: Any) -> None:
@@ -138,7 +151,7 @@ def _build_update_list(
     updates = []
     for table_id, table in bq_tables.items():
         node = nodes_by_table_id[table_id]
-        desired_table_desc = node.get("description", "") or ""
+        desired_table_desc = _strip_augmented_docs(node.get("description", "") or "")
         manifest_columns = _get_manifest_columns(node)
         current_table_desc = table.description or ""
         table_desc_changed = current_table_desc != desired_table_desc
