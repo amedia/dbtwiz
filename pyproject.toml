@@ -10,7 +10,7 @@ authors = [
 ]
 description = "Python package with CLI helper tool for dbt in GCP using BigQuery"
 readme = "README.md"
-license = {text = "MIT"}
+license = "MIT"
 urls = {"Homepage" = "https://github.com/amedia/dbtwiz"}
 requires-python = ">=3.11.0,<4"
 dependencies = [
