@@ -4,13 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dbtwiz"
-version = "0.2.43"
+version = "0.2.44"
 authors = [
     {name = "Amedia Produkt og Teknologi"}
 ]
 description = "Python package with CLI helper tool for dbt in GCP using BigQuery"
 readme = "README.md"
-license = {text = "MIT"}
+license = "MIT"
 urls = {"Homepage" = "https://github.com/amedia/dbtwiz"}
 requires-python = ">=3.11.0,<4"
 dependencies = [
