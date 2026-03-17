@@ -56,7 +56,7 @@ def job_timeout(target_name="prod", default=900, leeway=60) -> int:
     """Get job timeout from profile and add some leeway"""
     try:
         profile = Profile().profile_config(target_name)
-        timeout = profile["job_execution_timeout_seconds"]
+        timeout = int(profile["job_execution_timeout_seconds"])
     except RuntimeError:
         timeout = default  # Default if unable to get from profile
     return timeout + leeway
