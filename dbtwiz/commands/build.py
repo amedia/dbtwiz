@@ -38,6 +38,7 @@ def build(
     downstream: bool,
     work: bool,
     repeat_last: bool,
+    backfill: bool = False,
 ) -> None:
     """Builds the given models."""
     if target == "dev":
@@ -69,7 +70,7 @@ def build(
     commands = ["build"]
     args = {
         "target": target,
-        "vars": f'{{data_interval_start: "{start_date}", data_interval_end: "{end_date}"}}',
+        "vars": f'{{data_interval_start: "{start_date}", data_interval_end: "{end_date}", is_backfill: {"true" if backfill else "false"}}}',
         "exclude": "tag:no_backfill",
     }
 

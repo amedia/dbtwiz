@@ -123,6 +123,14 @@ file `.dbtwiz/last_select.json` in the current project.
 Pass this option to rebuild the same models that you most recently built.""",
         ),
     ] = False,
+    backfill: Annotated[
+        bool,
+        typer.Option(
+            "--backfill",
+            help="""Sets the dbt variable `is_backfill` to true.
+This is automatically set when running via `dbtwiz admin backfill`.""",
+        ),
+    ] = False,
 ) -> None:
     """Build one or more dbt models with interactive selection or exact names."""
     # Validate
@@ -152,6 +160,7 @@ Pass this option to rebuild the same models that you most recently built.""",
         downstream=downstream,
         work=work,
         repeat_last=repeat_last,
+        backfill=backfill,
     )
 
 
