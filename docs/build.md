@@ -66,3 +66,8 @@ When you build with dbtwiz, it will store a list of selected models in the
 file `.dbtwiz/last_select.json` in the current project.
 
 Pass this option to rebuild the same models that you most recently built.
+
+### `--backfill`
+
+Sets the dbt variable `is_backfill` to true.
+This is automatically set when running via `dbtwiz admin backfill`.

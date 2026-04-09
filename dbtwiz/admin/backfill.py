@@ -95,6 +95,7 @@ def job_spec_template():
                 - --batch-size
                 - "{{ batch_size }}"
                 - --use-task-index
+                - --backfill
                 {% if full_refresh %}
                 - --full-refresh
                 {%- endif %}
