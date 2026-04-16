@@ -35,31 +35,26 @@ class YmlValidator:
 
     def validate_yml_exists(self) -> Tuple[bool, str]:
         """Validates that the yml exists, or triggers yml creation if not."""
+        import subprocess
+
         yml_path = self.model_base.path.with_suffix(".yml")
         if not yml_path.exists():
             warn(
                 f"{self.model_base.model_name}: yml file missing - [italic]creating[/italic]"
             )
-            import subprocess
-
-            try:
-                subprocess.run(
-                    [
-                        "dbtwiz",
-                        "model",
-                        "create",
-                        "-l",
-                        self.model_base.layer,
-                        "-d",
-                        self.model_base.domain,
-                        "-n",
-                        self.model_base.identifier,
-                    ],
-                    check=True,
-                    capture_output=True,
-                )
-            except subprocess.CalledProcessError:
-                pass  # Continue even if creation fails
+            subprocess.run(
+                [
+                    "dbtwiz",
+                    "model",
+                    "create",
+                    "-l",
+                    self.model_base.layer,
+                    "-d",
+                    self.model_base.domain,
+                    "-n",
+                    self.model_base.identifier,
+                ],
+            )
             if yml_path.exists():
                 return True, f"yml file created successfully: {yml_path.name}"
             if not yml_path.exists():
