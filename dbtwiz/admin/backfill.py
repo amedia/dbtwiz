@@ -3,8 +3,7 @@ import shutil
 import subprocess
 import time
 import webbrowser
-from datetime import date
-from math import ceil
+from datetime import date, timedelta
 from textwrap import dedent
 
 from jinja2 import Template
@@ -18,6 +17,36 @@ from ..utils.logger import debug, fatal, info, warn
 
 MAX_CONCURRENT_TASKS = 8
 YAML_FILE = project_dbtwiz_path("backfill-cloudrun.yaml")
+
+
+def chunk_date_range(
+    first: date, last: date, batch_size: int
+) -> list[tuple[date, date]]:
+    """Split [first, last] (inclusive) into contiguous chunks of at most batch_size days."""
+    ranges: list[tuple[date, date]] = []
+    cursor = first
+    while cursor <= last:
+        chunk_end = min(last, cursor + timedelta(days=batch_size - 1))
+        ranges.append((cursor, chunk_end))
+        cursor = chunk_end + timedelta(days=1)
+    return ranges
+
+
+def encode_task_ranges(ranges: list[tuple[date, date]]) -> str:
+    """Encode date-pair ranges into the --task-ranges arg format."""
+    return ",".join(f"{s.isoformat()}:{e.isoformat()}" for s, e in ranges)
+
+
+def decode_task_ranges(encoded: str) -> list[tuple[date, date]]:
+    """Inverse of encode_task_ranges."""
+    out: list[tuple[date, date]] = []
+    for piece in encoded.split(","):
+        piece = piece.strip()
+        if not piece:
+            continue
+        s, e = piece.split(":")
+        out.append((date.fromisoformat(s.strip()), date.fromisoformat(e.strip())))
+    return out
 
 
 def halve_str(word: str) -> str:
@@ -88,12 +117,8 @@ def job_spec_template():
                 - "prod"
                 - --select
                 - "{{ selector }}"
-                - --start-date
-                - "{{ start_date }}"
-                - --end-date
-                - "{{ end_date }}"
-                - --batch-size
-                - "{{ batch_size }}"
+                - --task-ranges
+                - "{{ task_ranges }}"
                 - --use-task-index
                 - --backfill
                 {% if full_refresh %}
@@ -112,19 +137,20 @@ def job_spec_template():
 
 def generate_job_spec(
     selector: str,
-    date_first: date,
-    date_last: date,
+    ranges: list[tuple[date, date]],
     full_refresh: bool,
     parallelism: int,
-    batch_size: int,
 ) -> str:
-    """Generate job specification YAML file"""
-    number_of_days = (date_last - date_first).days + 1
-    task_count = ceil(number_of_days / batch_size)
+    """Generate job specification YAML file from an explicit list of per-task date ranges."""
+    task_count = len(ranges)
+    if task_count == 0:
+        fatal("No date ranges to run.")
     parallelism = min(task_count, parallelism)
     job_name = backfill_job_name(selector)
     if full_refresh:
-        assert number_of_days == 1
+        assert task_count == 1
+        first, last = ranges[0]
+        assert first == last
         assert "+" not in selector
     job_spec_yaml = job_spec_template().render(
         job_name=job_name,
@@ -132,9 +158,7 @@ def generate_job_spec(
         task_count=task_count,
         image=project_config().docker_image_url_dbt,
         selector=selector,
-        start_date=date_first.strftime("%Y-%m-%d"),
-        end_date=date_last.strftime("%Y-%m-%d"),
-        batch_size=batch_size,
+        task_ranges=encode_task_ranges(ranges),
         full_refresh=full_refresh,
         service_account=project_config().service_account_identifier,
         service_account_region=project_config().service_account_region,
@@ -174,49 +198,150 @@ def run_command(args: list[str], verbose: bool = False, check: bool = True):
     return result
 
 
-def backfill(
-    selector: str,
-    first_date: date,
-    last_date: date,
-    full_refresh: bool,
-    parallelism: int,
-    status: bool,
-    verbose: bool,
-    batch_size: int,
-):
-    """Runs backfill for the given selector and date interval."""
-    ensure_auth()
+def _cloud_run_session():
+    """Return an AuthorizedSession for the Cloud Run Admin v2 REST API."""
+    from google.auth import default
+    from google.auth.transport.requests import AuthorizedSession
 
-    # Verify valid selector
-    selected_models = get_selected_models(select=selector)
+    credentials, _ = default(scopes=["https://www.googleapis.com/auth/cloud-platform"])
+    return AuthorizedSession(credentials)
 
-    if len(selected_models) == 0:
-        fatal(
-            f"No models selected by statement '{selector}'. Please check the model name(s)."
-        )
-    else:
-        materialized_counts = {}
-        for item in selected_models:
-            key = item["config"]["materialized"]
-            materialized_counts[key] = materialized_counts.get(key, 0) + 1
 
-        if materialized_counts.get("incremental", 0) == 0:
-            warn(
-                "No incremental models were selected, so provided dates will be ignored."
-            )
-            if not confirm("Would you still like to run?"):
-                return
-            first_date = last_date = date.today()
-
-    job_name = generate_job_spec(
-        selector=selector,
-        date_first=first_date,
-        date_last=last_date,
-        full_refresh=full_refresh,
-        parallelism=parallelism,
-        batch_size=batch_size,
+def _cloud_run_v2_base_url() -> str:
+    region = project_config().service_account_region
+    project = project_config().service_account_project
+    return (
+        f"https://{region}-run.googleapis.com/v2/projects/{project}/locations/{region}"
     )
 
+
+def fetch_latest_execution(job_name: str, verbose: bool = False) -> dict:
+    """Return the most recent Cloud Run v2 execution resource for the given job."""
+    session = _cloud_run_session()
+    list_url = f"{_cloud_run_v2_base_url()}/jobs/{job_name}/executions"
+    if verbose:
+        debug(f"GET {list_url}")
+    resp = session.get(list_url, params={"pageSize": 1})
+    if resp.status_code == 404:
+        fatal(
+            f"No Cloud Run job named '{job_name}' found. "
+            "Has this backfill ever been run?"
+        )
+    if not resp.ok:
+        fatal(
+            f"Failed to list executions for '{job_name}': {resp.status_code} {resp.text}"
+        )
+    executions = resp.json().get("executions") or []
+    if not executions:
+        fatal(
+            f"No previous executions found for job '{job_name}'. "
+            "Run a fresh backfill before using --retry."
+        )
+    # The list endpoint already returns full execution resources, no need to re-fetch.
+    return executions[0]
+
+
+def extract_container_args(execution: dict) -> list[str]:
+    """Extract the container args list from a Cloud Run v2 execution resource."""
+    try:
+        containers = execution["template"]["containers"]
+        return list(containers[0].get("args", []))
+    except (KeyError, IndexError) as exc:
+        fatal(f"Could not read container args from previous execution: {exc}")
+
+
+def get_arg_value(args: list[str], flag: str) -> str | None:
+    """Return the value following the given flag in a list of CLI args, or None."""
+    try:
+        idx = args.index(flag)
+    except ValueError:
+        return None
+    if idx + 1 >= len(args):
+        return None
+    return args[idx + 1]
+
+
+def recover_previous_ranges(args: list[str]) -> list[tuple[date, date]]:
+    """Recover the per-task date ranges from a previous execution's container args.
+
+    Supports both new-style (--task-ranges) and old-style
+    (--start-date/--end-date/--batch-size) executions.
+    """
+    encoded = get_arg_value(args, "--task-ranges")
+    if encoded:
+        return decode_task_ranges(encoded)
+
+    start_str = get_arg_value(args, "--start-date")
+    end_str = get_arg_value(args, "--end-date")
+    bs_str = get_arg_value(args, "--batch-size")
+    if not (start_str and end_str and bs_str):
+        fatal(
+            "Could not recover date ranges from previous execution: "
+            "missing --task-ranges and --start-date/--end-date/--batch-size."
+        )
+    return chunk_date_range(
+        date.fromisoformat(start_str), date.fromisoformat(end_str), int(bs_str)
+    )
+
+
+def extract_failed_task_indices(execution: dict, verbose: bool = False) -> list[int]:
+    """Return the sorted list of zero-based task indices that did not succeed.
+
+    Uses the Cloud Run v2 tasks endpoint to enumerate per-task state.
+    """
+    task_count = execution.get("taskCount")
+    if task_count is None:
+        fatal("Could not determine task count from previous execution.")
+    succeeded = execution.get("succeededCount", 0) or 0
+    if succeeded == task_count:
+        return []
+
+    # Derive the execution-relative path from its fully-qualified resource name:
+    #   projects/.../locations/.../jobs/.../executions/<exec>
+    execution_path = execution["name"]
+    session = _cloud_run_session()
+    tasks_url = f"https://{project_config().service_account_region}-run.googleapis.com/v2/{execution_path}/tasks"
+    if verbose:
+        debug(f"GET {tasks_url}")
+
+    failed: list[int] = []
+    next_page_token: str | None = None
+    while True:
+        params: dict[str, str] = {"pageSize": "500"}
+        if next_page_token:
+            params["pageToken"] = next_page_token
+        resp = session.get(tasks_url, params=params)
+        if not resp.ok:
+            fatal(f"Failed to list tasks for execution: {resp.status_code} {resp.text}")
+        payload = resp.json()
+        for task in payload.get("tasks") or []:
+            # Protobuf JSON omits zero-valued integers, so a missing 'index' means 0.
+            index = int(task.get("index", 0))
+            conditions = task.get("conditions") or []
+            completed_ok = any(
+                c.get("type") == "Completed" and c.get("state") == "CONDITION_SUCCEEDED"
+                for c in conditions
+            )
+            if not completed_ok:
+                failed.append(index)
+        next_page_token = payload.get("nextPageToken")
+        if not next_page_token:
+            break
+    return sorted(failed)
+
+
+def subdivide_ranges(
+    ranges: list[tuple[date, date]], batch_size: int
+) -> list[tuple[date, date]]:
+    """Re-chunk each range so no chunk exceeds batch_size days."""
+    new_ranges: list[tuple[date, date]] = []
+    for start, end in ranges:
+        new_ranges.extend(chunk_date_range(start, end, batch_size))
+    return new_ranges
+
+
+def submit_job(job_name: str, verbose: bool, status: bool) -> None:
+    """Replace and execute the Cloud Run job from the rendered YAML."""
     ensure_auth(check_app_default_auth=False, check_gcloud_auth=True)
     service_account_project = project_config().service_account_project
     service_account_region = project_config().service_account_region
@@ -256,3 +381,128 @@ def backfill(
     if status:
         webbrowser.open(job_url)
         time.sleep(0.5)
+
+
+def _print_dry_run_summary(ranges: list[tuple[date, date]], job_name: str) -> None:
+    info(f"Dry run — job '{job_name}' would submit {len(ranges)} task(s):")
+    for i, (s, e) in enumerate(ranges):
+        days = (e - s).days + 1
+        info(f"  task {i:>3}: {s} → {e}  ({days} day{'s' if days > 1 else ''})")
+
+
+def _backfill_retry(
+    selector: str,
+    parallelism: int,
+    status: bool,
+    verbose: bool,
+    batch_size: int,
+    dry_run: bool,
+    batch_size_overridden: bool,
+) -> None:
+    """Retry failed tasks from the most recent execution."""
+    job_name = backfill_job_name(selector)
+    info(f"Looking up most recent execution of job '{job_name}'.")
+    execution = fetch_latest_execution(job_name, verbose=verbose)
+
+    if not execution.get("completionTime"):
+        fatal(
+            "Previous execution has not completed yet. "
+            "Wait for it to finish before retrying."
+        )
+
+    previous_args = extract_container_args(execution)
+    previous_ranges = recover_previous_ranges(previous_args)
+    failed_indices = extract_failed_task_indices(execution, verbose=verbose)
+
+    if not failed_indices:
+        info("No failed tasks in the most recent execution; nothing to retry.")
+        return
+
+    failed_ranges = [previous_ranges[i] for i in failed_indices]
+    info(
+        f"Found {len(failed_ranges)} failed task(s) out of "
+        f"{len(previous_ranges)} in the previous execution."
+    )
+
+    if batch_size_overridden:
+        ranges = subdivide_ranges(failed_ranges, batch_size)
+        info(
+            f"Subdividing failed ranges with batch size {batch_size}: "
+            f"{len(failed_ranges)} → {len(ranges)} tasks."
+        )
+    else:
+        ranges = failed_ranges
+
+    if dry_run:
+        _print_dry_run_summary(ranges, job_name)
+        return
+
+    previous_full_refresh = "--full-refresh" in previous_args
+    generate_job_spec(
+        selector=selector,
+        ranges=ranges,
+        full_refresh=previous_full_refresh,
+        parallelism=parallelism,
+    )
+    submit_job(job_name, verbose=verbose, status=status)
+
+
+def backfill(
+    selector: str,
+    first_date: date | None,
+    last_date: date | None,
+    full_refresh: bool,
+    parallelism: int,
+    status: bool,
+    verbose: bool,
+    batch_size: int,
+    retry: bool = False,
+    dry_run: bool = False,
+    batch_size_overridden: bool = False,
+):
+    """Runs backfill for the given selector and date interval, or retries failed tasks."""
+    ensure_auth()
+
+    if retry:
+        _backfill_retry(
+            selector=selector,
+            parallelism=parallelism,
+            status=status,
+            verbose=verbose,
+            batch_size=batch_size,
+            dry_run=dry_run,
+            batch_size_overridden=batch_size_overridden,
+        )
+        return
+
+    selected_models = get_selected_models(select=selector)
+    if len(selected_models) == 0:
+        fatal(
+            f"No models selected by statement '{selector}'. Please check the model name(s)."
+        )
+
+    materialized_counts = {}
+    for item in selected_models:
+        key = item["config"]["materialized"]
+        materialized_counts[key] = materialized_counts.get(key, 0) + 1
+
+    if materialized_counts.get("incremental", 0) == 0:
+        warn("No incremental models were selected, so provided dates will be ignored.")
+        if not confirm("Would you still like to run?"):
+            return
+        first_date = last_date = date.today()
+
+    ranges = chunk_date_range(first_date, last_date, batch_size)
+    job_name = backfill_job_name(selector)
+
+    if dry_run:
+        _print_dry_run_summary(ranges, job_name)
+        return
+
+    job_name = generate_job_spec(
+        selector=selector,
+        ranges=ranges,
+        full_refresh=full_refresh,
+        parallelism=parallelism,
+    )
+    submit_job(job_name, verbose=verbose, status=status)

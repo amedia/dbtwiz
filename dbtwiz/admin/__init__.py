@@ -17,6 +17,48 @@ app = typer.Typer(help="Administrative commands for dbt project management")
 __all__ = ["app", "empty_development_dataset"]
 
 
+def _validate_backfill_args(
+    select: str,
+    date_first: str | None,
+    date_last: str | None,
+    full_refresh: bool,
+    retry: bool,
+) -> tuple[datetime.date | None, datetime.date | None]:
+    """Validate backfill arguments and return (first_date, last_date)."""
+    from ..utils.logger import warn
+
+    if retry:
+        if full_refresh:
+            raise InvalidArgumentsError(
+                "--retry cannot be combined with --full-refresh."
+            )
+        if date_first is not None or date_last is not None:
+            warn("Date arguments are ignored when --retry is set.")
+        return None, None
+
+    if date_first is None:
+        raise InvalidArgumentsError(
+            "date_first is required (omit it only when using --retry)."
+        )
+    try:
+        first_date = datetime.date.fromisoformat(date_first)
+        last_date = datetime.date.fromisoformat(date_last) if date_last else first_date
+    except ValueError:
+        raise InvalidArgumentsError("Dates must be on the YYYY-mm-dd format.")
+    if last_date < first_date:
+        raise InvalidArgumentsError("Last date must be on or after first date.")
+    if full_refresh:
+        if "+" in select:
+            raise InvalidArgumentsError(
+                "Full refresh is only supported on single models."
+            )
+        if last_date != first_date:
+            raise InvalidArgumentsError(
+                "Full refresh in only supported on single day runs."
+            )
+    return first_date, last_date
+
+
 @app.command()
 @examples(
     """Example of the basic use-case:
@@ -36,8 +78,15 @@ be opened in your browser so you can track progress."""
 def backfill(
     select: Annotated[str, typer.Argument(help="Model selector passed to dbt")],
     date_first: Annotated[
-        str, typer.Argument(help="Start of backfill period [YYYY-mm-dd]")
-    ],
+        str,
+        typer.Argument(
+            help=(
+                "Start of backfill period [YYYY-mm-dd]. "
+                "Optional (and ignored) when --retry is set."
+            ),
+            metavar="TEXT",
+        ),
+    ] = None,
     date_last: Annotated[
         str,
         typer.Argument(
@@ -50,9 +99,24 @@ def backfill(
         typer.Option(
             "--batch-size",
             "-b",
-            help=("Number of dates to include in each batch."),
+            help=(
+                "Number of dates to include in each batch. "
+                "When used with --retry, subdivides each failed range to this size; "
+                "if omitted on retry, the failed ranges are retried as-is."
+            ),
         ),
-    ] = project_config().backfill_default_batch_size or 30,
+    ] = None,
+    retry: Annotated[
+        bool,
+        typer.Option(
+            "--retry",
+            help=(
+                "Retry only the failed tasks from the most recent execution of this backfill "
+                "job (looked up by selector). When set, date arguments are ignored. "
+                "Pass --batch-size to subdivide failed ranges before retrying."
+            ),
+        ),
+    ] = False,
     full_refresh: Annotated[
         bool,
         typer.Option(
@@ -90,28 +154,30 @@ def backfill(
         bool,
         typer.Option("--verbose", "-v", help="Output more info about what is going on"),
     ] = False,
+    dry_run: Annotated[
+        bool,
+        typer.Option(
+            "--dry-run",
+            help=(
+                "Print the tasks that would be submitted without actually running the job. "
+                "Works with and without --retry."
+            ),
+        ),
+    ] = False,
 ) -> None:
     """Backfill date-partitioned models in production for a specified date range.
 
     Spawns Cloud Run jobs to process multiple dates in parallel with configurable batch sizes.
+    Use --retry to re-run only the failed tasks from the most recent execution.
     """
-    # Validate
-    try:
-        first_date = datetime.date.fromisoformat(date_first)
-        last_date = datetime.date.fromisoformat(date_last) if date_last else first_date
-    except ValueError:
-        raise InvalidArgumentsError("Dates must be on the YYYY-mm-dd format.")
-    if last_date < first_date:
-        raise InvalidArgumentsError("Last date must be on or after first date.")
-    if full_refresh:
-        if "+" in select:
-            raise InvalidArgumentsError(
-                "Full refresh is only supported on single models."
-            )
-        if last_date != first_date:
-            raise InvalidArgumentsError(
-                "Full refresh in only supported on single day runs."
-            )
+    batch_size_overridden = batch_size is not None
+    if batch_size is None:
+        batch_size = project_config().backfill_default_batch_size or 30
+
+    first_date, last_date = _validate_backfill_args(
+        select, date_first, date_last, full_refresh, retry
+    )
+
     from .backfill import backfill as command_backfill
 
     # Dispatch
@@ -124,6 +190,9 @@ def backfill(
         parallelism=parallelism,
         status=status,
         verbose=verbose,
+        retry=retry,
+        dry_run=dry_run,
+        batch_size_overridden=batch_size_overridden,
     )
 
 

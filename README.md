@@ -28,7 +28,7 @@ You can also run `dbtwiz --help`/`dbtwiz -h`, which will list the commands with 
 - [`test`](docs/test.md) - Test dbt models with optional date specification.
 - [`manifest`](docs/manifest.md) - Update dbt manifests for fast lookup and caching.
 - `admin` - Production backfilling and administrative tasks
-  - [`backfill`](docs/admin_backfill.md) - Backfill date-partitioned models in production for a specified date range. Spawns Cloud Run jobs to process multiple dates in parallel with configurable batch sizes.
+  - [`backfill`](docs/admin_backfill.md) - Backfill date-partitioned models in production for a specified date range. Spawns Cloud Run jobs to process multiple dates in parallel with configurable batch sizes. Use --retry to re-run only the failed tasks from the most recent execution.
   - [`cleandev`](docs/admin_cleandev.md) - Delete all materializations in the dbt development dataset
   - [`orphaned`](docs/admin_orphaned.md) - List or delete orphaned materializations in the data warehouse
   - [`partition-expiry`](docs/admin_partition_expiry.md) - Checks for mismatched partition expiry and allows updating to correct.

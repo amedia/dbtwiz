@@ -26,6 +26,23 @@ def choose_models(target: str, select, repeat_last: bool, work=None):
     return chosen_models
 
 
+def parse_task_ranges(task_ranges: str) -> list[tuple[date, date]]:
+    """Parse a --task-ranges string into a list of (start, end) date pairs.
+
+    Format: "YYYY-MM-DD:YYYY-MM-DD,YYYY-MM-DD:YYYY-MM-DD,..."
+    """
+    ranges: list[tuple[date, date]] = []
+    for piece in task_ranges.split(","):
+        piece = piece.strip()
+        if not piece:
+            continue
+        start_str, end_str = piece.split(":")
+        ranges.append(
+            (date.fromisoformat(start_str.strip()), date.fromisoformat(end_str.strip()))
+        )
+    return ranges
+
+
 def build(
     target: str,
     select: str,
@@ -39,6 +56,7 @@ def build(
     work: bool,
     repeat_last: bool,
     backfill: bool = False,
+    task_ranges: str = "",
 ) -> None:
     """Builds the given models."""
     if target == "dev":
@@ -61,10 +79,19 @@ def build(
     debug(f"Select: '{select}'")
 
     if use_task_index:
-        date_offset = int(os.environ.get("CLOUD_RUN_TASK_INDEX", 0))
-        start_date = start_date + timedelta(days=date_offset * batch_size)
-        end_date = min(end_date, start_date + timedelta(days=batch_size - 1))
-        info(f"Batch size: {batch_size}")
+        task_index = int(os.environ.get("CLOUD_RUN_TASK_INDEX", 0))
+        if task_ranges:
+            ranges = parse_task_ranges(task_ranges)
+            if task_index >= len(ranges):
+                error(
+                    f"Task index {task_index} out of bounds for {len(ranges)} task ranges."
+                )
+                return
+            start_date, end_date = ranges[task_index]
+        else:
+            start_date = start_date + timedelta(days=task_index * batch_size)
+            end_date = min(end_date, start_date + timedelta(days=batch_size - 1))
+            info(f"Batch size: {batch_size}")
 
     info(f"Date range: {start_date} -> {end_date}")
     commands = ["build"]
