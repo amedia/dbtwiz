@@ -3,18 +3,23 @@
 Backfill date-partitioned models in production for a specified date range.
 
 Spawns Cloud Run jobs to process multiple dates in parallel with configurable batch sizes.
+Use --retry to re-run only the failed tasks from the most recent execution.
 
 ## Required arguments
 
 - `select`: Model selector passed to dbt
-- `date_first`: Start of backfill period [YYYY-mm-dd]
+- `date_first`: Start of backfill period [YYYY-mm-dd]. Optional (and ignored) when --retry is set.
 - `date_last`: End of backfill period (inclusive) [YYYY-mm-dd]. Defaults to date_first.
 
 ## Options
 
 ### `--batch-size`, `-b`
 
-Number of dates to include in each batch.
+Number of dates to include in each batch. When used with --retry, subdivides each failed range to this size; if omitted on retry, the failed ranges are retried as-is.
+
+### `--retry`
+
+Retry only the failed tasks from the most recent execution of this backfill job (looked up by selector). When set, date arguments are ignored. Pass --batch-size to subdivide failed ranges before retrying.
 
 ### `--full-refresh`, `-f`
 
@@ -31,6 +36,10 @@ Open job status page in browser after starting execution
 ### `--verbose`, `-v`
 
 Output more info about what is going on
+
+### `--dry-run`
+
+Print the tasks that would be submitted without actually running the job. Works with and without --retry.
 
 ## Examples
 

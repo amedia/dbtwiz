@@ -71,3 +71,11 @@ Pass this option to rebuild the same models that you most recently built.
 
 Sets the dbt variable `is_backfill` to true.
 This is automatically set when running via `dbtwiz admin backfill`.
+
+### `--task-ranges`
+
+Comma-separated list of date ranges, one per task, on the form
+`YYYY-MM-DD:YYYY-MM-DD,YYYY-MM-DD:YYYY-MM-DD,...`. When used together with
+`--use-task-index`, the task picks the range at index `CLOUD_RUN_TASK_INDEX`
+and ignores `--start-date`, `--end-date`, and `--batch-size`. Set by
+`dbtwiz admin backfill` to support non-contiguous task ranges (e.g. retries).

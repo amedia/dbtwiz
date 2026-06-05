@@ -131,6 +131,17 @@ Pass this option to rebuild the same models that you most recently built.""",
 This is automatically set when running via `dbtwiz admin backfill`.""",
         ),
     ] = False,
+    task_ranges: Annotated[
+        str,
+        typer.Option(
+            "--task-ranges",
+            help="""Comma-separated list of date ranges, one per task, on the form
+`YYYY-MM-DD:YYYY-MM-DD,YYYY-MM-DD:YYYY-MM-DD,...`. When used together with
+`--use-task-index`, the task picks the range at index `CLOUD_RUN_TASK_INDEX`
+and ignores `--start-date`, `--end-date`, and `--batch-size`. Set by
+`dbtwiz admin backfill` to support non-contiguous task ranges (e.g. retries).""",
+        ),
+    ] = "",
 ) -> None:
     """Build one or more dbt models with interactive selection or exact names."""
     # Validate
@@ -161,6 +172,7 @@ This is automatically set when running via `dbtwiz admin backfill`.""",
         work=work,
         repeat_last=repeat_last,
         backfill=backfill,
+        task_ranges=task_ranges,
     )
 
 
