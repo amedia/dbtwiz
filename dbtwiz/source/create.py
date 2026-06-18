@@ -46,11 +46,17 @@ def select_project(context):
     while True:
         project = context.get("project_name")
         if not project:
-            project = autocomplete_from_list(
-                "What is the project for the source",
-                items=context["projects"],
-                must_exist=False,
-            )
+            if context["projects"]:
+                project = autocomplete_from_list(
+                    "What is the project for the source",
+                    items=context["projects"],
+                    must_exist=False,
+                )
+            else:
+                project = input_text(
+                    "What is the project for the source",
+                    allow_blank=False,
+                )
         exists_check = context["client"].check_project_exists(project)
         if exists_check == "Exists":
             context["project_name"] = project
