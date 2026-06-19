@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Dict, Optional, Tuple, Union
 
-from ..config.project import project_path
+from ..config.project import project_config, project_path
 from ..utils.exceptions import ModelError, ValidationError
 
 
@@ -93,15 +93,14 @@ class ModelBasePath:
     def layer_details(self) -> Dict[str, Tuple[str, str]]:
         """Get mapping of layer names to folder names and abbreviations.
 
+        Resolved from `tool.dbtwiz.project.layers` in pyproject.toml when set,
+        else from the built-in default (matching the historical adp-dbt-core
+        layout).
+
         Returns:
             Dictionary mapping layer names to (folder_name, abbreviation) tuples
         """
-        return {
-            "staging": ("1_staging", "stg"),
-            "intermediate": ("2_intermediate", "int"),
-            "marts": ("3_marts", "mrt"),
-            "bespoke": ("4_bespoke", "bsp"),
-        }
+        return project_config().layer_details()
 
     @property
     def layer(self) -> str:

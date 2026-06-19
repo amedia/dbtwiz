@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 from typing import Any, Dict, List, Tuple, Union
 
-from ..config.project import project_path
+from ..config.project import project_config, project_path
 from .model import ModelBasePath
 
 
@@ -252,26 +252,19 @@ class Project:
 def layer_choices() -> List[Dict[str, str]]:
     """Get available dbt layers with descriptions.
 
+    Read from `[tool.dbtwiz.project.layers]` in pyproject.toml. Each entry's
+    optional `description` field is used as-is; missing descriptions fall back
+    to a generic label.
+
     Returns:
         List of dictionaries containing layer names and descriptions
     """
     return [
         {
-            "name": "staging",
-            "description": "Initial building blocks mapping the source data",
-        },
-        {
-            "name": "intermediate",
-            "description": "Logic to prepare data to be joined into products at later stages",
-        },
-        {
-            "name": "marts",
-            "description": "Data products made available to several consumers",
-        },
-        {
-            "name": "bespoke",
-            "description": "Data products tailored to one specific consumer",
-        },
+            "name": name,
+            "description": entry.get("description", f"{name.capitalize()} layer"),
+        }
+        for name, entry in project_config().layer_entries().items()
     ]
 
 

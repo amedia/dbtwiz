@@ -71,6 +71,16 @@ docker_image_manifest_path = ""     # Path to manifest in docker image
 orphan_cleanup_bq_region = ""       # The region where data is materialized (e.g. region-eu)
 orphan_cleanup_projects = [""]      # Which projects to look for orphaned models in (e.g. prod)
 orphan_cleanup_skip_projects = [""] # Which projects not to look for orphaned moels in (e.g. dev)
+
+# Layer layout — required. Map each logical layer name to its folder under
+# models/, the abbreviation used as the model name prefix
+# (<abbr>_<domain>__<name>), and an optional description shown in the
+# interactive `dbtwiz model create` prompt.
+[tool.dbtwiz.project.layers]
+staging      = { folder = "1_staging",      abbreviation = "stg", description = "Initial building blocks mapping the source data" }
+intermediate = { folder = "2_intermediate", abbreviation = "int", description = "Logic to prepare data to be joined into products at later stages" }
+marts        = { folder = "3_marts",        abbreviation = "mrt", description = "Data products made available to several consumers" }
+bespoke      = { folder = "4_bespoke",      abbreviation = "bsp", description = "Data products tailored to one specific consumer" }
 ```
 
 ### User config
