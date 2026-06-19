@@ -1,7 +1,7 @@
 import functools
 import tomllib
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -119,6 +119,15 @@ class ProjectConfig(BaseModel):
         description="GCP project IDs where SA read access checks are skipped (e.g. because access is already granted at project level)",
     )
 
+    # Layer layout — each repo must declare its own. Map each logical layer
+    # name to its folder under models/, the abbreviation used in model name
+    # prefixes (<abbr>_<domain>__<name>), and an optional description shown
+    # in the interactive `dbtwiz model create` prompt.
+    layers: Optional[Dict[str, Dict[str, str]]] = Field(
+        None,
+        description="Mapping of layer name to {folder, abbreviation, description?}",
+    )
+
     # Internal fields (not from config file)
     root: Optional[Path] = Field(
         None, description="Project root path (set internally)", exclude=True
@@ -167,6 +176,38 @@ class ProjectConfig(BaseModel):
             Path object pointing to the project root directory
         """
         return self.root
+
+    def layer_entries(self) -> Dict[str, Dict[str, str]]:
+        """Return the resolved per-layer config, in declared order.
+
+        Raises a fatal error if `[tool.dbtwiz.project.layers]` is missing or
+        any entry lacks `folder` / `abbreviation`.
+        """
+        if not self.layers:
+            fatal(
+                "Missing [tool.dbtwiz.project.layers] in pyproject.toml. "
+                "Declare each layer with its folder and abbreviation, e.g.:\n"
+                "  [tool.dbtwiz.project.layers]\n"
+                '  staging      = { folder = "1_staging",      abbreviation = "stg" }\n'
+                '  intermediate = { folder = "2_intermediate", abbreviation = "int" }\n'
+                '  marts        = { folder = "3_marts",        abbreviation = "mrt" }\n'
+                '  bespoke      = { folder = "4_bespoke",      abbreviation = "bsp" }'
+            )
+        for name, entry in self.layers.items():
+            missing = [k for k in ("folder", "abbreviation") if k not in entry]
+            if missing:
+                fatal(
+                    f"Layer '{name}' in [tool.dbtwiz.project.layers] is missing "
+                    f"required field(s): {', '.join(missing)}"
+                )
+        return self.layers
+
+    def layer_details(self) -> Dict[str, Tuple[str, str]]:
+        """Resolve layer name → (folder, abbreviation) mapping."""
+        return {
+            name: (entry["folder"], entry["abbreviation"])
+            for name, entry in self.layer_entries().items()
+        }
 
     # ============================================================================
     # PRIVATE METHODS - Internal Helper Functions
