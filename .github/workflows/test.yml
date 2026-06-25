@@ -3,6 +3,9 @@ name: Tests
 on:
   pull_request:
     branches: [master]
+    paths-ignore:
+      - "**/whoami.yaml"
+      - "**/whoami*.yaml"
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
