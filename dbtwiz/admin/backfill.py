@@ -19,6 +19,85 @@ MAX_CONCURRENT_TASKS = 8
 YAML_FILE = project_dbtwiz_path("backfill-cloudrun.yaml")
 
 
+def estimate_batch_size(
+    models: list[dict],
+    sample_date: date,
+    default_batch_size: int,
+    target_bytes: int,
+) -> int:
+    """Estimate a safe batch size by dry-running each incremental model for a single day.
+
+    Compiles the model SQL against the prod target for sample_date, submits it to
+    BigQuery as a dry-run to get bytes scanned, then calculates a batch size that
+    keeps each task under target_bytes. Falls back to default_batch_size if estimation
+    fails for all models.
+    """
+    from dbt.cli.main import dbtRunner
+
+    from ..integrations.bigquery import GCP_LOCATION, BigQueryClient
+    from ..utils.contextmanagers import suppress_output
+
+    client = BigQueryClient()
+    project_root = project_config().root_path()
+    sample = sample_date.isoformat()
+    min_batch_size = None
+
+    for model in models:
+        model_name = model["name"]
+        table = model.get("alias") or model_name
+
+        try:
+            dbt_args = [
+                "compile",
+                "--select", model_name,
+                "--target", "prod",
+                "--project-dir", str(project_root),
+                "--vars", f'{{data_interval_start: "{sample}", data_interval_end: "{sample}", is_backfill: true}}',
+            ]
+            with suppress_output():
+                result = dbtRunner().invoke(dbt_args)
+
+            if not result.success:
+                warn(f"Failed to compile {table} for batch size estimation, auto-sizing skipped")
+                continue
+
+            compiled_files = list(
+                (project_root / "target" / "compiled").glob(f"**/{model_name}.sql")
+            )
+            if not compiled_files:
+                warn(f"Compiled SQL not found for {table}, auto-sizing skipped")
+                continue
+
+            sql = compiled_files[0].read_text(encoding="utf-8")
+
+            bq = client.get_bigquery()
+            job_config = bq.QueryJobConfig(dry_run=True, use_query_cache=False)
+            job = client.get_client().query(sql, job_config=job_config, location=GCP_LOCATION)
+
+            bytes_per_day = job.total_bytes_processed
+            if not bytes_per_day:
+                debug(f"Dry-run returned 0 bytes for {table}, skipping")
+                continue
+
+            batch_size = max(1, int(target_bytes / bytes_per_day))
+            info(
+                f"Model {table}: {bytes_per_day / 1e9:.2f} GB/day scanned → "
+                f"batch size {batch_size} days (target {target_bytes / 1e9:.0f} GB/batch)"
+            )
+
+            if min_batch_size is None or batch_size < min_batch_size:
+                min_batch_size = batch_size
+
+        except Exception as e:
+            warn(f"Failed to estimate batch size for {table}, auto-sizing skipped: {e}")
+
+    if min_batch_size is None:
+        info(f"No batch size estimate available, using default: {default_batch_size} days")
+        return default_batch_size
+
+    return min_batch_size
+
+
 def chunk_date_range(
     first: date, last: date, batch_size: int
 ) -> list[tuple[date, date]]:
@@ -491,6 +570,17 @@ def backfill(
         if not confirm("Would you still like to run?"):
             return
         first_date = last_date = date.today()
+    elif not batch_size_overridden:
+        incremental_models = [
+            m for m in selected_models if m["config"]["materialized"] == "incremental"
+        ]
+        target_bytes = (project_config().backfill_max_bytes_per_batch_gb or 10) * 10**9
+        batch_size = estimate_batch_size(
+            models=incremental_models,
+            sample_date=first_date,
+            default_batch_size=batch_size,
+            target_bytes=target_bytes,
+        )
 
     ranges = chunk_date_range(first_date, last_date, batch_size)
     job_name = backfill_job_name(selector)

@@ -40,6 +40,9 @@ class ProjectConfig(BaseModel):
     backfill_default_batch_size: Optional[int] = Field(
         30, ge=1, le=365, description="Default batch size for backfills"
     )
+    backfill_max_bytes_per_batch_gb: Optional[int] = Field(
+        10, ge=1, description="Target max gigabytes per batch for auto-calculated batch size"
+    )
 
     # Docker settings
     docker_image_url_dbt: Optional[str] = Field(
