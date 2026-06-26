@@ -48,7 +48,8 @@ The tool will give you a warning when you run a commmand that needs one of the c
 
 ```toml
 [tool.dbtwiz.project]
-# Config for default number of days per batch when running backfill
+# Config for default number of days per batch when running backfill.
+# Used as fallback when auto batch size calculation fails.
 backfill_default_batch_size = 30
 # Config for bucket containing dbt manifest.json at the top level
 bucket_state_project = ""           # Project name for bucket

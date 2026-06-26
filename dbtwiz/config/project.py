@@ -41,6 +41,7 @@ class ProjectConfig(BaseModel):
         30, ge=1, le=365, description="Default batch size for backfills"
     )
 
+
     # Docker settings
     docker_image_url_dbt: Optional[str] = Field(
         None, description="Docker image URL for dbt operations"
