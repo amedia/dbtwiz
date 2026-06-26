@@ -84,7 +84,7 @@ def estimate_batch_size(
 
             batch_size = min(default_batch_size, max(1, int(target_bytes / bytes_per_day)))
             info(
-                f"Model {table}: {bytes_per_day / 1e9:.2f} GB/day scanned → "
+                f"Model {table}: ~{bytes_per_day / 1e9:.2f} GB/day scanned (estimate) → "
                 f"batch size {batch_size} days (target {target_bytes / 1e9:.0f} GB/batch)"
             )
 
