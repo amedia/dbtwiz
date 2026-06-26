@@ -577,7 +577,17 @@ def backfill(
         incremental_models = [
             m for m in selected_models if m["config"]["materialized"] == "incremental"
         ]
-        target_bytes = project_config().backfill_max_bytes_per_batch_gb * 10**9
+        # Target bytes per batch is derived from the prod job timeout:
+        #   target = timeout_seconds × assumed_throughput × safety_margin
+        #   = 600s × 0.1 GB/s × 0.8 ≈ 48 GB
+        # The 0.1 GB/s is a conservative throughput assumption for complex models
+        # (joins, rolling windows, aggregations). Simple models will get larger batches
+        # because their dry-run bytes/day will be small, capping at the default batch size.
+        # The safety margin leaves headroom for slot contention and query overhead.
+        timeout_seconds = job_timeout("prod", default=600, leeway=0)
+        assumed_throughput_gbps = 0.1
+        safety_margin = 0.8
+        target_bytes = int(timeout_seconds * assumed_throughput_gbps * 1e9 * safety_margin)
         batch_size = estimate_batch_size(
             models=incremental_models,
             sample_date=last_date,
