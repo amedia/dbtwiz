@@ -37,7 +37,9 @@ def estimate_batch_size(
     from ..integrations.bigquery import GCP_LOCATION, BigQueryClient
     from ..utils.contextmanagers import suppress_output
 
-    client = BigQueryClient()
+    profile = Profile().profile_config("prod")
+    execution_project = profile.get("execution_project")
+    client = BigQueryClient(default_project=execution_project)
     project_root = project_config().root_path()
     sample = sample_date.isoformat()
     min_batch_size = None
@@ -79,7 +81,7 @@ def estimate_batch_size(
                 debug(f"Dry-run returned 0 bytes for {table}, skipping")
                 continue
 
-            batch_size = max(1, int(target_bytes / bytes_per_day))
+            batch_size = min(default_batch_size, max(1, int(target_bytes / bytes_per_day)))
             info(
                 f"Model {table}: {bytes_per_day / 1e9:.2f} GB/day scanned → "
                 f"batch size {batch_size} days (target {target_bytes / 1e9:.0f} GB/batch)"
