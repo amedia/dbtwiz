@@ -576,7 +576,7 @@ def backfill(
         incremental_models = [
             m for m in selected_models if m["config"]["materialized"] == "incremental"
         ]
-        target_bytes = (project_config().backfill_max_bytes_per_batch_gb or 10) * 10**9
+        target_bytes = project_config().backfill_max_bytes_per_batch_gb * 10**9
         batch_size = estimate_batch_size(
             models=incremental_models,
             sample_date=first_date,
