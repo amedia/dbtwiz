@@ -52,6 +52,7 @@ def estimate_batch_size(
             dbt_args = [
                 "compile",
                 "--select", model_name,
+                "--exclude", "tag:no_backfill",
                 "--target", "prod",
                 "--project-dir", str(project_root),
                 "--vars", f'{{data_interval_start: "{sample}", data_interval_end: "{sample}", is_backfill: true}}',
@@ -579,7 +580,7 @@ def backfill(
         target_bytes = project_config().backfill_max_bytes_per_batch_gb * 10**9
         batch_size = estimate_batch_size(
             models=incremental_models,
-            sample_date=first_date,
+            sample_date=last_date,
             default_batch_size=batch_size,
             target_bytes=target_bytes,
         )

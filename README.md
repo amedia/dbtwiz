@@ -50,6 +50,11 @@ The tool will give you a warning when you run a commmand that needs one of the c
 [tool.dbtwiz.project]
 # Config for default number of days per batch when running backfill
 backfill_default_batch_size = 30
+# Target max gigabytes to scan per batch when auto-calculating batch size.
+# dbtwiz compiles the model and runs a BigQuery dry-run to estimate bytes scanned per day,
+# then sets batch size = floor(backfill_max_bytes_per_batch_gb GB / bytes_per_day).
+# Override with --batch-size to skip auto-calculation entirely.
+backfill_max_bytes_per_batch_gb = 10
 # Config for bucket containing dbt manifest.json at the top level
 bucket_state_project = ""           # Project name for bucket
 bucket_state_identifier = ""        # Bucket name
