@@ -55,6 +55,9 @@ class TestEstimateBatchSize:
             MagicMock(total_bytes_processed=b) for b in bytes_per_day_list
         ]
 
+        # BigQueryClient is imported lazily inside estimate_batch_size, so patching
+        # at the source module works. If the import ever moves to module top-level
+        # in backfill.py, this must change to "dbtwiz.admin.backfill.BigQueryClient".
         with patch("dbtwiz.integrations.bigquery.BigQueryClient", return_value=mock_bq), \
              patch("dbtwiz.admin.backfill.project_config") as mock_cfg:
             mock_cfg.return_value.root_path.return_value = tmp_path
@@ -89,7 +92,8 @@ class TestEstimateBatchSize:
 
     def test_falls_back_to_default_when_compile_fails(self, tmp_path):
         self.mock_runner.return_value.invoke.return_value.success = False
-        assert self._run([make_model()], tmp_path, []) == self.DEFAULT
+        # Compile failure returns immediately with default, no per-model fallback
+        assert self._run([make_model(), make_model("other")], tmp_path, []) == self.DEFAULT
 
     def test_falls_back_to_default_when_no_compiled_file(self, tmp_path):
         # Do not create the compiled file

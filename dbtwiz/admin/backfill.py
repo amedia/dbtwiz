@@ -44,26 +44,26 @@ def estimate_batch_size(
     sample = sample_date.isoformat()
     min_batch_size = None
 
+    dbt_args = [
+        "compile",
+        "--select", " ".join(m["name"] for m in models),
+        "--exclude", "tag:no_backfill",
+        "--target", "prod",
+        "--project-dir", str(project_root),
+        "--vars", f'{{data_interval_start: "{sample}", data_interval_end: "{sample}", is_backfill: true}}',
+    ]
+    with suppress_output():
+        result = dbtRunner().invoke(dbt_args)
+
+    if not result.success:
+        warn("Failed to compile models for batch size estimation, using default batch size")
+        return default_batch_size
+
     for model in models:
         model_name = model["name"]
         table = model.get("alias") or model_name
 
         try:
-            dbt_args = [
-                "compile",
-                "--select", model_name,
-                "--exclude", "tag:no_backfill",
-                "--target", "prod",
-                "--project-dir", str(project_root),
-                "--vars", f'{{data_interval_start: "{sample}", data_interval_end: "{sample}", is_backfill: true}}',
-            ]
-            with suppress_output():
-                result = dbtRunner().invoke(dbt_args)
-
-            if not result.success:
-                warn(f"Failed to compile {table} for batch size estimation, auto-sizing skipped")
-                continue
-
             compiled_files = list(
                 (project_root / "target" / "compiled").glob(f"**/{model_name}.sql")
             )
