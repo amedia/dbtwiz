@@ -65,7 +65,7 @@ def create(
         typer.Option(
             "--table-description",
             "-td",
-            help="A short description for the table, if only one is provided",
+            help="A short description for the table(s), overriding any description from BigQuery",
         ),
     ] = None,
 ):

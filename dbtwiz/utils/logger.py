@@ -31,7 +31,10 @@ def debug(message: str, context: Optional[Dict[str, Any]] = None) -> None:
 
 
 def info(
-    message: str, style: str = "green", context: Optional[Dict[str, Any]] = None
+    message: str,
+    style: str = "green",
+    context: Optional[Dict[str, Any]] = None,
+    markup: bool = True,
 ) -> None:
     """Log an info message.
 
@@ -39,10 +42,13 @@ def info(
         message: The info message to log
         style: Rich text style to apply to the message
         context: Optional context dictionary with additional information
+        markup: Whether to interpret Rich markup (``[...]``) in the message.
+            Set to False when printing literal content (e.g. YAML) that may
+            contain square brackets, so it is not silently swallowed.
     """
     if context:
         message = f"{message} | {_format_context(context)}"
-    log_console.print(message, style=style)
+    log_console.print(message, style=style, markup=markup)
 
 
 def warn(message: str, context: Optional[Dict[str, Any]] = None) -> None:
