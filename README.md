@@ -132,3 +132,27 @@ git clone git@github.com:amedia/dbtwiz
 # inside the virtual environment of your dbt project:
 pip install -e <local-path-to-dbtwiz-repository>
 ```
+
+## Releasing
+
+Releases are driven by [`mise`](https://mise.jdx.dev/). Instead of hand-editing the
+version and clicking "Draft a new release" on GitHub, two commands take care of the
+version bump and the tag; a GitHub Action then creates the Release with notes
+generated automatically from the merged PRs.
+
+```
+# 1. Open the release PR: bumps the version in pyproject.toml, updates the
+#    lockfile, and opens a PR.
+mise run release X.Y.Z
+
+# 2. Get the PR reviewed and merged as usual.
+
+# 3. Tag the merged commit — this triggers the Release workflow
+#    (.github/workflows/release.yml), which creates the GitHub Release.
+mise run tag X.Y.Z
+```
+
+Release notes come from GitHub's own PR-based generator, so each merged PR shows up
+as one line using its title. Squash-merging keeps that mapping clean (one PR → one
+commit); merge/rebase merges still work, they just expose the individual commits
+rather than a single PR entry.
