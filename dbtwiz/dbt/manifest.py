@@ -44,6 +44,7 @@ class Manifest:
                 manifest = json.load(f)
                 self.nodes = manifest["nodes"]
                 self.sources_nodes = manifest["sources"]
+                self.disabled = manifest.get("disabled", {})
                 self.parent_map = manifest["parent_map"]
                 self.child_map = manifest["child_map"]
         except (FileNotFoundError, json.JSONDecodeError) as e:
@@ -307,6 +308,33 @@ class Manifest:
                     deprecated=node.get("description").lower().startswith("deprecated"),
                 )
         return models
+
+    @functools.cache
+    def disabled_relations(self) -> Dict[str, str]:
+        """Return a mapping of fully qualified relation name to a reason for
+        models and snapshots that are disabled (``enabled: false``) in the project.
+
+        dbt keeps disabled nodes in the manifest's ``disabled`` section rather than
+        ``nodes``, so they never appear in :meth:`models`. Their materializations may
+        still linger in the data warehouse, and this lets callers recognise them.
+        """
+        relations = {}
+        for disabled_nodes in self.disabled.values():
+            for node in disabled_nodes:
+                if node.get("resource_type") not in ("model", "snapshot"):
+                    continue
+                relation_name = node.get("relation_name")
+                if relation_name:
+                    fq_name = relation_name.replace("`", "")
+                else:
+                    database = node.get("database")
+                    schema = node.get("schema")
+                    alias = node.get("alias") or node.get("name")
+                    if not (database and schema and alias):
+                        continue
+                    fq_name = f"{database}.{schema}.{alias}"
+                relations[fq_name] = "disabled in dbt project (enabled: false)"
+        return relations
 
     def parent_models(self, key):
         """Get and return the sorted list of parent models for the given key."""
