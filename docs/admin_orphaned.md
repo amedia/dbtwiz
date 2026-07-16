@@ -21,3 +21,7 @@ List orphaned materializations without deleting anything
 ### `--force-delete`, `-f`
 
 Delete orphaned materializations without asking (dev target only)
+
+### `--include-disabled`
+
+Include materializations of models disabled in the project (enabled: false), which are excluded by default

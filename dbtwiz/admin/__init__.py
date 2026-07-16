@@ -248,6 +248,16 @@ def orphaned(
             help=("Delete orphaned materializations without asking (dev target only)"),
         ),
     ] = False,
+    include_disabled: Annotated[
+        bool,
+        typer.Option(
+            "--include-disabled",
+            help=(
+                "Include materializations of models disabled in the project "
+                "(enabled: false), which are excluded by default"
+            ),
+        ),
+    ] = False,
 ) -> None:
     """List or delete orphaned materializations in the data warehouse"""
     if list_only and force_delete:
@@ -255,7 +265,9 @@ def orphaned(
     else:
         from .cleanup import handle_orphaned_materializations
 
-        handle_orphaned_materializations(target, list_only, force_delete)
+        handle_orphaned_materializations(
+            target, list_only, force_delete, include_disabled
+        )
 
 
 @app.command()
