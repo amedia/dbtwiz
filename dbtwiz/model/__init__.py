@@ -32,7 +32,7 @@ class MoveAction(str, Enum):
     - Layers: staging (stg), intermediate (int), marts (mrt), bespoke (bsp)
     - Models are prefixed: stg_domain__name, int_domain__name, etc.
 
-    Requires dbt_project.yml with teams, access-policies, and service-consumers variables.
+    Requires teams, access-policies, and service-consumers variables in vars.yml or dbt_project.yml.
 
     The command will guide you through:
     1. Selecting the appropriate layer and domain
