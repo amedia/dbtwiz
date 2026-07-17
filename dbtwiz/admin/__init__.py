@@ -476,15 +476,15 @@ def update_clustering(
 
 @app.command()
 @description(
-    """Reads the dbt manifest and dbt_project.yml vars to resolve the desired IAM grants
-for every model, then fetches current table-level IAM policies in parallel and applies
-the minimal set of changes needed to reach the desired state.
+    """Reads the dbt manifest and project vars (from `vars.yml` and/or `dbt_project.yml`)
+to resolve the desired IAM grants for every model, then fetches current table-level IAM
+policies in parallel and applies the minimal set of changes needed to reach the desired state.
 
 Grant configuration is resolved from the following sources (in order):
 - Explicit `grants` config on the model
-- `meta.teams` resolved via the `teams` var in dbt_project.yml
-- `meta.access-policy` resolved via the `access-policies` var in dbt_project.yml
-- `meta.service-consumers` resolved via the `service-consumers` var in dbt_project.yml
+- `meta.teams` resolved via the `teams` var (in `vars.yml` or `dbt_project.yml`)
+- `meta.access-policy` resolved via the `access-policies` var (in `vars.yml` or `dbt_project.yml`)
+- `meta.service-consumers` resolved via the `service-consumers` var (in `vars.yml` or `dbt_project.yml`)
 - Auto-grant to `grants_open_access_group` for models with `access: protected` or `access: public`
 
 Models are skipped when they have `meta.skip_grants: true`, use Iceberg (`catalog_name`),

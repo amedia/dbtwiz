@@ -156,7 +156,17 @@ class Project:
         self.YAML_PATH = project_root / "dbt_project.yml"
 
         with open(self.YAML_PATH, "r", encoding="utf-8") as f:
-            self.data: Dict[str, Any] = safe_load(f)
+            self.data: Dict[str, Any] = safe_load(f) or {}
+
+        # Project variables may live in a dedicated vars.yml file (loaded
+        # natively by dbt 1.12+), directly in dbt_project.yml, or be split
+        # across both. Merge vars.yml into self.data["vars"] so all consumers
+        # see the full set, with vars.yml taking precedence on key collisions.
+        vars_path = project_root / "vars.yml"
+        if vars_path.exists():
+            with open(vars_path, "r", encoding="utf-8") as f:
+                external_vars = (safe_load(f) or {}).get("vars") or {}
+            self.data["vars"] = {**(self.data.get("vars") or {}), **external_vars}
 
     # ============================================================================
     # PUBLIC METHODS - Core Configuration
