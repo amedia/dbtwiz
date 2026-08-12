@@ -311,18 +311,6 @@ def check_source_reader_access(context):
             fatal("Cancelled due to missing service account access.")
 
 
-def select_table_description(context):
-    """
-    Function for selecting table description. Skipped if multiple tables selected.
-    Ensures the first letter is upper case.
-    """
-    if context.get("tables") and len(context.get("tables")) == 1:
-        context["table_description"] = input_text(
-            "Give a short description for the source table",
-            validate=description_validator(),
-        ).capitalize()
-
-
 def write_source_file(
     client: BigQueryClient,
     source_file: str,
@@ -368,13 +356,20 @@ def write_source_file(
 
     new_table_entries = []
     for table_name in tables:
-        columns, _ = client.fetch_table_columns(project_name, dataset_name, table_name)
+        columns, bq_description, _ = client.fetch_table_metadata(
+            project_name, dataset_name, table_name
+        )
+
+        # An explicit description overrides BigQuery's; otherwise fall back to
+        # BigQuery's table description, and finally to an empty string so it is
+        # easy to fill in afterwards.
+        description = table_description or bq_description
 
         # Add the new table
         table_entry = {
             "name": table_name,
-            "description": PreservedScalarString(table_description)
-            if table_description
+            "description": PreservedScalarString(description)
+            if description
             else "",  # Use `|` for multiline descriptions
         }
         if columns:  # Only add columns if they exist (not in manual mode)
@@ -385,14 +380,17 @@ def write_source_file(
         else:
             source_entry["tables"] = [table_entry]
 
-    info(f"[=== BEGIN {source_file} ===]")
+    # Render the preview with markup disabled so square brackets in
+    # descriptions (e.g. "[saga:classification=...]") are shown literally
+    # instead of being swallowed as Rich markup.
+    info(f"[=== BEGIN {source_file} ===]", markup=False)
     stream = StringIO()
     if is_new_source:
         ruamel_yaml.dump(source_entry, stream)
     else:
         ruamel_yaml.dump(new_table_entries, stream)
-    info(stream.getvalue().rstrip())
-    info("[=== END ===]")
+    info(stream.getvalue().rstrip(), markup=False)
+    info("[=== END ===]", markup=False)
     if not confirm("Do you wish to add the source table"):
         fatal("Source table addition cancelled.")
 
@@ -436,7 +434,6 @@ def create_source(
         configure_missing_source,
         select_tables,
         check_source_reader_access,
-        select_table_description,
     ]:
         func(context)
 

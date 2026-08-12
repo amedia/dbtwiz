@@ -261,14 +261,29 @@ def get_github_commit_url(commit_id):
         return ""
 
 
-def add_git_deletion_info(orphaned_tables, models_path="models"):
+def add_git_deletion_info(orphaned_tables, models_path="models", disabled=None):
     """
     Adds git deletion info for orphaned tables if exists.
+
+    Tables belonging to models disabled in the project (``enabled: false``) are
+    annotated with the reason from ``disabled`` instead of git deletion info,
+    since the model file still exists and won't appear in the git deletion log.
     """
+    disabled = disabled or {}
     deleted_files = parse_git_log_output(models_path)
     choices = []
 
     for fq_table in orphaned_tables:
+        if fq_table in disabled:
+            choices.append(
+                {
+                    "name": fq_table,
+                    "value": fq_table,
+                    "description": disabled[fq_table],
+                }
+            )
+            continue
+
         _, _, table_name = fq_table.split(".")
         match = match_table_to_deletion(table_name, deleted_files)
 
@@ -301,10 +316,39 @@ def add_git_deletion_info(orphaned_tables, models_path="models"):
     return choices
 
 
+def filter_disabled_orphans(
+    orphaned: list, disabled: dict, include_disabled: bool
+) -> list:
+    """
+    Filter out materializations of models disabled in the project (enabled: false)
+    unless the user opted in. Returns the orphaned list to keep, and reports how
+    many disabled materializations were skipped when excluding them.
+    """
+    disabled_orphaned = [t for t in orphaned if t in disabled]
+    if include_disabled or not disabled_orphaned:
+        return orphaned
+
+    info(
+        f"Ignoring {len(disabled_orphaned)} materialization(s) of disabled "
+        "models. Use --include-disabled to list them.",
+        style="yellow",
+    )
+    return [t for t in orphaned if t not in disabled]
+
+
 def handle_orphaned_materializations(
-    target: Target, list_only: bool, force_delete: bool
+    target: Target,
+    list_only: bool,
+    force_delete: bool,
+    include_disabled: bool = False,
 ) -> None:
-    """List or delete orphaned materializations"""
+    """List or delete orphaned materializations.
+
+    Materializations belonging to models disabled in the project
+    (``enabled: false``) are excluded by default, since they are intentionally
+    kept out of the manifest. Pass ``include_disabled=True`` to list them too;
+    they will be annotated with the reason they are considered orphaned.
+    """
     if (
         not project_config().orphan_cleanup_bq_region
         and not project_config().orphan_cleanup_projects
@@ -343,6 +387,12 @@ def handle_orphaned_materializations(
 
     # Build list of orphaned DWH materializations that are no longer in the manifest
     orphaned = find_orphaned_tables(data)
+
+    # Materializations of models disabled in the project (enabled: false) are kept
+    # out of the manifest on purpose, so exclude them unless the user opts in.
+    disabled = manifest.disabled_relations()
+    orphaned = filter_disabled_orphans(orphaned, disabled, include_disabled)
+
     if len(orphaned) == 0:
         info("There are no orphaned materializations.")
         return
@@ -352,9 +402,10 @@ def handle_orphaned_materializations(
     if list_only:
         info("Not in manifest:", style="yellow")
         for table_id in sorted(orphaned):
-            info(f"- {table_id}", style="yellow")
+            suffix = f"  ({disabled[table_id]})" if table_id in disabled else ""
+            info(f"- {table_id}{suffix}", style="yellow")
     else:
-        deletion_details = add_git_deletion_info(sorted(orphaned))
+        deletion_details = add_git_deletion_info(sorted(orphaned), disabled=disabled)
         # Prompt user to select tables to delete
         selected_tables = (
             multiselect_from_list(

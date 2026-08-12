@@ -160,6 +160,39 @@ class BigQueryClient:
         except Exception as e:
             return [], f"Error: Failed to fetch tables from BigQuery: {e}"
 
+    def fetch_table_metadata(
+        self, project: str, dataset: str, table_name: str
+    ) -> Tuple[Optional[List[str]], str, str]:
+        """Fetch column and table metadata from BigQuery in a single request.
+
+        Args:
+            project: Project ID containing the table
+            dataset: Dataset ID containing the table
+            table_name: Name of the table to fetch metadata from
+
+        Returns:
+            Tuple of (column_list, table_description, error_message)
+        """
+        table_ref = f"{project}.{dataset}.{table_name}"
+        try:
+            table = self.get_client().get_table(table_ref)
+            columns = self.parse_schema(table.schema)
+            return columns, table.description or "", ""
+        except self.NotFound:
+            return (
+                None,
+                "",
+                f"Error: The table '{table_name}' does not exist in BigQuery.",
+            )
+        except self.Forbidden:
+            return (
+                None,
+                "",
+                f"Error: You do not have access to the table '{table_name}'.",
+            )
+        except Exception as e:
+            return None, "", f"Error: Failed to fetch table details from BigQuery: {e}"
+
     def fetch_table_columns(
         self, project: str, dataset: str, table_name: str
     ) -> Tuple[Optional[List[str]], str]:
@@ -173,17 +206,8 @@ class BigQueryClient:
         Returns:
             Tuple of (column_list, error_message)
         """
-        table_ref = f"{project}.{dataset}.{table_name}"
-        try:
-            table = self.get_client().get_table(table_ref)
-            columns = self.parse_schema(table.schema)
-            return columns, ""
-        except self.NotFound:
-            return None, f"Error: The table '{table_name}' does not exist in BigQuery."
-        except self.Forbidden:
-            return None, f"Error: You do not have access to the table '{table_name}'."
-        except Exception as e:
-            return None, f"Error: Failed to fetch table details from BigQuery: {e}"
+        columns, _, error = self.fetch_table_metadata(project, dataset, table_name)
+        return columns, error
 
     def check_source_reader_access(
         self,

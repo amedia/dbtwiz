@@ -38,4 +38,4 @@ Name(s) of table(s) to be added as source(s)
 
 ### `--table-description`, `-td`
 
-A short description for the table, if only one is provided
+A short description for the table(s), overriding any description from BigQuery
