@@ -129,6 +129,25 @@ class ProjectConfig(BaseModel):
         description="Mapping of layer name to {folder, abbreviation, description?}",
     )
 
+    # Required-meta / retention validation — fully generic. dbtwiz has no built-in notion of
+    # what any tag or rule means; each consuming project supplies its own (e.g. a GDPR
+    # `is_persondata` tag and a rule forbidding a specific retention var once it's set). Both
+    # default to empty, so the check is a no-op for a project that configures neither.
+    required_meta_tags: List[str] = Field(
+        default_factory=list,
+        description="config.meta keys that must be present on every model",
+    )
+    retention_rules: List[Dict[str, Any]] = Field(
+        default_factory=list,
+        description=(
+            "Rules checking a model's partition_expiration_days against its own meta. Each "
+            "entry: when_meta (required — dict of meta key/value to match), "
+            "forbid_partition_expiration_var (optional — a var name forbidden in "
+            "partition_expiration_days when when_meta matches), "
+            "require_partition_expiration_if_incremental (optional bool)"
+        ),
+    )
+
     # Internal fields (not from config file)
     root: Optional[Path] = Field(
         None, description="Project root path (set internally)", exclude=True
@@ -209,6 +228,25 @@ class ProjectConfig(BaseModel):
             name: (entry["folder"], entry["abbreviation"])
             for name, entry in self.layer_entries().items()
         }
+
+    def retention_rule_entries(self) -> List[Dict[str, Any]]:
+        """Return the configured retention rules, validating required sub-keys.
+
+        An empty list is valid (no rules configured). Each present entry must declare
+        `when_meta`; the two check fields are individually optional, but a rule declaring
+        neither does nothing.
+        """
+        for rule in self.retention_rules:
+            if "when_meta" not in rule:
+                fatal(
+                    "Each entry in [[tool.dbtwiz.project.retention_rules]] needs 'when_meta', "
+                    "e.g.:\n"
+                    "  [[tool.dbtwiz.project.retention_rules]]\n"
+                    "  when_meta = { is_persondata = true }\n"
+                    '  forbid_partition_expiration_var = "permanent-data-expiration"\n'
+                    "  require_partition_expiration_if_incremental = true"
+                )
+        return self.retention_rules
 
     # ============================================================================
     # PRIVATE METHODS - Internal Helper Functions

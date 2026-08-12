@@ -94,22 +94,27 @@ class YmlValidator:
             return False, error_msg
         return True, "yml file name ok"
 
-    def validate_gdpr_tags(self) -> Tuple[bool, str]:
-        """Validate the GDPR classification tags against the model's own retention config.
+    def validate_required_meta_and_retention(self) -> Tuple[bool, str]:
+        """Validate configurable required meta tags and meta-vs-retention agreement rules.
 
-        `is_persondata` is a required tag: does this model's rows hold information that can be
-        tied to an individual? Two ways a model's retention can disagree with that tag, both
-        violations of GDPR's storage-limitation principle (Art. 5(1)(e)):
+        Entirely driven by `[tool.dbtwiz.project]` in pyproject.toml — `required_meta_tags` and
+        `retention_rules`. dbtwiz has no built-in notion of what any tag or rule means; each
+        consuming project supplies its own (e.g. a GDPR `is_persondata` tag and a rule forbidding
+        a specific retention var once it is set — see that project's own docs for the rationale).
+        A project that configures neither list gets a no-op check.
 
-        - `is_persondata: true` using `permanent-data-expiration` (10000 days) — explicitly too
-          long for personal data.
-        - `is_persondata: true` on an `incremental` model with no `partition_expiration_days` at
-          all — accumulates personal data indefinitely with no way to age out. Materializations
+        Rule fields, per entry in `retention_rules`:
+        - `when_meta` (required): a dict of meta key/value the model's own `config.meta` must
+          match for the rule to apply.
+        - `forbid_partition_expiration_var` (optional): a var name that must not appear in this
+          model's `partition_expiration_days` when `when_meta` matches.
+        - `require_partition_expiration_if_incremental` (optional bool): an `incremental` model
+          matching `when_meta` must declare some `partition_expiration_days`. Materializations
           other than `incremental` (table, view) are re-created wholesale on every run and hold
-          current state only, so an expiration is meaningless for them — this is not a violation.
+          current state only, so this is not checked for them.
 
-        This only checks agreement between the tag and the retention config already declared in
-        the model's own yml — it does not consult BigQuery or any other model.
+        This only checks agreement already declared in the model's own yml — it does not consult
+        BigQuery or any other model.
         """
         yml_path = self.model_base.path.with_suffix(".yml")
         with open(yml_path, "r", encoding="utf-8") as f:
@@ -125,29 +130,35 @@ class YmlValidator:
         model_def = yml_content["models"][0]
         config = model_def.get("config", {})
         meta = config.get("meta", {})
+        project = ProjectConfig()
 
-        if "is_persondata" not in meta:
-            return False, (
-                "is_persondata tag is missing - required on every model, see "
-                "wiki/GDPR-Tagging.md"
-            )
+        errors: List[str] = []
 
-        if meta.get("is_persondata") is True:
-            expiration = str(config.get("partition_expiration_days", ""))
-            if "permanent-data-expiration" in expiration:
-                return False, (
-                    "is_persondata: true cannot use permanent-data-expiration retention "
-                    "(10000 days) - use customer-data-expiration (1096) or "
-                    "behavioural-data-expiration (550) instead"
+        for tag in project.required_meta_tags:
+            if tag not in meta:
+                errors.append(f"'{tag}' meta tag is missing (required by project config)")
+
+        expiration = str(config.get("partition_expiration_days", ""))
+        for rule in project.retention_rule_entries():
+            when_meta = rule["when_meta"]
+            if not all(meta.get(k) == v for k, v in when_meta.items()):
+                continue
+            forbidden_var = rule.get("forbid_partition_expiration_var")
+            if forbidden_var and forbidden_var in expiration:
+                errors.append(f"meta {when_meta} cannot use retention var '{forbidden_var}'")
+            if (
+                rule.get("require_partition_expiration_if_incremental")
+                and config.get("materialized") == "incremental"
+                and not expiration
+            ):
+                errors.append(
+                    f"meta {when_meta} on an incremental model needs "
+                    "partition_expiration_days set"
                 )
-            if config.get("materialized") == "incremental" and not expiration:
-                return False, (
-                    "is_persondata: true on an incremental model needs a "
-                    "partition_expiration_days retention ceiling - it otherwise accumulates "
-                    "personal data indefinitely with no way to age out"
-                )
 
-        return True, "gdpr tags ok"
+        if errors:
+            return False, "failed\n" + "\n".join(f"• {e}" for e in errors)
+        return True, "meta and retention rules ok"
 
     def validate_yml_columns(self) -> Tuple[bool, str]:
         """Validate and update YML columns using the initialized path.
@@ -581,7 +592,10 @@ class ModelValidator:
         for func, desc in [
             (yml_validator.validate_yml_exists, "Validating yml exists"),
             (yml_validator.validate_yml_definition, "Validating yml definition"),
-            (yml_validator.validate_gdpr_tags, "Validating GDPR tags"),
+            (
+                yml_validator.validate_required_meta_and_retention,
+                "Validating required meta & retention rules",
+            ),
             (yml_validator.validate_yml_columns, "Validating yml columns"),
             (sql_validator.convert_sql_to_model, "Validating sql references"),
             (sql_validator.sqlfmt_format_file, "Validating sql with sqlfmt"),
