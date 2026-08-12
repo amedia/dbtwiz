@@ -94,6 +94,61 @@ class YmlValidator:
             return False, error_msg
         return True, "yml file name ok"
 
+    def validate_gdpr_tags(self) -> Tuple[bool, str]:
+        """Validate the GDPR classification tags against the model's own retention config.
+
+        `is_persondata` is a required tag: does this model's rows hold information that can be
+        tied to an individual? Two ways a model's retention can disagree with that tag, both
+        violations of GDPR's storage-limitation principle (Art. 5(1)(e)):
+
+        - `is_persondata: true` using `permanent-data-expiration` (10000 days) — explicitly too
+          long for personal data.
+        - `is_persondata: true` on an `incremental` model with no `partition_expiration_days` at
+          all — accumulates personal data indefinitely with no way to age out. Materializations
+          other than `incremental` (table, view) are re-created wholesale on every run and hold
+          current state only, so an expiration is meaningless for them — this is not a violation.
+
+        This only checks agreement between the tag and the retention config already declared in
+        the model's own yml — it does not consult BigQuery or any other model.
+        """
+        yml_path = self.model_base.path.with_suffix(".yml")
+        with open(yml_path, "r", encoding="utf-8") as f:
+            yml_content = self.ruamel_yaml.load(f)
+
+        if (
+            not yml_content
+            or "models" not in yml_content
+            or len(yml_content.get("models", [])) == 0
+        ):
+            return False, "yml file is empty or missing 'models' key"
+
+        model_def = yml_content["models"][0]
+        config = model_def.get("config", {})
+        meta = config.get("meta", {})
+
+        if "is_persondata" not in meta:
+            return False, (
+                "is_persondata tag is missing - required on every model, see "
+                "wiki/GDPR-Tagging.md"
+            )
+
+        if meta.get("is_persondata") is True:
+            expiration = str(config.get("partition_expiration_days", ""))
+            if "permanent-data-expiration" in expiration:
+                return False, (
+                    "is_persondata: true cannot use permanent-data-expiration retention "
+                    "(10000 days) - use customer-data-expiration (1096) or "
+                    "behavioural-data-expiration (550) instead"
+                )
+            if config.get("materialized") == "incremental" and not expiration:
+                return False, (
+                    "is_persondata: true on an incremental model needs a "
+                    "partition_expiration_days retention ceiling - it otherwise accumulates "
+                    "personal data indefinitely with no way to age out"
+                )
+
+        return True, "gdpr tags ok"
+
     def validate_yml_columns(self) -> Tuple[bool, str]:
         """Validate and update YML columns using the initialized path.
 
@@ -526,6 +581,7 @@ class ModelValidator:
         for func, desc in [
             (yml_validator.validate_yml_exists, "Validating yml exists"),
             (yml_validator.validate_yml_definition, "Validating yml definition"),
+            (yml_validator.validate_gdpr_tags, "Validating GDPR tags"),
             (yml_validator.validate_yml_columns, "Validating yml columns"),
             (sql_validator.convert_sql_to_model, "Validating sql references"),
             (sql_validator.sqlfmt_format_file, "Validating sql with sqlfmt"),
