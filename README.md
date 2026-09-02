@@ -82,7 +82,43 @@ staging      = { folder = "1_staging",      abbreviation = "stg", description = 
 intermediate = { folder = "2_intermediate", abbreviation = "int", description = "Logic to prepare data to be joined into products at later stages" }
 marts        = { folder = "3_marts",        abbreviation = "mrt", description = "Data products made available to several consumers" }
 bespoke      = { folder = "4_bespoke",      abbreviation = "bsp", description = "Data products tailored to one specific consumer" }
+
+# Model config rules — optional. Assertions on a model's own config block, checked
+# by `dbtwiz model validate`. Declare one table per rule; a project that declares
+# none gets no extra checks. See "Model config rules" below.
+[[tool.dbtwiz.project.model_config_rules]]
+require = ["meta.owner"]
+message = "Every model must name an owner"
+
+[[tool.dbtwiz.project.model_config_rules]]
+when    = { "meta.classification" = "sensitive", "materialized" = "incremental" }
+require = ["partition_expiration_days"]
+max     = { "partition_expiration_days" = "{{ var('sensitive-data-retention') }}" }
+message = "Sensitive data must expire, and no later than the retention cap"
 ```
+
+#### Model config rules
+Each rule in `[[tool.dbtwiz.project.model_config_rules]]` applies to a model when all its
+conditions match, and then asserts something about that model's own `config` block. Paths
+are dotted, so `meta.owner` addresses `config.meta.owner`. dbtwiz has no notion of what a
+rule means: the keys, values and wording are all the project's own.
+
+| Key | Meaning |
+|---|---|
+| `when` | Config path → the value it must equal for the rule to apply. Omit to always apply. |
+| `require` | Config paths that must be set. |
+| `forbid` | Config path → values it must not have. |
+| `max` / `min` | Config path → a numeric bound, checked when the path is set. |
+| `message` | Why the rule exists. Shown with each violation, so write it for whoever hits it. |
+
+Numbers may be written as literals (`1096`) or as variable references
+(`"{{ var('sensitive-data-retention') }}"`), on either side of a comparison. References are
+resolved from the project's variables in `dbt_project.yml` and `vars.yml`, so rules compare
+the number a model actually gets rather than how a model happens to spell it, and the bound
+stays in one place. A value that cannot be resolved is reported rather than passed over.
+
+Rules see only what the model's own yml declares - config inherited from `dbt_project.yml`
+is not visible to them. Anything needing more than these keys belongs in a dbt test.
 
 ### User config
 The default configuration of _dbtwiz_ will be installed the first time you run it, but you

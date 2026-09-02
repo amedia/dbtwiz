@@ -90,3 +90,17 @@ def test_no_vars_anywhere(tmp_path: Path) -> None:
     assert project.teams() == []
     assert project.access_policies() == []
     assert project.service_consumers() == []
+    assert project.variables() == {}
+
+
+def test_variables_exposes_the_merged_set(tmp_path: Path) -> None:
+    """Consumers resolving variable references see vars from both files."""
+    _write(
+        tmp_path / "dbt_project.yml",
+        {**_DBT_PROJECT_BASE, "vars": {"short-retention": 30, "capped-retention": 90}},
+    )
+    _write(tmp_path / "vars.yml", {"vars": {"capped-retention": 1096}})
+
+    project = Project(project_root=tmp_path)
+
+    assert project.variables() == {"short-retention": 30, "capped-retention": 1096}

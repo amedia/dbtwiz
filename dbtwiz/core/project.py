@@ -180,6 +180,10 @@ class Project:
         """Get the project profile."""
         return self.data.get("profile")
 
+    def variables(self) -> Dict[str, Any]:
+        """Get the project variables, merged from dbt_project.yml and vars.yml."""
+        return self.data.get("vars") or {}
+
     # ============================================================================
     # PUBLIC METHODS - Team and Access Management
     # ============================================================================
