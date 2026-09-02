@@ -9,7 +9,11 @@ import pytest
 
 
 def make_model(name="my_model", alias=None):
-    return {"name": name, "alias": alias or name, "config": {"materialized": "incremental"}}
+    return {
+        "name": name,
+        "alias": alias or name,
+        "config": {"materialized": "incremental"},
+    }
 
 
 def write_compiled_sql(tmp_path: Path, model_name: str) -> Path:
@@ -44,7 +48,9 @@ class TestEstimateBatchSize:
     @pytest.fixture(autouse=True)
     def mock_profile(self):
         with patch("dbtwiz.admin.backfill.Profile") as m:
-            m.return_value.profile_config.return_value = {"execution_project": "test-project"}
+            m.return_value.profile_config.return_value = {
+                "execution_project": "test-project"
+            }
             yield
 
     def _run(self, models, tmp_path, bytes_per_day_list):
@@ -58,8 +64,10 @@ class TestEstimateBatchSize:
         # BigQueryClient is imported lazily inside estimate_batch_size, so patching
         # at the source module works. If the import ever moves to module top-level
         # in backfill.py, this must change to "dbtwiz.admin.backfill.BigQueryClient".
-        with patch("dbtwiz.integrations.bigquery.BigQueryClient", return_value=mock_bq), \
-             patch("dbtwiz.admin.backfill.project_config") as mock_cfg:
+        with (
+            patch("dbtwiz.integrations.bigquery.BigQueryClient", return_value=mock_bq),
+            patch("dbtwiz.admin.backfill.project_config") as mock_cfg,
+        ):
             mock_cfg.return_value.root_path.return_value = tmp_path
             return estimate_batch_size(
                 models=models,
@@ -93,7 +101,9 @@ class TestEstimateBatchSize:
     def test_falls_back_to_default_when_compile_fails(self, tmp_path):
         self.mock_runner.return_value.invoke.return_value.success = False
         # Compile failure returns immediately with default, no per-model fallback
-        assert self._run([make_model(), make_model("other")], tmp_path, []) == self.DEFAULT
+        assert (
+            self._run([make_model(), make_model("other")], tmp_path, []) == self.DEFAULT
+        )
 
     def test_falls_back_to_default_when_no_compiled_file(self, tmp_path):
         # Do not create the compiled file
@@ -106,5 +116,7 @@ class TestEstimateBatchSize:
     def test_alias_used_for_display_not_glob(self, tmp_path):
         # Compiled file is found by model name, not alias
         write_compiled_sql(tmp_path, "my_model")
-        result = self._run([make_model("my_model", alias="aliased_table")], tmp_path, [2 * 10**9])
+        result = self._run(
+            [make_model("my_model", alias="aliased_table")], tmp_path, [2 * 10**9]
+        )
         assert result == 5
