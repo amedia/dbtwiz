@@ -16,7 +16,9 @@ from typing import Any, Dict, NamedTuple, Optional, Tuple
 
 from jinja2 import Environment, nodes
 
-_ENV = Environment()
+# autoescape is irrelevant here - templates are parsed, never rendered - but it is set
+# anyway to keep the parser off bandit's B701 radar, as elsewhere in the codebase.
+_ENV = Environment(autoescape=True)
 
 
 class ResolvedNumber(NamedTuple):
