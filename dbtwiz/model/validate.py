@@ -5,12 +5,13 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 from ruamel.yaml import YAML
 
-from ..config.project import ProjectConfig
+from ..config.project import project_config
 from ..core.model import ModelBasePath
 from ..dbt.manifest import Manifest
 from ..integrations.bigquery import BigQueryClient
 from ..integrations.gcp_auth import ensure_app_default_auth
 from ..utils.logger import status, warn
+from .config_rules import evaluate_rules
 
 
 class YmlValidator:
@@ -63,19 +64,11 @@ class YmlValidator:
 
     def validate_yml_definition(self) -> Tuple[bool, str]:
         """Validates YML definition (currently only the model name)."""
-        yml_path = self.model_base.path.with_suffix(".yml")
+        yml_content, load_error = self._load_model_yml()
+        if load_error:
+            return False, load_error
 
-        # Load YML content
-        with open(yml_path, "r", encoding="utf-8") as f:
-            yml_content = self.ruamel_yaml.load(f)
-
-        if (
-            not yml_content
-            or "models" not in yml_content
-            or len(yml_content.get("models", [])) == 0
-        ):
-            return False, "yml file is empty or missing 'models' key"
-        elif len(yml_content.get("models", [])) > 1:
+        if len(yml_content.get("models", [])) > 1:
             return False, "yml file contains more than one model definition"
 
         validation_errors = self._validate_model_name(
@@ -94,6 +87,38 @@ class YmlValidator:
             return False, error_msg
         return True, "yml file name ok"
 
+    def validate_model_config_rules(self) -> Tuple[bool, str]:
+        """Validate the model's config block against the project's configured rules.
+
+        Rules come from `[[tool.dbtwiz.project.model_config_rules]]` in pyproject.toml, and
+        dbtwiz has no built-in notion of what any of them mean: a project declares
+        conditions and assertions over dotted config paths, so domain naming - a GDPR flag,
+        a retention category - stays in the consuming project. A project that declares no
+        rules gets a no-op check. See `dbtwiz.model.config_rules` for the rule vocabulary.
+
+        Only the model's own yml is inspected; config inherited from dbt_project.yml, the
+        manifest and BigQuery are all left out of it.
+        """
+        rules = project_config().model_config_rule_entries()
+        if not rules:
+            return True, "no model config rules configured"
+
+        yml_content, load_error = self._load_model_yml()
+        if load_error:
+            return False, load_error
+
+        # Lazy import: reading dbt_project.yml is only worthwhile once rules exist.
+        from ..core.project import Project
+
+        # `or {}` rather than a get default: a `config:` or `meta:` key present but empty
+        # parses to None, which would otherwise blow up the lookups below.
+        config = yml_content["models"][0].get("config") or {}
+        violations = evaluate_rules(config, rules, Project().variables())
+
+        if violations:
+            return False, "failed\n" + "\n".join(f"• {v}" for v in violations)
+        return True, "model config rules ok"
+
     def validate_yml_columns(self) -> Tuple[bool, str]:
         """Validate and update YML columns using the initialized path.
 
@@ -110,6 +135,20 @@ class YmlValidator:
     # ============================================================================
     # PRIVATE METHODS - Internal Helper Functions
     # ============================================================================
+
+    def _load_model_yml(self) -> Tuple[Optional[dict], Optional[str]]:
+        """Load the model's yml file, checking that it defines at least one model.
+
+        Returns:
+            Tuple of (yml content, error message), one of which is always None
+        """
+        yml_path = self.model_base.path.with_suffix(".yml")
+        with open(yml_path, "r", encoding="utf-8") as f:
+            yml_content = self.ruamel_yaml.load(f)
+
+        if not yml_content or not yml_content.get("models"):
+            return None, "yml file is empty or missing 'models' key"
+        return yml_content, None
 
     def _get_table_columns(
         self, model_name: str
@@ -355,7 +394,7 @@ class SqlValidator:
         )
 
         config = FluffConfig(
-            load_config_at_path(ProjectConfig().root_path().absolute())
+            load_config_at_path(project_config().root_path().absolute())
         )
         linter = Linter(config=config)
         # initial results:
@@ -416,7 +455,7 @@ class SqlValidator:
         from sqlfmt.api import Mode, run
         from sqlfmt.config import load_config_file
 
-        pyproject_path = ProjectConfig().root_path() / "pyproject.toml"
+        pyproject_path = project_config().root_path() / "pyproject.toml"
         config = load_config_file(config_path=pyproject_path, files=[pyproject_path])
         mode = Mode(**config)
 
@@ -526,6 +565,10 @@ class ModelValidator:
         for func, desc in [
             (yml_validator.validate_yml_exists, "Validating yml exists"),
             (yml_validator.validate_yml_definition, "Validating yml definition"),
+            (
+                yml_validator.validate_model_config_rules,
+                "Validating model config rules",
+            ),
             (yml_validator.validate_yml_columns, "Validating yml columns"),
             (sql_validator.convert_sql_to_model, "Validating sql references"),
             (sql_validator.sqlfmt_format_file, "Validating sql with sqlfmt"),
