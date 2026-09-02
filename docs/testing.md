@@ -182,7 +182,7 @@ def test_cli_help(cli_runner):
 Tests that use mocking to isolate components:
 
 ```python
-@patch('dbtwiz.config.load_user_config')
+@patch("dbtwiz.config.load_user_config")
 def test_config_with_mock(mock_load):
     """Test configuration with mocked dependencies."""
     mock_load.return_value = UserConfig(theme="dark")
@@ -333,12 +333,12 @@ def test_with_fixture(mock_user_config):
 ### Mocking External Dependencies
 
 ```python
-@patch('dbtwiz.integrations.bigquery.BigQueryClient')
+@patch("dbtwiz.integrations.bigquery.BigQueryClient")
 def test_bigquery_integration(mock_client):
     """Test BigQuery integration with mocked client."""
     mock_instance = mock_client.return_value
     mock_instance.list_datasets.return_value = ["dataset1", "dataset2"]
-    
+
     # Test implementation
 ```
 

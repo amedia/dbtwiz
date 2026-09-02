@@ -5,6 +5,7 @@ from pathlib import Path
 from unittest.mock import mock_open, patch
 
 import pytest
+import typer
 
 from dbtwiz.config import (
     ProjectConfig,
@@ -144,6 +145,46 @@ class TestProjectConfig:
         config = ProjectConfig()
         config.root = Path("/tmp/test")
         assert config.root_path() == Path("/tmp/test")
+
+
+class TestExpirationVarEntries:
+    """Test validation of the expiration variables declared in pyproject.toml."""
+
+    @staticmethod
+    def _config_with(entries):
+        """Build a config the way _parse_config does: assigned, not validated."""
+        config = ProjectConfig()
+        config.expiration_vars = entries
+        return config
+
+    def test_no_entries_is_valid(self):
+        """A project offering no expiration policies is allowed."""
+        assert self._config_with([]).expiration_var_entries() == []
+
+    def test_valid_entries_pass_through(self):
+        """Well-formed entries are returned unchanged, description being optional."""
+        entries = [
+            {"var": "short-retention", "description": "Working data"},
+            {"var": "long-retention"},
+        ]
+        assert self._config_with(entries).expiration_var_entries() == entries
+
+    @pytest.mark.parametrize(
+        "entries",
+        [
+            "not-a-list",
+            [42],
+            [{"description": "no var given"}],
+            [{"var": ""}],
+            [{"var": 42}],
+            [{"var": "short-retention", "days": 30}],
+            [{"var": "short-retention", "description": 42}],
+        ],
+    )
+    def test_malformed_entries_are_rejected(self, entries):
+        """Types are not enforced on assignment, so each entry is checked here."""
+        with pytest.raises(typer.Exit):
+            self._config_with(entries).expiration_var_entries()
 
 
 class TestConfigLoading:

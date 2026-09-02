@@ -181,6 +181,18 @@ class ProjectConfig(BaseModel):
         ),
     )
 
+    # Expiration variables offered when creating an incremental model. Each project names
+    # its own retention variables, so the list is declared rather than guessed from
+    # variable names; the number of days behind each comes from the project's variables.
+    expiration_vars: List[Dict[str, str]] = Field(
+        default_factory=list,
+        description=(
+            "Project variables offered as data expiration policies, in the order they "
+            "should be listed. Each entry: var (required - the variable name) and "
+            "description (optional - shown in the interactive prompt)"
+        ),
+    )
+
     # Internal fields (not from config file)
     root: Optional[Path] = Field(
         None, description="Project root path (set internally)", exclude=True
@@ -285,6 +297,43 @@ class ProjectConfig(BaseModel):
 
         return self.model_config_rules
 
+    def expiration_var_entries(self) -> List[Dict[str, str]]:
+        """Return the configured expiration variables, validating their shape.
+
+        An empty list is valid: a project that offers no expiration policies simply gets
+        none. Values read from pyproject.toml are assigned after pydantic validation, so
+        the field's type annotation is not enforced for them and each entry is checked
+        here instead.
+        """
+        if not isinstance(self.expiration_vars, list):
+            fatal(self._expiration_var_error("must be a list of tables"))
+
+        for index, entry in enumerate(self.expiration_vars):
+            label = f"Entry #{index + 1}"
+            if not isinstance(entry, dict):
+                fatal(self._expiration_var_error(f"{label} must be a table"))
+            if unknown := [key for key in entry if key not in ("var", "description")]:
+                fatal(
+                    self._expiration_var_error(
+                        f"{label} has unknown key(s) {', '.join(sorted(unknown))}. "
+                        "Valid keys are var, description"
+                    )
+                )
+            if not isinstance(entry.get("var"), str) or not entry["var"]:
+                fatal(
+                    self._expiration_var_error(
+                        f"{label} needs 'var' set to a project variable name"
+                    )
+                )
+            if not isinstance(entry.get("description", ""), str):
+                fatal(
+                    self._expiration_var_error(
+                        f"{label} has a 'description' that is not text"
+                    )
+                )
+
+        return self.expiration_vars
+
     # ============================================================================
     # PRIVATE METHODS - Internal Helper Functions
     # ============================================================================
@@ -337,6 +386,18 @@ class ProjectConfig(BaseModel):
                 [f"Invalid [[tool.dbtwiz.project.model_config_rules]]: {problem}."]
                 + MODEL_CONFIG_RULE_EXAMPLE
             )
+        )
+
+    def _expiration_var_error(self, problem: str) -> str:
+        """Build a config error message for expiration_vars, with a worked example."""
+        # Escaped: log messages are rendered as rich markup, which would otherwise
+        # swallow the bracketed config section name this message is all about.
+        return escape(
+            f"Invalid 'expiration_vars' in [tool.dbtwiz.project]: {problem}.\n"
+            "Declare the project variables to offer as expiration policies, e.g.:\n"
+            "  expiration_vars = [\n"
+            '    { var = "<a project variable>", description = "<shown in prompts>" },\n'
+            "  ]"
         )
 
     def _determine_root_path(self) -> None:

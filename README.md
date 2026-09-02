@@ -73,6 +73,17 @@ orphan_cleanup_bq_region = ""       # The region where data is materialized (e.g
 orphan_cleanup_projects = [""]      # Which projects to look for orphaned models in (e.g. prod)
 orphan_cleanup_skip_projects = [""] # Which projects not to look for orphaned moels in (e.g. dev)
 
+# Project variables offered as data expiration policies when creating an
+# incremental model, in the order they should be listed. The selected variable
+# is written to the model as partition_expiration_days = "{{ var('<name>') }}",
+# and the number of days shown in the prompt is read from the variable itself
+# in dbt_project.yml or vars.yml — declare each variable only once, there.
+expiration_vars = [
+  { var = "temporary-data-expiration",   description = "Short-lived working data" },
+  { var = "behavioural-data-expiration", description = "Behavioural and event data" },
+  { var = "customer-data-expiration",    description = "Customer master data" },
+]
+
 # Layer layout — required. Map each logical layer name to its folder under
 # models/, the abbreviation used as the model name prefix
 # (<abbr>_<domain>__<name>), and an optional description shown in the
