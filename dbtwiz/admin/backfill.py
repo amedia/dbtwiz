@@ -46,17 +46,24 @@ def estimate_batch_size(
 
     dbt_args = [
         "compile",
-        "--select", " ".join(m["name"] for m in models),
-        "--exclude", "tag:no_backfill",
-        "--target", "prod",
-        "--project-dir", str(project_root),
-        "--vars", f'{{data_interval_start: "{sample}", data_interval_end: "{sample}", is_backfill: true}}',
+        "--select",
+        " ".join(m["name"] for m in models),
+        "--exclude",
+        "tag:no_backfill",
+        "--target",
+        "prod",
+        "--project-dir",
+        str(project_root),
+        "--vars",
+        f'{{data_interval_start: "{sample}", data_interval_end: "{sample}", is_backfill: true}}',
     ]
     with suppress_output():
         result = dbtRunner().invoke(dbt_args)
 
     if not result.success:
-        warn("Failed to compile models for batch size estimation, using default batch size")
+        warn(
+            "Failed to compile models for batch size estimation, using default batch size"
+        )
         return default_batch_size
 
     for model in models:
@@ -75,14 +82,18 @@ def estimate_batch_size(
 
             bq = client.get_bigquery()
             job_config = bq.QueryJobConfig(dry_run=True, use_query_cache=False)
-            job = client.get_client().query(sql, job_config=job_config, location=GCP_LOCATION)
+            job = client.get_client().query(
+                sql, job_config=job_config, location=GCP_LOCATION
+            )
 
             bytes_per_day = job.total_bytes_processed
             if not bytes_per_day:
                 debug(f"Dry-run returned 0 bytes for {table}, skipping")
                 continue
 
-            batch_size = min(default_batch_size, max(1, int(target_bytes / bytes_per_day)))
+            batch_size = min(
+                default_batch_size, max(1, int(target_bytes / bytes_per_day))
+            )
             info(
                 f"Model {table}: ~{bytes_per_day / 1e9:.2f} GB/day scanned (estimate) → "
                 f"batch size {batch_size} days (target {target_bytes / 1e9:.0f} GB/batch)"
@@ -95,7 +106,9 @@ def estimate_batch_size(
             warn(f"Failed to estimate batch size for {table}, auto-sizing skipped: {e}")
 
     if min_batch_size is None:
-        info(f"No batch size estimate available, using default: {default_batch_size} days")
+        info(
+            f"No batch size estimate available, using default: {default_batch_size} days"
+        )
         return default_batch_size
 
     return min_batch_size
@@ -587,7 +600,9 @@ def backfill(
         timeout_seconds = job_timeout("prod", default=600, leeway=0)
         assumed_throughput_gbps = 0.1
         safety_margin = 0.8
-        target_bytes = int(timeout_seconds * assumed_throughput_gbps * 1e9 * safety_margin)
+        target_bytes = int(
+            timeout_seconds * assumed_throughput_gbps * 1e9 * safety_margin
+        )
         batch_size = estimate_batch_size(
             models=incremental_models,
             sample_date=last_date,

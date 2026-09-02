@@ -3,6 +3,7 @@ from typing import Dict, List
 from ..dbt.manifest import Manifest
 from ..integrations.bigquery import BigQueryClient
 from ..ui.interact import multiselect_from_list
+from ..utils.jinja import parse_var_ref
 from ..utils.logger import info
 
 
@@ -36,11 +37,15 @@ def identify_models_with_partition_expiration(manifest: dict) -> list:
 def resolve_partition_expiration(models: list, partition_vars: dict) -> list:
     """Resolve partition expiration values using variables from the manifest."""
     for model in models:
-        if isinstance(model["defined_expiration"], str) and model[
-            "defined_expiration"
-        ].startswith("{{ var("):
-            var_name = model["defined_expiration"].split("'")[1]
-            model["defined_expiration"] = partition_vars.get(var_name, 0)
+        defined = model["defined_expiration"]
+        # Parsed rather than string-matched, so quoting, spacing and an inline default are
+        # all handled the same way the model config rules handle them.
+        var_ref = parse_var_ref(defined) if isinstance(defined, str) else None
+        if var_ref:
+            name, default = var_ref
+            model["defined_expiration"] = partition_vars.get(
+                name, default if default is not None else 0
+            )
     return models
 
 

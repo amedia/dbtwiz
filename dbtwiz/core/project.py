@@ -3,6 +3,8 @@ from pathlib import Path
 from typing import Any, Dict, List, Tuple, Union
 
 from ..config.project import project_config, project_path
+from ..utils.jinja import resolve_number
+from ..utils.logger import warn
 from .model import ModelBasePath
 
 
@@ -180,6 +182,10 @@ class Project:
         """Get the project profile."""
         return self.data.get("profile")
 
+    def variables(self) -> Dict[str, Any]:
+        """Get the project variables, merged from dbt_project.yml and vars.yml."""
+        return self.data.get("vars") or {}
+
     # ============================================================================
     # PUBLIC METHODS - Team and Access Management
     # ============================================================================
@@ -210,15 +216,44 @@ class Project:
         ]
 
     def data_expirations(self) -> List[Dict[str, str]]:
-        """List of data expiration policies"""
-        return [
-            {
-                "name": key,
-                "description": f"Used for {key.replace('-', ' ').replace(' expiration', '')} ({value} days)",
-            }
-            for key, value in self.data.get("vars", {}).items()
-            if key.endswith("-data-expiration")
-        ]
+        """List of data expiration policies offered when creating a model.
+
+        Which project variables are offered, in which order, and how each is described are
+        declared in `expiration_vars` in pyproject.toml - dbtwiz makes no assumption about
+        how a project names them. The number of days behind each one is read from the
+        project's own variables, so no day count is duplicated into dbtwiz's config.
+
+        Returns:
+            List of {name, description} for the interactive prompt, in declared order
+        """
+        entries = project_config().expiration_var_entries()
+        if not entries:
+            warn(
+                "No 'expiration_vars' declared in tool.dbtwiz.project config in "
+                "pyproject.toml, so no data expiration policies can be offered"
+            )
+            return []
+
+        variables = self.variables()
+        expirations = []
+        for entry in entries:
+            name = entry["var"]
+            days = resolve_number(variables.get(name), variables)
+            if days.error:
+                warn(
+                    f"Expiration variable '{name}' from 'expiration_vars' is not a number "
+                    f"in dbt_project.yml or vars.yml: {days.error}"
+                )
+            description = " ".join(
+                part
+                for part in (
+                    entry.get("description"),
+                    None if days.error else f"({days.source} days)",
+                )
+                if part
+            )
+            expirations.append({"name": name, "description": description})
+        return expirations
 
     def get_inherited_model_config(
         self, layer_folder: str, domain: str
