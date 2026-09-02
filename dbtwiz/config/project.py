@@ -4,8 +4,44 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from pydantic import BaseModel, Field, field_validator
+from rich.markup import escape
 
 from ..utils.logger import fatal, warn
+
+# Shown alongside any complaint about a malformed model config rule, so the error itself
+# documents the shape a rule is supposed to have.
+MODEL_CONFIG_RULE_EXAMPLE = [
+    "Each rule declares optional conditions and at least one assertion, e.g.:",
+    "  [[tool.dbtwiz.project.model_config_rules]]",
+    '  when    = { "<config path>" = <value the path must equal> }',
+    '  require = ["<config path that must be set>"]',
+    '  max     = { "<config path>" = "{{ var(\'<a project variable>\') }}" }',
+    '  message = "<why this rule exists>"',
+]
+
+
+def _is_path_table(value: Any) -> bool:
+    """A `when` table maps config paths to the values they must equal."""
+    return isinstance(value, dict) and all(isinstance(path, str) for path in value)
+
+
+def _is_path_list(value: Any) -> bool:
+    """A `require` list holds config paths."""
+    return isinstance(value, list) and all(isinstance(path, str) for path in value)
+
+
+def _is_value_table(value: Any) -> bool:
+    """A `forbid` table maps config paths to lists of disallowed values."""
+    return _is_path_table(value) and all(
+        isinstance(values, list) for values in value.values()
+    )
+
+
+def _is_bound_table(value: Any) -> bool:
+    """A `max`/`min` table maps config paths to scalar bounds."""
+    return _is_path_table(value) and not any(
+        isinstance(bound, (list, dict)) for bound in value.values()
+    )
 
 
 @functools.cache
@@ -40,7 +76,6 @@ class ProjectConfig(BaseModel):
     backfill_default_batch_size: Optional[int] = Field(
         30, ge=1, le=365, description="Default batch size for backfills"
     )
-
 
     # Docker settings
     docker_image_url_dbt: Optional[str] = Field(
@@ -129,22 +164,20 @@ class ProjectConfig(BaseModel):
         description="Mapping of layer name to {folder, abbreviation, description?}",
     )
 
-    # Required-meta / retention validation — fully generic. dbtwiz has no built-in notion of
-    # what any tag or rule means; each consuming project supplies its own (e.g. a GDPR
-    # `is_persondata` tag and a rule forbidding a specific retention var once it's set). Both
-    # default to empty, so the check is a no-op for a project that configures neither.
-    required_meta_tags: List[str] = Field(
-        default_factory=list,
-        description="config.meta keys that must be present on every model",
-    )
-    retention_rules: List[Dict[str, Any]] = Field(
+    # Model config rules — generic assertions on a model's own yml config block, checked by
+    # `dbtwiz model validate`. dbtwiz has no built-in notion of what any rule means: a
+    # project declares conditions (`when`) and assertions (`require`/`forbid`/`max`/`min`)
+    # over dotted config paths, so domain naming stays in the consuming project. Defaults to
+    # empty, making the check a no-op for a project that declares no rules.
+    model_config_rules: List[Dict[str, Any]] = Field(
         default_factory=list,
         description=(
-            "Rules checking a model's partition_expiration_days against its own meta. Each "
-            "entry: when_meta (required — dict of meta key/value to match), "
-            "forbid_partition_expiration_var (optional — a var name forbidden in "
-            "partition_expiration_days when when_meta matches), "
-            "require_partition_expiration_if_incremental (optional bool)"
+            "Assertions on a model's config block. Each entry: when (optional dict of "
+            "dotted config path to expected value; the rule applies when all match), "
+            "require (optional list of paths that must be set), forbid (optional dict of "
+            "path to a list of disallowed values), max/min (optional dict of path to a "
+            "numeric bound, resolving {{ var('...') }} references), message (optional "
+            "explanation shown when the rule fails)"
         ),
     )
 
@@ -204,21 +237,28 @@ class ProjectConfig(BaseModel):
         any entry lacks `folder` / `abbreviation`.
         """
         if not self.layers:
+            # Escaped: log messages are rendered as rich markup, which would otherwise
+            # swallow the bracketed config section names this message is all about.
             fatal(
-                "Missing [tool.dbtwiz.project.layers] in pyproject.toml. "
-                "Declare each layer with its folder and abbreviation, e.g.:\n"
-                "  [tool.dbtwiz.project.layers]\n"
-                '  staging      = { folder = "1_staging",      abbreviation = "stg" }\n'
-                '  intermediate = { folder = "2_intermediate", abbreviation = "int" }\n'
-                '  marts        = { folder = "3_marts",        abbreviation = "mrt" }\n'
-                '  bespoke      = { folder = "4_bespoke",      abbreviation = "bsp" }'
+                escape(
+                    "Missing [tool.dbtwiz.project.layers] in pyproject.toml. Declare the "
+                    "layers this project uses, mapping each to its folder under models/ "
+                    "and the abbreviation used as the model name prefix "
+                    "(<abbreviation>_<domain>__<name>), plus an optional description "
+                    "shown when creating a model:\n"
+                    "  [tool.dbtwiz.project.layers]\n"
+                    '  <layer> = { folder = "<folder under models/>", '
+                    'abbreviation = "<prefix>", description = "<shown in prompts>" }'
+                )
             )
         for name, entry in self.layers.items():
             missing = [k for k in ("folder", "abbreviation") if k not in entry]
             if missing:
                 fatal(
-                    f"Layer '{name}' in [tool.dbtwiz.project.layers] is missing "
-                    f"required field(s): {', '.join(missing)}"
+                    escape(
+                        f"Layer '{name}' in [tool.dbtwiz.project.layers] is missing "
+                        f"required field(s): {', '.join(missing)}"
+                    )
                 )
         return self.layers
 
@@ -229,28 +269,75 @@ class ProjectConfig(BaseModel):
             for name, entry in self.layer_entries().items()
         }
 
-    def retention_rule_entries(self) -> List[Dict[str, Any]]:
-        """Return the configured retention rules, validating required sub-keys.
+    def model_config_rule_entries(self) -> List[Dict[str, Any]]:
+        """Return the configured model config rules, validating their shape.
 
-        An empty list is valid (no rules configured). Each present entry must declare
-        `when_meta`; the two check fields are individually optional, but a rule declaring
-        neither does nothing.
+        An empty list is valid (no rules configured). Values read from pyproject.toml are
+        assigned after pydantic validation, so the field's type annotation is not enforced
+        for them - each rule is checked here instead, to fail with an actionable message
+        rather than misbehave later on a malformed rule.
         """
-        for rule in self.retention_rules:
-            if "when_meta" not in rule:
-                fatal(
-                    "Each entry in [[tool.dbtwiz.project.retention_rules]] needs 'when_meta', "
-                    "e.g.:\n"
-                    "  [[tool.dbtwiz.project.retention_rules]]\n"
-                    "  when_meta = { is_persondata = true }\n"
-                    '  forbid_partition_expiration_var = "permanent-data-expiration"\n'
-                    "  require_partition_expiration_if_incremental = true"
-                )
-        return self.retention_rules
+        if not isinstance(self.model_config_rules, list):
+            fatal(self._model_config_rule_error("must be a list of rule tables"))
+
+        for index, rule in enumerate(self.model_config_rules):
+            self._validate_model_config_rule(f"Rule #{index + 1}", rule)
+
+        return self.model_config_rules
 
     # ============================================================================
     # PRIVATE METHODS - Internal Helper Functions
     # ============================================================================
+
+    def _validate_model_config_rule(self, label: str, rule: Any) -> None:
+        """Check that a single model config rule has a usable shape."""
+        # Lazy import: the rule engine owns the rule vocabulary, and importing it at module
+        # level would make dbtwiz.model and dbtwiz.config import each other.
+        from ..model.config_rules import ASSERTION_KEYS, RULE_KEYS
+
+        if not isinstance(rule, dict):
+            fatal(self._model_config_rule_error(f"{label} must be a table"))
+
+        if unknown := [key for key in rule if key not in RULE_KEYS]:
+            fatal(
+                self._model_config_rule_error(
+                    f"{label} has unknown key(s) {', '.join(sorted(unknown))}. "
+                    f"Valid keys are {', '.join(RULE_KEYS)}"
+                )
+            )
+        if not any(key in rule for key in ASSERTION_KEYS):
+            fatal(
+                self._model_config_rule_error(
+                    f"{label} asserts nothing - it needs at least one of "
+                    f"{', '.join(ASSERTION_KEYS)}"
+                )
+            )
+
+        for key, is_valid, expected in (
+            ("when", _is_path_table, "a table of config path to expected value"),
+            ("require", _is_path_list, "a list of config paths"),
+            ("forbid", _is_value_table, "a table of config path to a list of values"),
+            ("max", _is_bound_table, "a table of config path to a number or variable"),
+            ("min", _is_bound_table, "a table of config path to a number or variable"),
+            ("message", lambda value: isinstance(value, str), "text"),
+        ):
+            if key in rule and not is_valid(rule[key]):
+                fatal(
+                    self._model_config_rule_error(
+                        f"{label} has a '{key}' that is not {expected}"
+                    )
+                )
+
+    def _model_config_rule_error(self, problem: str) -> str:
+        """Build a config error message for model_config_rules, with a worked example."""
+        # Escaped: log messages are rendered as rich markup, which would otherwise
+        # swallow the bracketed config section names this message is all about.
+        return escape(
+            "\n".join(
+                [f"Invalid [[tool.dbtwiz.project.model_config_rules]]: {problem}."]
+                + MODEL_CONFIG_RULE_EXAMPLE
+            )
+        )
 
     def _determine_root_path(self) -> None:
         """Search upward from current path to find project root.
