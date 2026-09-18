@@ -10,7 +10,7 @@ from jinja2 import Template
 
 from ..config.project import project_config, project_dbtwiz_path
 from ..core.project import Profile
-from ..dbt.run import get_selected_models
+from ..dbt.run import dbt_executable, get_selected_models
 from ..integrations.gcp_auth import ensure_auth
 from ..ui.interact import confirm
 from ..utils.logger import debug, fatal, info, warn
@@ -32,10 +32,7 @@ def estimate_batch_size(
     keeps each task under target_bytes. Falls back to default_batch_size if estimation
     fails for all models.
     """
-    from dbt.cli.main import dbtRunner
-
     from ..integrations.bigquery import GCP_LOCATION, BigQueryClient
-    from ..utils.contextmanagers import suppress_output
 
     profile = Profile().profile_config("prod")
     execution_project = profile.get("execution_project")
@@ -44,8 +41,12 @@ def estimate_batch_size(
     sample = sample_date.isoformat()
     min_batch_size = None
 
-    dbt_args = [
+    command = [
+        dbt_executable(),
         "compile",
+        # Quiet because only the compiled SQL written to target/ is wanted here,
+        # not a compile log in the middle of the backfill prompt.
+        "--quiet",
         "--select",
         " ".join(m["name"] for m in models),
         "--exclude",
@@ -57,10 +58,9 @@ def estimate_batch_size(
         "--vars",
         f'{{data_interval_start: "{sample}", data_interval_end: "{sample}", is_backfill: true}}',
     ]
-    with suppress_output():
-        result = dbtRunner().invoke(dbt_args)
+    result = subprocess.run(command, capture_output=True, text=True)
 
-    if not result.success:
+    if result.returncode != 0:
         warn(
             "Failed to compile models for batch size estimation, using default batch size"
         )
