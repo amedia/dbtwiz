@@ -51,8 +51,13 @@ def invoke(commands: List[str], **args: Any) -> None:
     Raises:
         SystemExit: If dbt invocation fails (via fatal function)
     """
+    env = dict(os.environ)
     if args.get("target", "dev") != "dev":
-        args["use-colors"] = False
+        # Colour off through the environment rather than `--no-use-colors`: dbt v2
+        # warns that the flag is no longer supported (dbt1700) and points at
+        # NO_COLOR instead. Non-dev targets are CI/prod logs, where colour codes
+        # are noise.
+        env["NO_COLOR"] = "1"
         args["profiles-dir"] = project_config().docker_image_profiles_path
 
     command = [dbt_executable()] + dbt_args(commands, **args)
@@ -60,7 +65,7 @@ def invoke(commands: List[str], **args: Any) -> None:
 
     # Output is inherited rather than captured: dbt's progress is the point of a
     # build, and a long run must not sit silent until it finishes.
-    result = subprocess.run(command)
+    result = subprocess.run(command, env=env)
 
     if result.returncode != 0:
         fatal(f"dbt invocation failed with exit code {result.returncode}.", exit_code=1)
