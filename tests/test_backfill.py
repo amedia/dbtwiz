@@ -1,6 +1,5 @@
 """Tests for backfill batch size estimation."""
 
-import sys
 from datetime import date
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -30,19 +29,10 @@ class TestEstimateBatchSize:
 
     @pytest.fixture(autouse=True)
     def mock_dbt(self):
-        mock_runner_cls = MagicMock()
-        mock_runner_cls.return_value.invoke.return_value.success = True
-        self.mock_runner = mock_runner_cls
-        mock_module = MagicMock()
-        mock_module.dbtRunner = mock_runner_cls
-        with patch.dict(sys.modules, {"dbt.cli.main": mock_module}):
-            yield
-
-    @pytest.fixture(autouse=True)
-    def mock_suppress(self):
-        with patch("dbtwiz.utils.contextmanagers.suppress_output") as m:
-            m.return_value.__enter__ = MagicMock(return_value=None)
-            m.return_value.__exit__ = MagicMock(return_value=False)
+        """dbt is driven as a subprocess, so the compile call is the thing to stub."""
+        with patch("dbtwiz.admin.backfill.subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
+            self.mock_run = mock_run
             yield
 
     @pytest.fixture(autouse=True)
@@ -99,7 +89,9 @@ class TestEstimateBatchSize:
         assert result == 2
 
     def test_falls_back_to_default_when_compile_fails(self, tmp_path):
-        self.mock_runner.return_value.invoke.return_value.success = False
+        self.mock_run.return_value = MagicMock(
+            returncode=1, stdout="", stderr="compile failed"
+        )
         # Compile failure returns immediately with default, no per-model fallback
         assert (
             self._run([make_model(), make_model("other")], tmp_path, []) == self.DEFAULT
