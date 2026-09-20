@@ -305,7 +305,9 @@ class Manifest:
                     materialized=config["materialized"],
                     parent_models=parent_models,
                     child_models=child_models,
-                    deprecated=node.get("description").lower().startswith("deprecated"),
+                    deprecated=(node.get("description") or "")
+                    .lower()
+                    .startswith("deprecated"),
                 )
         return models
 
@@ -338,6 +340,8 @@ class Manifest:
 
     def parent_models(self, key):
         """Get and return the sorted list of parent models for the given key."""
+        if key not in self.parent_map:
+            return []
         parents = [
             self.nodes[nk]["name"]
             for nk in self.parent_map[key]
@@ -417,7 +421,9 @@ class Manifest:
                     tags=node["tags"],
                     meta=node["meta"],
                     config=node["config"],
-                    source_meta=node["source_meta"],
+                    # dbt v2 emits no source_meta: source-level meta is inherited
+                    # into each table's own `meta` instead.
+                    source_meta=node.get("source_meta", {}),
                 )
         return sources
 
