@@ -172,10 +172,8 @@ def fix(
         typer.Option("--staged", "-s", help="Whether to fix staged sql files."),
     ] = False,
 ):
-    """Run sqlfmt and sqlfix for staged and/or defined sql files."""
-    format_sql_files(
-        staged=staged, model_names=model_names, sqlfmt_args=[], sqlfluff_command="fix"
-    )
+    """Run sqlfmt and sqlfluff fix (dbt lint --fix on dbt v2) for staged and/or defined sql files."""
+    format_sql_files(staged=staged, model_names=model_names, sqlfmt_args=[], fix=True)
 
 
 @app.command()
@@ -244,12 +242,12 @@ def lint(
         typer.Option("--staged", "-s", help="Whether to lint staged sql files."),
     ] = False,
 ):
-    """Run sqlfmt --diff and sqlfluff lint for staged and/or defined sql files."""
+    """Run sqlfmt --diff and sqlfluff lint (dbt lint on dbt v2) for staged and/or defined sql files."""
     format_sql_files(
         staged=staged,
         model_names=model_names,
         sqlfmt_args=["--diff"],
-        sqlfluff_command="lint",
+        fix=False,
     )
 
 

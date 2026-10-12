@@ -1,4 +1,6 @@
+import json
 import re
+import subprocess
 from pathlib import Path
 from re import Match
 from typing import Any, Dict, List, Optional, Tuple, Union
@@ -8,6 +10,7 @@ from ruamel.yaml import YAML
 from ..config.project import project_config
 from ..core.model import ModelBasePath
 from ..dbt.manifest import Manifest
+from ..dbt.run import dbt_core_installed, dbt_lint_command
 from ..integrations.bigquery import BigQueryClient
 from ..integrations.gcp_auth import ensure_app_default_auth
 from ..utils.logger import status, warn
@@ -450,6 +453,26 @@ class SqlValidator:
 
         return True, "validation ok"
 
+    def dbt_lint_validate_and_fix_file(self) -> Tuple[bool, str]:
+        """Validate and fix SQL using dbt lint, for projects on dbt v2 only"""
+        sql_path = self.model_base.path.with_suffix(".sql")
+
+        violations, error = self._dbt_lint_violations(sql_path)
+        if error:
+            return False, error
+        if not violations:
+            return True, "validation ok"
+
+        subprocess.run(dbt_lint_command([sql_path], fix=True), capture_output=True)
+
+        violations, error = self._dbt_lint_violations(sql_path)
+        if error:
+            return False, error
+        if violations:
+            formatted_output = self.dbt_lint_format_violations(violations, sql_path)
+            return False, f"attempted fixes, but issues remain: \n{formatted_output}"
+        return True, "applied fixes"
+
     def sqlfmt_format_file(self) -> Tuple[bool, str]:
         """Format SQL using sqlfmt"""
         from sqlfmt.api import Mode, run
@@ -485,9 +508,37 @@ class SqlValidator:
 
         return "\n\n".join(messages)
 
+    def dbt_lint_format_violations(
+        self, violations: List[dict], file_path: Path
+    ) -> str:
+        """Formats violations from dbt lint's json output."""
+        return "\n\n".join(
+            f"{file_path.name}:{v['start_line_no']}:{v['start_line_pos']} "
+            f"[{v['code']}] {v['description']}"
+            for v in violations
+        )
+
     # ============================================================================
     # PRIVATE METHODS - Internal Helper Functions
     # ============================================================================
+
+    def _dbt_lint_violations(
+        self, sql_path: Path
+    ) -> Tuple[Optional[List[dict]], Optional[str]]:
+        """Run dbt lint on one file, returning its violations or an error message."""
+        result = subprocess.run(
+            dbt_lint_command([sql_path], json_output=True),
+            capture_output=True,
+            text=True,
+        )
+        # Warnings go to stderr, so stdout is only the json array.
+        output = next(
+            (line for line in result.stdout.splitlines() if line.startswith("[")),
+            None,
+        )
+        if result.returncode != 0 or output is None:
+            return None, f"dbt lint failed:\n{result.stderr or result.stdout}"
+        return [v for entry in json.loads(output) for v in entry["violations"]], None
 
     def _get_table_replacement(
         self, match: Match[str], lookup_dict: Dict, unresolved_tables: List[str]
@@ -573,8 +624,15 @@ class ModelValidator:
             (sql_validator.convert_sql_to_model, "Validating sql references"),
             (sql_validator.sqlfmt_format_file, "Validating sql with sqlfmt"),
             (
-                sql_validator.sqlfluff_validate_and_fix_file,
-                "Validating sql with sqlfluff",
+                (
+                    sql_validator.sqlfluff_validate_and_fix_file,
+                    "Validating sql with sqlfluff",
+                )
+                if dbt_core_installed()
+                else (
+                    sql_validator.dbt_lint_validate_and_fix_file,
+                    "Validating sql with dbt lint",
+                )
             ),
         ]:
             status(message=desc)

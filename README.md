@@ -19,9 +19,9 @@ You can also run `dbtwiz --help`/`dbtwiz -h`, which will list the commands with 
 
 - `model` - Create, validate, and manage dbt models
   - [`create`](docs/model_create.md) - Create new dbt model.
-  - [`fix`](docs/model_fix.md) - Run sqlfmt and sqlfix for staged and/or defined sql files.
+  - [`fix`](docs/model_fix.md) - Run sqlfmt and sqlfluff fix (dbt lint --fix on dbt v2) for staged and/or defined sql files.
   - [`inspect`](docs/model_inspect.md) - Output information about a given model.
-  - [`lint`](docs/model_lint.md) - Run sqlfmt --diff and sqlfluff lint for staged and/or defined sql files.
+  - [`lint`](docs/model_lint.md) - Run sqlfmt --diff and sqlfluff lint (dbt lint on dbt v2) for staged and/or defined sql files.
   - [`move`](docs/model_move.md) - Moves a model by copying to a new location with a new name, and/or by updating the references to the model by other dbt models.
   - [`validate`](docs/model_validate.md) - Validates the yml and sql files for a model.
 - `source` - Create and manage dbt sources
