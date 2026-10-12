@@ -2,6 +2,7 @@ import subprocess
 from pathlib import Path
 from typing import List, Optional
 
+from ..dbt.run import dbt_core_installed, dbt_lint_command
 from ..utils.git import get_staged_files
 from ..utils.logger import info
 
@@ -10,9 +11,9 @@ def format_sql_files(
     staged: bool,
     model_names: Optional[List[str]],
     sqlfmt_args: List[str],
-    sqlfluff_command: str,
+    fix: bool,
 ) -> None:
-    """Generic function to process SQL files with configurable commands."""
+    """Run sqlfmt, then sqlfluff (with dbt-core) or `dbt lint` (dbt v2 only)."""
     files = []
     if staged:
         files = get_staged_files(
@@ -33,5 +34,10 @@ def format_sql_files(
         info("Running sqlfmt")
     subprocess.run(["sqlfmt"] + sqlfmt_args + files)
 
-    info(f"Running sqlfluff {sqlfluff_command}")
-    subprocess.run(["sqlfluff", sqlfluff_command] + files)
+    if dbt_core_installed():
+        sqlfluff_command = "fix" if fix else "lint"
+        info(f"Running sqlfluff {sqlfluff_command}")
+        subprocess.run(["sqlfluff", sqlfluff_command] + files)
+    else:
+        info("Running dbt lint --fix" if fix else "Running dbt lint")
+        subprocess.run(dbt_lint_command(files, fix=fix))

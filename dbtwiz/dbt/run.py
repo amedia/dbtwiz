@@ -2,6 +2,7 @@ import json
 import os
 import shutil
 import subprocess
+from importlib.metadata import PackageNotFoundError, version
 from typing import Any, List
 
 from ..config.project import project_config
@@ -20,6 +21,38 @@ def dbt_executable() -> str:
     """
     executable = os.environ.get("DBT_EXECUTABLE") or "dbt"
     return shutil.which(executable) or executable
+
+
+def dbt_core_installed() -> bool:
+    """Whether dbt-core 1.x is installed, so sqlfluff's dbt templater can run.
+
+    Without it the project is on the dbt v2 engine only, and linting goes through
+    `dbt lint`, which reads the same .sqlfluff config. dbt-core 2.x is the wheel
+    distribution of the v2 engine, so it does not count.
+    """
+    try:
+        return int(version("dbt-core").split(".")[0]) < 2
+    except PackageNotFoundError:
+        return False
+
+
+def dbt_lint_command(
+    files: List[str], fix: bool = False, json_output: bool = False
+) -> List[str]:
+    """The `dbt lint` command for the given files.
+
+    `--format json` silently disables `--fix`, so fixing and reading back the
+    violations that remain have to be two separate invocations.
+    """
+    if fix and json_output:
+        raise ValueError("dbt lint does not fix with --format json")
+    command = [dbt_executable(), "lint", "--quiet"]
+    if fix:
+        command.append("--fix")
+    if json_output:
+        command.extend(["--format", "json"])
+    command.extend(["--project-dir", str(project_config().root_path())])
+    return command + [str(f) for f in files]
 
 
 def dbt_args(commands: List[str], **args: Any) -> List[str]:

@@ -1,6 +1,6 @@
 # `dbtwiz model fix`
 
-Run sqlfmt and sqlfix for staged and/or defined sql files.
+Run sqlfmt and sqlfluff fix (dbt lint --fix on dbt v2) for staged and/or defined sql files.
 
 ## Required arguments
 

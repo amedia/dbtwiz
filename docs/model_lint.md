@@ -1,6 +1,6 @@
 # `dbtwiz model lint`
 
-Run sqlfmt --diff and sqlfluff lint for staged and/or defined sql files.
+Run sqlfmt --diff and sqlfluff lint (dbt lint on dbt v2) for staged and/or defined sql files.
 
 ## Required arguments
 
