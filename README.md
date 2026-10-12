@@ -8,6 +8,8 @@ Although some functions are platform independent, the majority assume GCP and Bi
 pip install git+https://github.com/amedia/dbtwiz
 ```
 
+dbtwiz does not install dbt itself. It runs whichever `dbt` is first on PATH, either the dbt v2 binary or dbt-core, and `DBT_EXECUTABLE` picks a specific one when both are installed.
+
 ## Subcommands
 
 These are the available subcommands for `dbtwiz`.
