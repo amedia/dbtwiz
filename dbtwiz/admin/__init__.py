@@ -532,3 +532,158 @@ def update_grants(
         resolve_only=resolve_only,
         impersonate=impersonate,
     )
+
+
+@app.command()
+@description(
+    """Reads the run history Elementary uploads (`dbt_invocations`, `dbt_run_results`) and
+groups each model's consecutive failed runs within one orchestrator job into an incident.
+Only the given job's latest run is evaluated, and one Slack message is posted when that
+run pushed an incident past an escalation threshold — 3h, 6h, 12h, … from its first
+failed run, doubling from `incident_alert_escalation_hours` — or cleared one that had
+been escalated. Thresholds are in time, not runs, so a daily job escalates at its second
+failure.
+
+Escalations are grouped by cause. Each one lists its blast radius from the manifest:
+every model downstream of the failing ones, the public/protected ones among them, and
+the exposures downstream.
+
+The Slack token is read from `DBTWIZ_SLACK_TOKEN`. Configured in `[tool.dbtwiz.project]`:
+`incidents_elementary_dataset` (required), `incidents_window_days`,
+`incidents_timezone`, `incident_alert_slack_channel`,
+`incident_alert_escalation_hours`, `incident_alert_mentions` and `incident_report_url`
+for a link to the report.
+
+`incident_alert_mentions` lists who is notified when something escalates; a recovery
+mentions nobody. Each entry is one of:
+
+- **An ID (recommended):** `@U111D1DB111` for a person, `@S012ABCDEF` for a user
+  group. Used as is, so it can't fail to resolve, and survives renames. A person's ID is
+  under their Slack profile → ⋮ → Copy member ID.
+- **A handle:** `@firstname.lastname` for a person (username or display name),
+  `@data-team` for a user group. Looked up when posting, which needs the `users:read`
+  scope (and `usergroups:read` for groups) and pages through every user, so in a large
+  workspace it can hit Slack's rate limit. A handle that isn't found is posted as plain
+  text with a note rather than holding the alert back.
+- **`@channel` or `@here`:** everyone in the channel, or only those active right now.
+  `@here` notifies nobody outside working hours.
+"""
+)
+@examples(
+    """Show what the hourly job's latest run would post, without posting it:
+```shell
+$ dbtwiz admin incident-alert --job-id adp__hourly --dry-run
+```
+
+Replay a past moment, e.g. to check what an incident looked like while it was ongoing:
+```shell
+$ dbtwiz admin incident-alert --job-id adp__hourly --as-of 2026-10-14T03:30:00 --dry-run
+```"""
+)
+def incident_alert(
+    job_id: Annotated[
+        str,
+        typer.Option(
+            "--job-id",
+            help="Orchestrator job (Airflow DAG id) whose latest run is evaluated.",
+        ),
+    ],
+    channel: Annotated[
+        str,
+        typer.Option(
+            "--channel",
+            help="Slack channel. Defaults to incident_alert_slack_channel.",
+        ),
+    ] = None,
+    manifest_path: Annotated[
+        Path,
+        typer.Option(
+            "--manifest-path",
+            help="Manifest the blast radius is read from.",
+        ),
+    ] = Path("target", "manifest.json"),
+    as_of: Annotated[
+        datetime.datetime,
+        typer.Option(
+            "--as-of",
+            formats=["%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M"],
+            help="Evaluate the history as it stood at this UTC time. Only with --dry-run.",
+        ),
+    ] = None,
+    dry_run: Annotated[
+        bool,
+        typer.Option("--dry-run", help="Print the message instead of posting it."),
+    ] = False,
+) -> None:
+    """Post to Slack when a job's latest run escalated or cleared an incident."""
+    import os
+
+    from .incident_alert import incident_alert as command_incident_alert
+
+    command_incident_alert(
+        job_id=job_id,
+        channel=channel,
+        slack_token=os.environ.get("DBTWIZ_SLACK_TOKEN"),
+        manifest_path=manifest_path,
+        as_of=as_of.replace(tzinfo=datetime.timezone.utc) if as_of else None,
+        dry_run=dry_run,
+    )
+
+
+@app.command()
+@description(
+    """Reads the run history Elementary uploads (`dbt_invocations`, `dbt_run_results`) and
+renders an HTML page of every job's open incidents — a model's consecutive failed runs
+within one orchestrator job — and those cleared within `incidents_window_days`. Each
+open incident shows its blast radius from the manifest: every model downstream of it,
+the public/protected ones among them, and the exposures downstream.
+
+The page is uploaded when the destination is a `gs://` URI, and written to disk
+otherwise. Configured in `[tool.dbtwiz.project]`: `incidents_elementary_dataset`
+(required), `incidents_window_days`, `incidents_timezone`, and `incident_report_uri` as
+the default destination.
+"""
+)
+@examples(
+    """Upload the report to the configured destination:
+```shell
+$ dbtwiz admin incident-report
+```
+
+Write it locally as it stood at a past moment:
+```shell
+$ dbtwiz admin incident-report --destination report.html --as-of 2026-10-14T03:30:00
+```"""
+)
+def incident_report(
+    destination: Annotated[
+        str,
+        typer.Option(
+            "--destination",
+            help="gs://bucket/path or a local file. Defaults to incident_report_uri.",
+        ),
+    ] = None,
+    manifest_path: Annotated[
+        Path,
+        typer.Option(
+            "--manifest-path",
+            help="Manifest the blast radius is read from.",
+        ),
+    ] = Path("target", "manifest.json"),
+    as_of: Annotated[
+        datetime.datetime,
+        typer.Option(
+            "--as-of",
+            formats=["%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M"],
+            help="Render the history as it stood at this UTC time.",
+        ),
+    ] = None,
+) -> None:
+    """Render a page of open and recently cleared incidents."""
+    from .incident_report import incident_report as command_incident_report
+
+    command_incident_report(
+        destination=destination,
+        manifest_path=manifest_path,
+        as_of=as_of.replace(tzinfo=datetime.timezone.utc) if as_of else None,
+    )
