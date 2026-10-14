@@ -38,6 +38,8 @@ You can also run `dbtwiz --help`/`dbtwiz -h`, which will list the commands with 
   - [`sync-descriptions`](docs/admin_sync_descriptions.md) - Sync dbt descriptions from a manifest to BigQuery tables and columns.
   - [`update-clustering`](docs/admin_update_clustering.md) - Update clustering configuration for a BigQuery table and re-cluster existing rows.
   - [`update-grants`](docs/admin_update_grants.md) - Update BigQuery table IAM grants for all dbt models based on manifest configuration.
+  - [`incident-alert`](docs/admin_incident_alert.md) - Post to Slack when a job's latest run escalated or cleared an incident.
+  - [`incident-report`](docs/admin_incident_report.md) - Render a page of open and recently cleared incidents.
 
 [comment]: <> (END COMMAND DOCS)
 

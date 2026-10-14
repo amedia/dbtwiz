@@ -193,6 +193,40 @@ class ProjectConfig(BaseModel):
         ),
     )
 
+    # Incidents — `dbtwiz admin incident-alert` and `incident-report` read Elementary's
+    # run history for models that keep failing.
+    incidents_elementary_dataset: Optional[str] = Field(
+        None,
+        description="project.dataset holding Elementary's dbt_invocations and dbt_run_results",
+    )
+    incidents_window_days: int = Field(
+        30, ge=1, le=365, description="Days of run history read for incidents"
+    )
+    incidents_timezone: Optional[str] = Field(
+        "UTC", description="IANA time zone times are shown in, e.g. Europe/Oslo"
+    )
+    incident_alert_slack_channel: Optional[str] = Field(
+        None, description="Default Slack channel for incident-alert"
+    )
+    incident_alert_mentions: List[str] = Field(
+        default_factory=list,
+        description=(
+            "Who is mentioned on escalations: Slack IDs (recommended, e.g. "
+            "@U111D1DB111), handles (e.g. @firstname.lastname), @channel or @here"
+        ),
+    )
+    incident_alert_escalation_hours: float = Field(
+        3,
+        gt=0,
+        description="First escalation threshold; later ones double it (3h, 6h, 12h, …)",
+    )
+    incident_report_uri: Optional[str] = Field(
+        None, description="Default destination for incident-report (gs:// or a path)"
+    )
+    incident_report_url: Optional[str] = Field(
+        None, description="URL the report is served at, linked from incident-alert"
+    )
+
     # Internal fields (not from config file)
     root: Optional[Path] = Field(
         None, description="Project root path (set internally)", exclude=True
