@@ -153,6 +153,79 @@ left join clears as c using (job_id, unique_id, streak_id)
 left join latest_runs as l using (job_id)
 """
 
+# Each job's latest run, and the median gap between its recent runs as the interval it
+# normally runs at; a job that stops running shows up as overdue against it.
+JOB_RUNS_SQL = """
+with
+    runs as (
+        select
+            job_id,
+            job_run_id,
+            min(safe_cast(run_started_at as timestamp)) as run_start_ts,
+        from `{dataset}.dbt_invocations`
+        where
+            job_id is not null
+            and job_run_id is not null
+            and created_at >= timestamp_sub(@as_of, interval @window_days + 1 day)
+            and safe_cast(run_started_at as timestamp)
+            between timestamp_sub(@as_of, interval @window_days day) and @as_of
+        group by job_id, job_run_id
+    ),
+
+    gaps as (
+        select
+            job_id,
+            run_start_ts,
+            timestamp_diff(
+                run_start_ts,
+                lag(run_start_ts) over (partition by job_id order by run_start_ts),
+                second
+            ) as gap_seconds,
+            row_number() over (
+                partition by job_id order by run_start_ts desc
+            ) as recency,
+        from runs
+    )
+
+select
+    job_id,
+    max(run_start_ts) as last_run_ts,
+    approx_quantiles(if(recency <= 25, gap_seconds, null), 2 ignore nulls)[
+        safe_offset(1)
+    ] as typical_gap_seconds,
+from gaps
+group by job_id
+"""
+
+
+@dataclass(frozen=True)
+class JobRun:
+    """A job's latest run within the window, and how often it normally runs.
+
+    Attributes:
+        job_id: Orchestrator job (the Airflow DAG)
+        last_run_ts: Start of its latest run
+        typical_interval: Median gap between its recent runs, None with one run
+    """
+
+    job_id: str
+    last_run_ts: datetime
+    typical_interval: Optional[timedelta]
+
+    def overdue_after(self) -> Optional[timedelta]:
+        """How long after its latest run the job counts as not running any more.
+
+        One and a half intervals plus 15 minutes, so a run that starts late or takes
+        long doesn't trip it. None when the interval isn't known.
+        """
+        if self.typical_interval is None:
+            return None
+        return self.typical_interval * 1.5 + timedelta(minutes=15)
+
+    def is_overdue(self, now: datetime) -> bool:
+        limit = self.overdue_after()
+        return limit is not None and now - self.last_run_ts > limit
+
 
 @dataclass(frozen=True)
 class Incident:
@@ -319,6 +392,15 @@ def summarize_cause(message: Optional[str], limit: int = 300) -> str:
     return cause if len(cause) <= limit else cause[: limit - 1] + "…"
 
 
+_QUERY_URL = re.compile(r"\(Query: (https?://[^\s)]+)\)")
+
+
+def query_link(message: Optional[str]) -> Optional[str]:
+    """The console link to the failed BigQuery job, when the message carries one."""
+    match = _QUERY_URL.search(message or "")
+    return match.group(1) if match else None
+
+
 def group_by_cause(incidents: Iterable[Incident]) -> Dict[str, List[Incident]]:
     """Group incidents by their summarized cause, longest-failing group first."""
     groups: Dict[str, List[Incident]] = {}
@@ -407,6 +489,48 @@ def fetch_incidents(as_of: datetime) -> List[Incident]:
             cleared_ts=r["cleared_ts"],
             is_failed_in_latest_run=r["is_failed_in_latest_run"],
             is_cleared_in_latest_run=r["is_cleared_in_latest_run"],
+        )
+        for r in rows
+    ]
+
+
+def fetch_job_runs(as_of: datetime) -> List[JobRun]:
+    """Each job's latest run and typical interval, in the window ending at as_of."""
+    from ..integrations.bigquery import GCP_LOCATION, BigQueryClient
+
+    config = project_config()
+    dataset = config.incidents_elementary_dataset
+    if not dataset:
+        fatal("Set incidents_elementary_dataset in [tool.dbtwiz.project].")
+
+    client = BigQueryClient()
+    bq = client.get_bigquery()
+    job_config = bq.QueryJobConfig(
+        query_parameters=[
+            bq.ScalarQueryParameter("as_of", "TIMESTAMP", as_of),
+            bq.ScalarQueryParameter(
+                "window_days", "INT64", config.incidents_window_days
+            ),
+        ]
+    )
+    rows = (
+        client.get_client()
+        .query(
+            JOB_RUNS_SQL.format(dataset=dataset),
+            job_config=job_config,
+            location=GCP_LOCATION,
+        )
+        .result()
+    )
+    return [
+        JobRun(
+            job_id=r["job_id"],
+            last_run_ts=r["last_run_ts"],
+            typical_interval=(
+                timedelta(seconds=r["typical_gap_seconds"])
+                if r["typical_gap_seconds"]
+                else None
+            ),
         )
         for r in rows
     ]
