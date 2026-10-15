@@ -226,6 +226,17 @@ class ProjectConfig(BaseModel):
     incident_report_url: Optional[str] = Field(
         None, description="URL the report is served at, linked from incident-alert"
     )
+    incident_report_stale_minutes: int = Field(
+        90,
+        ge=1,
+        description="Age after which the report warns that it is no longer being refreshed",
+    )
+    incident_report_dbt_docs_url: Optional[str] = Field(
+        None, description="URL of the dbt docs index.html; model names link into it"
+    )
+    incident_report_airflow_url: Optional[str] = Field(
+        None, description="Base URL of the Airflow UI; job names link to their DAG"
+    )
 
     # Internal fields (not from config file)
     root: Optional[Path] = Field(

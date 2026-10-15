@@ -100,6 +100,28 @@
         background: var(--code-bg); padding: 8px; border-radius: 6px; }
   .empty { padding: 16px; margin: 0; color: var(--green); }
   .legend { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px; font-size: 12px; color: var(--muted); }
+  a { color: inherit; }
+  a.out { text-decoration: none; }
+  a.out:hover { text-decoration: underline; }
+  .link { font-size: 12px; color: var(--muted); white-space: nowrap; margin-left: 6px; }
+  .stale { display: none; background: var(--red); color: #fff; }
+  .stale.on { display: block; }
+  .stale .inner { max-width: 1200px; margin: 0 auto; padding: 10px 16px; font-weight: 600; }
+  .jobs { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+  .job-card { background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--state);
+              border-radius: 8px; padding: 10px 12px; cursor: pointer; color: var(--muted); font-size: 13px; --state: var(--green); }
+  .job-card.failing { --state: var(--orange); }
+  .job-card.overdue { --state: var(--red); }
+  .job-card.selected { outline: 2px solid var(--state); }
+  .job-card .head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 4px; }
+  .job-card .state { font-weight: 600; color: var(--state); }
+  h2.jobs-h { --dot: var(--muted); }
+  .filter-note { font-size: 12px; color: var(--muted); margin-top: 8px; min-height: 18px; }
+  details.section > summary { list-style: none; cursor: pointer; }
+  details.section > summary::-webkit-details-marker { display: none; }
+  details.section > summary h2::after { content: "\25B8"; color: var(--muted); font-size: 12px; }
+  details.section[open] > summary h2::after { content: "\25BE"; }
+  tr.hidden { display: none; }
   .legend span::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 4px; background: var(--c); }
 </style>
 </head>
@@ -108,11 +130,12 @@
   <div class="inner">
     <div>
       <h1>Incident report</h1>
-      <p>Generated {{ generated_at }} ({{ tz_name }}) · an incident is a model's unbroken run of failed runs within one job · last {{ window_days }} days</p>
+      <p>Generated {{ generated_at }} ({{ tz_name }})<span id="age"></span> · an incident is a model's unbroken run of failed runs within one job · last {{ window_days }} days</p>
     </div>
     {% if open_incidents %}<span class="status bad">{{ open_incidents | length }} open</span>{% else %}<span class="status ok">All clear</span>{% endif %}
   </div>
 </header>
+<div class="stale" id="stale"><div class="inner">This report is <span id="stale-age"></span> old. It is refreshed by a scheduled job, so that job may have stopped running.</div></div>
 <main>
   <div class="summary">
     <div class="tile {{ 'red' if open_incidents else 'quiet' }}"><b>{{ open_incidents | length }}</b>open incidents</div>
@@ -120,19 +143,38 @@
     <div class="tile green"><b>{{ cleared | length }}</b>cleared in {{ window_days }} days</div>
   </div>
 
+  {% if jobs %}
+  <h2 class="jobs-h">Jobs</h2>
+  <div class="jobs">
+    {% for j in jobs %}
+    <div class="job-card{% if j.is_overdue %} overdue{% elif j.open_count %} failing{% endif %}" data-job="{{ j.job_id }}"
+         data-last-run="{{ j.last_run_iso }}" data-overdue-after="{{ j.overdue_after_seconds }}" title="Show only this job's incidents">
+      <div class="head">
+        <span class="job job-{{ j.job_color }}">{{ j.job_id }}</span>
+        {% if j.job_url %}<a class="link out" href="{{ j.job_url }}" target="_blank" rel="noopener">Airflow &#8599;</a>{% endif %}
+      </div>
+      <div>Last run {{ j.last_run }}<span class="ago"></span></div>
+      {% if j.interval %}<div>Runs every {{ j.interval }}</div>{% endif %}
+      <div class="state">{% if j.is_overdue %}Not running{% elif j.open_count %}{{ j.open_count }} open{% else %}OK{% endif %}</div>
+    </div>
+    {% endfor %}
+  </div>
+  <div class="filter-note" id="filter-note"></div>
+  {% endif %}
+
   <h2 class="open">Open</h2>
   {% if open_incidents %}
   <div class="scroll"><table>
     <thead><tr><th>Job</th><th>Model</th><th>Failing since</th><th>For</th><th>Failed runs</th><th>Cause</th><th>Blast radius</th></tr></thead>
     <tbody>
     {% for i in open_incidents %}
-      <tr class="sev-{{ i.severity }}">
+      <tr class="sev-{{ i.severity }}" data-job="{{ i.job_id }}">
         <td><span class="job job-{{ i.job_color }}">{{ i.job_id }}</span></td>
-        <td><code>{{ i.name }}</code></td>
+        <td>{% if i.model_url %}<a class="out" href="{{ i.model_url }}" target="_blank" rel="noopener"><code>{{ i.name }}</code></a>{% else %}<code>{{ i.name }}</code>{% endif %}</td>
         <td class="when">{% if i.is_start_truncated %}before {% endif %}{{ i.first_failed }}</td>
         <td class="num"><span class="badge">{{ i.duration }}</span></td>
         <td class="num">{{ i.failed_runs }}</td>
-        <td><details><summary>{{ i.cause }}</summary><pre>{{ i.message }}</pre></details></td>
+        <td><details><summary>{{ i.cause }}</summary><pre>{{ i.message }}</pre></details>{% if i.query_url %}<a class="link out" href="{{ i.query_url }}" target="_blank" rel="noopener">BigQuery job &#8599;</a>{% endif %}</td>
         <td>
           {% if i.downstream %}
           <details><summary><span class="radius">{{ i.downstream | length }} downstream</span>{% if i.shared %}, {{ i.shared | length }} public/protected{% endif %}{% if i.exposures %}, {{ i.exposures | length }} exposures{% endif %}</summary>
@@ -155,15 +197,16 @@
   <div class="scroll"><p class="empty">No open incidents.</p></div>
   {% endif %}
 
-  <h2 class="cleared">Cleared</h2>
   {% if cleared %}
+  <details class="section">
+  <summary><h2 class="cleared">Cleared ({{ cleared | length }} in {{ window_days }} days)</h2></summary>
   <div class="scroll"><table>
     <thead><tr><th>Job</th><th>Model</th><th>First failed</th><th>Cleared</th><th>Lasted</th><th>Failed runs</th><th>Cause</th></tr></thead>
     <tbody>
     {% for i in cleared %}
-      <tr class="cleared-row">
+      <tr class="cleared-row" data-job="{{ i.job_id }}">
         <td><span class="job job-{{ i.job_color }}">{{ i.job_id }}</span></td>
-        <td><code>{{ i.name }}</code></td>
+        <td>{% if i.model_url %}<a class="out" href="{{ i.model_url }}" target="_blank" rel="noopener"><code>{{ i.name }}</code></a>{% else %}<code>{{ i.name }}</code>{% endif %}</td>
         <td class="when">{% if i.is_start_truncated %}before {% endif %}{{ i.first_failed }}</td>
         <td class="when">{{ i.cleared }}</td>
         <td class="num"><span class="badge">{{ i.duration }}</span></td>
@@ -173,9 +216,56 @@
     {% endfor %}
     </tbody>
   </table></div>
+  </details>
   {% else %}
+  <h2 class="cleared">Cleared</h2>
   <div class="scroll"><p class="empty">Nothing cleared in the last {{ window_days }} days.</p></div>
   {% endif %}
 </main>
+<script>
+(function () {
+  // Ages are worked out against the viewer's clock, so a page nobody has refreshed
+  // still says how old it is, and which jobs have stopped running since.
+  var now = Date.now();
+  function ago(ms) {
+    var m = Math.round(ms / 60000);
+    if (m < 60) return m + "m";
+    var h = Math.round(m / 60);
+    return h < 48 ? h + "h" : Math.round(h / 24) + "d";
+  }
+  var age = now - Date.parse("{{ generated_at_iso }}");
+  document.getElementById("age").textContent = " \u00b7 " + ago(age) + " ago";
+  if (age > {{ stale_seconds }} * 1000) {
+    document.getElementById("stale-age").textContent = ago(age);
+    document.getElementById("stale").classList.add("on");
+  }
+  var cards = document.querySelectorAll(".job-card");
+  cards.forEach(function (card) {
+    var since = now - Date.parse(card.dataset.lastRun);
+    card.querySelector(".ago").textContent = " \u00b7 " + ago(since) + " ago";
+    var limit = Number(card.dataset.overdueAfter);
+    if (limit && since > limit * 1000) {
+      card.classList.remove("failing");
+      card.classList.add("overdue");
+      card.querySelector(".state").textContent = "Not running";
+    }
+  });
+
+  // Clicking a job shows only its incidents; clicking it again shows all.
+  var selected = null;
+  var note = document.getElementById("filter-note");
+  cards.forEach(function (card) {
+    card.addEventListener("click", function (event) {
+      if (event.target.closest("a")) return;
+      selected = selected === card.dataset.job ? null : card.dataset.job;
+      cards.forEach(function (c) { c.classList.toggle("selected", c.dataset.job === selected); });
+      document.querySelectorAll("tr[data-job]").forEach(function (row) {
+        row.classList.toggle("hidden", selected !== null && row.dataset.job !== selected);
+      });
+      note.textContent = selected ? "Showing " + selected + " only. Click it again to show all jobs." : "";
+    });
+  });
+})();
+</script>
 </body>
 </html>

@@ -1,5 +1,6 @@
 """Tests for incidents read from Elementary's run history, and the alert and report."""
 
+import json
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -14,14 +15,21 @@ from dbtwiz.admin.incident_alert import (
     slack_message,
     validate_mentions,
 )
-from dbtwiz.admin.incident_report import render_report
+from dbtwiz.admin.incident_report import (
+    ReportLinks,
+    render_report,
+    status_summary,
+    summary_destination,
+)
 from dbtwiz.admin.incidents import (
     Incident,
+    JobRun,
     ManifestGraph,
     blast_radius,
     drop_removed_nodes,
     format_duration,
     group_by_cause,
+    query_link,
     summarize_cause,
 )
 
@@ -272,6 +280,7 @@ def test_render_report_lists_open_and_cleared_incidents_escaped():
                 message="Runtime Error in x\n  <script>",
             ),
         ],
+        [],
         GRAPH,
         timezone.utc,
         T0 + timedelta(hours=14),
@@ -282,7 +291,101 @@ def test_render_report_lists_open_and_cleared_incidents_escaped():
     assert 'class="sev-high"' in html  # 14h open
     assert 'class="cleared-row"' in html
     assert "int_other" in html
-    assert "<script>" not in html
+    # The error message is escaped, not injected into the page.
+    assert "&lt;script&gt;" in html
+    assert "Runtime Error in x\n  <script>" not in html
+
+
+HOURLY = JobRun("adp__hourly", T0 + timedelta(hours=14), timedelta(hours=1))
+
+
+def test_a_job_is_overdue_after_one_and_a_half_intervals_and_a_margin():
+    """An hourly job is late after 1h45m, not at its next scheduled minute."""
+    last = HOURLY.last_run_ts
+    assert not HOURLY.is_overdue(last + timedelta(minutes=104))
+    assert HOURLY.is_overdue(last + timedelta(minutes=106))
+    assert not JobRun("adp__once", last, None).is_overdue(last + timedelta(days=9))
+
+
+def test_links_follow_dbt_docs_and_airflow_routes():
+    links = ReportLinks(
+        dbt_docs_url="https://docs/adp-dbt-core/index.html",
+        airflow_url="https://airflow/",
+    )
+    assert links.model("model.p.int_x") == (
+        "https://docs/adp-dbt-core/index.html#!/model/model.p.int_x"
+    )
+    assert links.model("snapshot.p.snp_x").endswith("#!/snapshot/snapshot.p.snp_x")
+    assert links.job("adp__hourly") == "https://airflow/dags/adp__hourly"
+    assert ReportLinks().model("model.p.int_x") is None
+
+
+def test_query_link_is_taken_from_the_error_message():
+    url = "https://console.cloud.google.com/bigquery?project=p&j=bq:EU:a"
+    assert query_link(f"{MISSING_SOURCE}, notFound (Query: {url})") == url
+    assert query_link(MISSING_SOURCE) is None
+
+
+def test_report_shows_job_status_and_links():
+    links = ReportLinks(
+        dbt_docs_url="https://docs/index.html", airflow_url="https://af"
+    )
+    html = render_report(
+        [incident(14, 13)],
+        [HOURLY, JobRun("adp__daily", T0, timedelta(days=1))],
+        GRAPH,
+        timezone.utc,
+        T0 + timedelta(hours=14, minutes=10),
+        30,
+        90,
+        links,
+    )
+    assert 'data-job="adp__daily"' in html
+    assert "Runs every 1d" in html
+    assert "1 open" in html  # the hourly job's card
+    assert "https://docs/index.html#!/model/model.p.int_user__relations" in html
+    assert "https://af/dags/adp__hourly" in html
+    assert "5400 * 1000" in html  # 90 minutes before the page calls itself stale
+
+
+def test_status_summary_for_an_overview_page():
+    summary = status_summary(
+        [
+            incident(14, 13),
+            incident(5, 4, unique_id="model.p.x", cleared_after_hours=6),
+        ],
+        [HOURLY],
+        T0 + timedelta(hours=14, minutes=10),
+        30,
+        "https://docs/incident_report.html",
+    )
+    assert summary["open_incident_count"] == 1
+    assert summary["cleared_incident_count"] == 1
+    assert summary["jobs"] == [
+        {
+            "job_id": "adp__hourly",
+            "last_run_ts": "2026-10-14T05:00:00+00:00",
+            "typical_interval_minutes": 60,
+            "is_overdue": False,
+            "open_incident_count": 1,
+        }
+    ]
+    assert summary["open_incidents"][0]["unique_id"] == "model.p.int_user__relations"
+    assert json.dumps(summary)  # plain data only
+
+
+@pytest.mark.parametrize(
+    "destination,expected",
+    [
+        (
+            "gs://b/adp-dbt-core/incident_report.html",
+            "gs://b/adp-dbt-core/incident_report.json",
+        ),
+        ("report", "report.json"),
+    ],
+)
+def test_summary_goes_beside_the_page(destination, expected):
+    assert summary_destination(destination) == expected
 
 
 class FakeSlack:
