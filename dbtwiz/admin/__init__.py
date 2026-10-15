@@ -651,8 +651,10 @@ job refreshing it has stopped. Model names link into dbt docs when
 carries the link.
 
 A JSON summary is written beside the page (`.html` replaced by `.json`) for an overview
-page to fetch: generation time and stale limit, each job's latest run and open incident
-count, and the open incidents.
+page to fetch: generation time and stale limit, each job's latest run, when it goes
+overdue and its open incident count, and the open incidents. Its field names follow
+dlt-saga's report summary (`stale_after_minutes`, `last_attempt_at`, `usual_gap_minutes`,
+`overdue_at`, `failing_since`, `report_file`), so one page can read both.
 
 Both are uploaded when the destination is a `gs://` URI, and written to disk otherwise.
 Configured in `[tool.dbtwiz.project]`: `incidents_elementary_dataset` (required),
