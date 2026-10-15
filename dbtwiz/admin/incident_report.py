@@ -76,11 +76,18 @@ def status_summary(
     generated_at: datetime,
     window_days: int,
     report_url: Optional[str],
+    stale_minutes: int = 90,
 ) -> Dict[str, Any]:
-    """The report's status as plain data, for an overview page to fetch."""
+    """The report's status as plain data, for an overview page to fetch.
+
+    `stale_minutes` travels with it because it depends on how often the report is
+    refreshed, which only the project knows: an overview page reading reports from
+    an hourly and a daily project can't apply one limit to both.
+    """
     open_incidents = [i for i in incidents if i.is_open]
     return {
         "generated_at": _iso(generated_at),
+        "stale_minutes": stale_minutes,
         "window_days": window_days,
         "report_url": report_url,
         "open_incident_count": len(open_incidents),
@@ -262,7 +269,12 @@ def incident_report(
         ),
     )
     summary = status_summary(
-        incidents, job_runs, as_of, window_days, config.incident_report_url
+        incidents,
+        job_runs,
+        as_of,
+        window_days,
+        config.incident_report_url,
+        config.incident_report_stale_minutes,
     )
     _write(destination, html, "text/html; charset=utf-8")
     _write(
