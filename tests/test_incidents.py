@@ -358,7 +358,9 @@ def test_status_summary_for_an_overview_page():
         T0 + timedelta(hours=14, minutes=10),
         30,
         "https://docs/incident_report.html",
+        1560,
     )
+    assert summary["stale_minutes"] == 1560
     assert summary["open_incident_count"] == 1
     assert summary["cleared_incident_count"] == 1
     assert summary["jobs"] == [

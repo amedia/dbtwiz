@@ -21,8 +21,8 @@ job refreshing it has stopped. Model names link into dbt docs when
 carries the link.
 
 A JSON summary is written beside the page (`.html` replaced by `.json`) for an overview
-page to fetch: generation time, each job's latest run and open incident count, and the
-open incidents.
+page to fetch: generation time and stale limit, each job's latest run and open incident
+count, and the open incidents.
 
 Both are uploaded when the destination is a `gs://` URI, and written to disk otherwise.
 Configured in `[tool.dbtwiz.project]`: `incidents_elementary_dataset` (required),
