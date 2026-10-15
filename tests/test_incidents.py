@@ -357,22 +357,28 @@ def test_status_summary_for_an_overview_page():
         [HOURLY],
         T0 + timedelta(hours=14, minutes=10),
         30,
-        "https://docs/incident_report.html",
+        "incident_report.html",
         1560,
     )
-    assert summary["stale_minutes"] == 1560
+    assert summary["schema_version"] == 1
+    assert summary["stale_after_minutes"] == 1560
+    assert summary["report_file"] == "incident_report.html"
     assert summary["open_incident_count"] == 1
     assert summary["cleared_incident_count"] == 1
     assert summary["jobs"] == [
         {
             "job_id": "adp__hourly",
-            "last_run_ts": "2026-10-14T05:00:00+00:00",
-            "typical_interval_minutes": 60,
+            "last_attempt_at": "2026-10-14T05:00:00+00:00",
+            "usual_gap_minutes": 60,
+            # 1.5 hourly gaps plus 15 minutes after the last attempt
+            "overdue_at": "2026-10-14T06:45:00+00:00",
             "is_overdue": False,
             "open_incident_count": 1,
         }
     ]
-    assert summary["open_incidents"][0]["unique_id"] == "model.p.int_user__relations"
+    first = summary["open_incidents"][0]
+    assert first["unique_id"] == "model.p.int_user__relations"
+    assert first["failing_since"] == "2026-10-13T15:00:00+00:00"
     assert json.dumps(summary)  # plain data only
 
 

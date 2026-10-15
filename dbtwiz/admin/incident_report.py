@@ -36,6 +36,10 @@ from .incidents import (
 # Must match the job-N colours defined in the template.
 JOB_COLOR_COUNT = 6
 
+# Bumped when a field of the JSON summary is renamed or removed; adding one is not a
+# breaking change. Version 1 is the first versioned shape, using dlt-saga's names.
+SUMMARY_SCHEMA_VERSION = 1
+
 
 @dataclass(frozen=True)
 class ReportLinks:
@@ -75,32 +79,42 @@ def status_summary(
     job_runs: List[JobRun],
     generated_at: datetime,
     window_days: int,
-    report_url: Optional[str],
-    stale_minutes: int = 90,
+    report_file: Optional[str],
+    stale_after_minutes: int = 90,
 ) -> Dict[str, Any]:
     """The report's status as plain data, for an overview page to fetch.
 
-    `stale_minutes` travels with it because it depends on how often the report is
-    refreshed, which only the project knows: an overview page reading reports from
-    an hourly and a daily project can't apply one limit to both.
+    Field names follow dlt-saga's report summary, so one page can read the dbt and
+    the ingestion summaries alike. `stale_after_minutes` travels with it because it
+    depends on how often the report is refreshed, which only the project knows: an
+    overview reading an hourly and a daily project can't apply one limit to both.
+    Each job's `overdue_at` lets a reader check "has it stopped running?" against
+    its own clock without knowing the rule behind it.
     """
     open_incidents = [i for i in incidents if i.is_open]
+
+    def overdue_at(run: JobRun) -> Optional[str]:
+        limit = run.overdue_after()
+        return _iso(run.last_run_ts + limit) if limit else None
+
     return {
+        "schema_version": SUMMARY_SCHEMA_VERSION,
         "generated_at": _iso(generated_at),
-        "stale_minutes": stale_minutes,
+        "stale_after_minutes": stale_after_minutes,
         "window_days": window_days,
-        "report_url": report_url,
+        "report_file": report_file,
         "open_incident_count": len(open_incidents),
         "cleared_incident_count": len(incidents) - len(open_incidents),
         "jobs": [
             {
                 "job_id": run.job_id,
-                "last_run_ts": _iso(run.last_run_ts),
-                "typical_interval_minutes": (
+                "last_attempt_at": _iso(run.last_run_ts),
+                "usual_gap_minutes": (
                     round(run.typical_interval.total_seconds() / 60)
                     if run.typical_interval
                     else None
                 ),
+                "overdue_at": overdue_at(run),
                 "is_overdue": run.is_overdue(generated_at),
                 "open_incident_count": sum(
                     1 for i in open_incidents if i.job_id == run.job_id
@@ -112,7 +126,7 @@ def status_summary(
             {
                 "job_id": i.job_id,
                 "unique_id": i.unique_id,
-                "first_failed_ts": _iso(i.first_failed_ts),
+                "failing_since": _iso(i.first_failed_ts),
                 "failed_run_count": i.failed_run_count,
                 "cause": summarize_cause(i.last_message),
             }
@@ -273,7 +287,9 @@ def incident_report(
         job_runs,
         as_of,
         window_days,
-        config.incident_report_url,
+        # Relative to the summary, which sits beside the page: the public URL is a
+        # matter of where the bucket is served, not of what wrote the files.
+        destination.rsplit("/", 1)[-1],
         config.incident_report_stale_minutes,
     )
     _write(destination, html, "text/html; charset=utf-8")
