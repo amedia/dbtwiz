@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dbtwiz"
-version = "0.3.13"
+version = "0.3.14"
 authors = [
     {name = "Amedia Produkt og Teknologi"}
 ]
@@ -16,6 +16,9 @@ requires-python = ">=3.11.0,<4"
 dependencies = [
     # No dbt dependency: dbtwiz drives dbt as a subprocess (see dbtwiz/dbt/run.py)
     # and imports nothing from it, so any dbt on PATH (or DBT_EXECUTABLE) will do.
+    # Imported lazily by integrations/bigquery.py (the admin commands), but not
+    # optional: dbt-bigquery used to pull it in, and nothing does once dbt is a binary.
+    "google-cloud-bigquery>=3.0,<4",
     "google-cloud-storage>=2.4,<3.2",
     "iterfzf>=1.8.0",
     "questionary>=2.1.0",
