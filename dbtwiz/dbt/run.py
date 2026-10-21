@@ -37,6 +37,22 @@ def dbt_core_installed() -> bool:
         return False
 
 
+def disable_sqlfluff_dbt_version_check() -> None:
+    """Turn off dbt's package version check when sqlfluff's dbt templater compiles.
+
+    The templater builds dbt's arguments itself, with no setting for the version
+    check, and dbt-core reads it as `getattr(args, "VERSION_CHECK", True)`, so it is
+    always on there, whatever DBT_VERSION_CHECK says. A package that requires another
+    dbt version (e.g. one holding only dbt v2 checks) then stops every lint. Linting
+    only compiles the SQL, and dbt's own commands still check versions.
+    """
+    try:
+        from sqlfluff_templater_dbt.templater import DbtConfigArgs
+    except ImportError:
+        return
+    DbtConfigArgs.VERSION_CHECK = False  # type: ignore[attr-defined]
+
+
 def dbt_lint_command(
     files: List[str], fix: bool = False, json_output: bool = False
 ) -> List[str]:

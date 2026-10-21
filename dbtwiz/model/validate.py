@@ -11,7 +11,12 @@ from ruamel.yaml import YAML
 from ..config.project import project_config
 from ..core.model import ModelBasePath
 from ..dbt.manifest import Manifest
-from ..dbt.run import dbt_check_command, dbt_core_installed, dbt_lint_command
+from ..dbt.run import (
+    dbt_check_command,
+    dbt_core_installed,
+    dbt_lint_command,
+    disable_sqlfluff_dbt_version_check,
+)
 from ..integrations.bigquery import BigQueryClient
 from ..integrations.gcp_auth import ensure_app_default_auth
 from ..utils.logger import status, warn
@@ -486,6 +491,7 @@ class SqlValidator:
         config = FluffConfig(
             load_config_at_path(project_config().root_path().absolute())
         )
+        disable_sqlfluff_dbt_version_check()
         linter = Linter(config=config)
         # initial results:
         try:

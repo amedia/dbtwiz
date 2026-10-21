@@ -1,4 +1,5 @@
 import subprocess
+import sys
 from pathlib import Path
 from typing import List, Optional
 
@@ -37,7 +38,9 @@ def format_sql_files(
     if dbt_core_installed():
         sqlfluff_command = "fix" if fix else "lint"
         info(f"Running sqlfluff {sqlfluff_command}")
-        subprocess.run(["sqlfluff", sqlfluff_command] + files)
+        subprocess.run(
+            [sys.executable, "-m", "dbtwiz.dbt.sqlfluff_cli", sqlfluff_command] + files
+        )
     else:
         info("Running dbt lint --fix" if fix else "Running dbt lint")
         subprocess.run(dbt_lint_command(files, fix=fix))
