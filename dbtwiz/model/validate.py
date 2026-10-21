@@ -1,20 +1,58 @@
 import json
 import re
 import subprocess
+import tempfile
 from pathlib import Path
 from re import Match
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 from ruamel.yaml import YAML
 
 from ..config.project import project_config
 from ..core.model import ModelBasePath
 from ..dbt.manifest import Manifest
-from ..dbt.run import dbt_core_installed, dbt_lint_command
+from ..dbt.run import dbt_check_command, dbt_core_installed, dbt_lint_command
 from ..integrations.bigquery import BigQueryClient
 from ..integrations.gcp_auth import ensure_app_default_auth
 from ..utils.logger import status, warn
 from .config_rules import evaluate_rules
+
+
+def check_violations(run_results: dict, model_name: str) -> List[str]:
+    """The violations of one model in the run_results.json of `dbt check`, one per row.
+
+    A check's message holds each violating row as `key=value, ...` on its own line.
+    Only rows about `model_name` are kept: rows without a `unique_id` are project-wide
+    aggregates (e.g. test coverage), which no single model can fix, and a row about
+    another node is not this model's violation.
+    """
+    violations = []
+    for result in run_results.get("results", []):
+        check = result["unique_id"].split(".")[-1]
+        if result["status"] == "error":
+            violations.append(f"{check}: {result.get('message') or 'failed to run'}")
+            continue
+        if result["status"] not in ("warn", "fail"):
+            continue
+        for line in (result.get("message") or "").splitlines():
+            fields = dict(
+                part.split("=", 1) for part in line.strip().split(", ") if "=" in part
+            )
+            # model.<project>.<name>, plus .v<n> for a versioned model
+            unique_id = fields.get("unique_id", "").split(".")
+            if (
+                len(unique_id) < 3
+                or unique_id[0] != "model"
+                or unique_id[2] != model_name
+            ):
+                continue
+            details = [
+                f"{key}: {value}"
+                for key, value in fields.items()
+                if key not in ("unique_id", "name", "original_file_path") and value
+            ]
+            violations.append(check + (f" ({', '.join(details)})" if details else ""))
+    return violations
 
 
 class YmlValidator:
@@ -65,8 +103,14 @@ class YmlValidator:
                 return False, f"yml file not found: {yml_path.name}"
         return True, "yml file ok"
 
-    def validate_yml_definition(self) -> Tuple[bool, str]:
-        """Validates YML definition (currently only the model name)."""
+    def validate_yml_definition(self, checked_by_dbt: bool = False) -> Tuple[bool, str]:
+        """Validates the YML definition: the model name and its primary key constraint.
+
+        With `checked_by_dbt`, the rules `dbt check` covers on dbt v2 are left to it (the
+        name's layer and domain against its folders, whether a primary key exists), and
+        only the yml itself is checked here: one model, named after its file, with a
+        primary key declared in one place.
+        """
         yml_content, load_error = self._load_model_yml()
         if load_error:
             return False, load_error
@@ -74,13 +118,14 @@ class YmlValidator:
         if len(yml_content.get("models", [])) > 1:
             return False, "yml file contains more than one model definition"
 
+        model_def = yml_content.get("models")[0]
         validation_errors = self._validate_model_name(
-            model_def=yml_content.get("models")[0]
+            model_def=model_def, check_folders=not checked_by_dbt
         )
 
         if (
             pk_constraint_error := self._validate_yml_primary_key_constraint(
-                model_def=yml_content.get("models")[0]
+                model_def=model_def, require=not checked_by_dbt
             )
         ) is not None:
             validation_errors.append(pk_constraint_error)
@@ -88,7 +133,7 @@ class YmlValidator:
         if validation_errors:
             error_msg = "failed\n" + "\n".join(f"• {e}" for e in validation_errors)
             return False, error_msg
-        return True, "yml file name ok"
+        return True, "yml definition ok" if checked_by_dbt else "yml file name ok"
 
     def validate_model_config_rules(self) -> Tuple[bool, str]:
         """Validate the model's config block against the project's configured rules.
@@ -134,6 +179,36 @@ class YmlValidator:
             return False, error
 
         return self._update_yml_columns(yml_path, table_columns)
+
+    def validate_dbt_checks(self) -> Tuple[bool, str]:
+        """Run the project's `dbt check` checks on this model (dbt v2 only).
+
+        Checks are where a dbt v2 project declares its structural rules (e.g.
+        dbt_project_evaluator or a project's own checks package), so they replace the
+        name, primary key and config rules dbtwiz checks itself.
+
+        The results are written to a temporary target folder, so they cannot be
+        mistaken for an earlier run's and the project's own target folder is left alone.
+        """
+        with tempfile.TemporaryDirectory() as target_path:
+            run_results = Path(target_path) / "run_results.json"
+            result = subprocess.run(
+                dbt_check_command(self.model_base.model_name, Path(target_path)),
+                capture_output=True,
+                # dbt prints its violation tables with box-drawing characters
+                encoding="utf-8",
+                errors="replace",
+            )
+            if not run_results.exists():
+                return False, f"dbt check failed:\n{result.stderr or result.stdout}"
+
+            violations = check_violations(
+                json.loads(run_results.read_text(encoding="utf-8")),
+                self.model_base.model_name,
+            )
+        if violations:
+            return False, "failed\n" + "\n".join(f"• {v}" for v in violations)
+        return True, "checks ok"
 
     # ============================================================================
     # PRIVATE METHODS - Internal Helper Functions
@@ -265,8 +340,15 @@ class YmlValidator:
         except Exception as e:
             return False, f"yml update failed: {str(e)}"
 
-    def _validate_model_name(self, model_def: dict) -> List[str]:
-        """Validates that the model has a correct name, and returns identified errors."""
+    def _validate_model_name(
+        self, model_def: dict, check_folders: bool = True
+    ) -> List[str]:
+        """Validates that the model has a correct name, and returns identified errors.
+
+        The yml's name must match its file name, since dbt applies the yml to the model
+        it names. With `check_folders`, the name's layer and domain must also match the
+        folders the model is in.
+        """
         validation_errors = []
 
         current_name = model_def.get("name", "")
@@ -276,6 +358,9 @@ class YmlValidator:
             validation_errors.append(
                 f"model name [italic]{current_name}[/italic] doesn't match yml filename [italic]{self.model_base.path.stem}[/italic]"
             )
+
+        if not check_folders:
+            return validation_errors
 
         # Check 2: Model name matches folder structure
         name_parts = current_name.split("__")
@@ -310,8 +395,10 @@ class YmlValidator:
 
         return validation_errors
 
-    def _validate_yml_primary_key_constraint(self, model_def: dict) -> bool:
-        """Validates that a primary key constraint is defined for the model."""
+    def _validate_yml_primary_key_constraint(
+        self, model_def: dict, require: bool = True
+    ) -> Optional[str]:
+        """Validates the model's primary key constraint, and with `require` that it has one."""
         column_level_pk = False
 
         model_level_pk = any(
@@ -326,7 +413,7 @@ class YmlValidator:
         column_level_pk = len(column_level_pk_columns) > 0
 
         if not model_level_pk and not column_level_pk:
-            return "primary key constraint is missing"
+            return "primary key constraint is missing" if require else None
         elif model_level_pk and column_level_pk:
             return "primary key constraint is defined at both model and column levels"
         elif column_level_pk and len(column_level_pk_columns) > 1:
@@ -591,6 +678,51 @@ class SqlValidator:
         return "".join(new_sql), list(set(unresolved_tables))
 
 
+def validation_steps(
+    yml_validator: YmlValidator,
+    sql_validator: SqlValidator,
+    dbt_core: bool,
+    dbt_check: bool,
+) -> List[Tuple[Callable[[], Tuple[bool, str]], str]]:
+    """The validation steps, in order.
+
+    With `dbt_check`, the project's `dbt check` checks replace dbtwiz's own name,
+    primary key and config rules, and the model is checked with `dbt check`. The
+    linter follows the engine, and the steps that need BigQuery or edit files always
+    run.
+    """
+    steps = [
+        (yml_validator.validate_yml_exists, "Validating yml exists"),
+        (
+            lambda: yml_validator.validate_yml_definition(checked_by_dbt=dbt_check),
+            "Validating yml definition",
+        ),
+    ]
+    if not dbt_check:
+        steps.append(
+            (yml_validator.validate_model_config_rules, "Validating model config rules")
+        )
+    steps += [
+        (yml_validator.validate_yml_columns, "Validating yml columns"),
+        (sql_validator.convert_sql_to_model, "Validating sql references"),
+        (sql_validator.sqlfmt_format_file, "Validating sql with sqlfmt"),
+        (
+            (
+                sql_validator.sqlfluff_validate_and_fix_file,
+                "Validating sql with sqlfluff",
+            )
+            if dbt_core
+            else (
+                sql_validator.dbt_lint_validate_and_fix_file,
+                "Validating sql with dbt lint",
+            )
+        ),
+    ]
+    if dbt_check:
+        steps.append((yml_validator.validate_dbt_checks, "Validating with dbt check"))
+    return steps
+
+
 class ModelValidator:
     """Main validator class that orchestrates validation of dbt models."""
 
@@ -612,29 +744,16 @@ class ModelValidator:
         yml_validator = YmlValidator(model_path=self.model_base.path)
         sql_validator = SqlValidator(model_path=self.model_base.path)
 
+        # `dbt check` exists only on dbt v2, so dbt-core always uses dbtwiz's own rules
+        dbt_core = dbt_core_installed()
+        # `is True`: pyproject values are set after pydantic validation, so a quoted
+        # "false" would otherwise count as on
+        dbt_check = not dbt_core and project_config().validate_with_dbt_check is True
+
         # Run validation
-        for func, desc in [
-            (yml_validator.validate_yml_exists, "Validating yml exists"),
-            (yml_validator.validate_yml_definition, "Validating yml definition"),
-            (
-                yml_validator.validate_model_config_rules,
-                "Validating model config rules",
-            ),
-            (yml_validator.validate_yml_columns, "Validating yml columns"),
-            (sql_validator.convert_sql_to_model, "Validating sql references"),
-            (sql_validator.sqlfmt_format_file, "Validating sql with sqlfmt"),
-            (
-                (
-                    sql_validator.sqlfluff_validate_and_fix_file,
-                    "Validating sql with sqlfluff",
-                )
-                if dbt_core_installed()
-                else (
-                    sql_validator.dbt_lint_validate_and_fix_file,
-                    "Validating sql with dbt lint",
-                )
-            ),
-        ]:
+        for func, desc in validation_steps(
+            yml_validator, sql_validator, dbt_core=dbt_core, dbt_check=dbt_check
+        ):
             status(message=desc)
             success, result = func()
             status(
