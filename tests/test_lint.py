@@ -7,10 +7,15 @@ from unittest.mock import patch
 
 import pytest
 
-from dbtwiz.dbt.run import dbt_core_installed, dbt_lint_command
+from dbtwiz.dbt.run import (
+    dbt_core_installed,
+    dbt_lint_command,
+    disable_sqlfluff_dbt_version_check,
+)
 from dbtwiz.model.format import format_sql_files
 
 _PROJECT = SimpleNamespace(root_path=lambda: Path("/project"))
+_SQLFLUFF = "dbtwiz.dbt.sqlfluff_cli"
 
 
 @pytest.mark.parametrize(
@@ -23,6 +28,14 @@ def test_dbt_core_installed(installed, expected):
         assert dbt_core_installed() is expected
 
 
+def test_disable_sqlfluff_dbt_version_check():
+    """The templater's dbt args get VERSION_CHECK = False, which dbt-core reads."""
+    templater = pytest.importorskip("sqlfluff_templater_dbt.templater")
+    with patch.object(templater, "DbtConfigArgs", type("DbtConfigArgs", (), {})):
+        disable_sqlfluff_dbt_version_check()
+        assert getattr(templater.DbtConfigArgs(), "VERSION_CHECK", True) is False
+
+
 def test_dbt_lint_command_refuses_fix_with_json():
     """dbt lint silently skips --fix under --format json."""
     with pytest.raises(ValueError):
@@ -32,8 +45,8 @@ def test_dbt_lint_command_refuses_fix_with_json():
 @pytest.mark.parametrize(
     "core, fix, expected",
     [
-        (True, False, ["sqlfluff", "lint", "models/a.sql"]),
-        (True, True, ["sqlfluff", "fix", "models/a.sql"]),
+        (True, False, ["python", "-m", _SQLFLUFF, "lint", "models/a.sql"]),
+        (True, True, ["python", "-m", _SQLFLUFF, "fix", "models/a.sql"]),
         (
             False,
             False,
@@ -62,6 +75,7 @@ def test_format_sql_files_picks_linter(core, fix, expected):
         patch("dbtwiz.dbt.run.dbt_executable", return_value="dbt"),
         patch("dbtwiz.dbt.run.project_config", return_value=_PROJECT),
         patch("dbtwiz.model.format.Path.rglob", return_value=[Path("models/a.sql")]),
+        patch("dbtwiz.model.format.sys.executable", "python"),
     ):
         format_sql_files(staged=False, model_names=["a"], sqlfmt_args=[], fix=fix)
 
