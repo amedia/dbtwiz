@@ -77,6 +77,12 @@ orphan_cleanup_bq_region = ""       # The region where data is materialized (e.g
 orphan_cleanup_projects = [""]      # Which projects to look for orphaned models in (e.g. prod)
 orphan_cleanup_skip_projects = [""] # Which projects not to look for orphaned moels in (e.g. dev)
 
+# On dbt v2, let `dbtwiz model validate` check models with the project's own
+# `dbt check` checks instead of dbtwiz's name-against-folder, primary key and
+# model config rules.
+# Ignored on dbt-core, where `dbt check` does not exist.
+validate_with_dbt_check = false
+
 # Project variables offered as data expiration policies when creating an
 # incremental model, in the order they should be listed. The selected variable
 # is written to the model as partition_expiration_days = "{{ var('<name>') }}",

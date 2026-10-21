@@ -181,6 +181,18 @@ class ProjectConfig(BaseModel):
         ),
     )
 
+    # On dbt v2, `dbtwiz model validate` can leave the name-against-folder, primary
+    # key and config rules to the project's own `dbt check` checks. Off by default,
+    # since a project's checks need not cover those rules; ignored on dbt-core, where
+    # `dbt check` does not exist.
+    validate_with_dbt_check: bool = Field(
+        False,
+        description=(
+            "On dbt v2, validate models with `dbt check` instead of dbtwiz's own "
+            "name-against-folder, primary key and model config rules"
+        ),
+    )
+
     # Expiration variables offered when creating an incremental model. Each project names
     # its own retention variables, so the list is declared rather than guessed from
     # variable names; the number of days behind each comes from the project's variables.

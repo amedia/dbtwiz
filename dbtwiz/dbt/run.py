@@ -3,6 +3,7 @@ import os
 import shutil
 import subprocess
 from importlib.metadata import PackageNotFoundError, version
+from pathlib import Path
 from typing import Any, List
 
 from ..config.project import project_config
@@ -53,6 +54,25 @@ def dbt_lint_command(
         command.extend(["--format", "json"])
     command.extend(["--project-dir", str(project_config().root_path())])
     return command + [str(f) for f in files]
+
+
+def dbt_check_command(model_name: str, target_path: Path) -> List[str]:
+    """The `dbt check` command for one model (dbt v2 only).
+
+    The results are read back from run_results.json in `target_path`, which keeps
+    them apart from the project's own target folder and whatever ran there last.
+    """
+    return [
+        dbt_executable(),
+        "check",
+        "--quiet",
+        "--select",
+        model_name,
+        "--project-dir",
+        str(project_config().root_path()),
+        "--target-path",
+        str(target_path),
+    ]
 
 
 def dbt_args(commands: List[str], **args: Any) -> List[str]:
