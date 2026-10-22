@@ -13,7 +13,7 @@ from ..integrations.gcp_auth import ensure_app_default_auth
 from ..templates import path_to_template
 from ..utils.exceptions import ManifestError
 from ..utils.logger import debug, error, info
-from .run import invoke
+from .run import dbt_core_installed, invoke
 from .support import models_with_local_changes
 
 
@@ -135,6 +135,34 @@ class Manifest:
             # Download prod manifest to path
             blob.download_to_filename(target_path)
             gcs.close()
+
+            if dbt_core_installed():
+                removed = cls.remove_check_nodes(target_path)
+                if removed:
+                    debug(f"Removed {removed} check nodes for dbt-core")
+
+    @staticmethod
+    def remove_check_nodes(manifest_path: Path) -> int:
+        """Remove dbt check nodes from a manifest, so dbt-core can use it as --state.
+
+        A manifest written by dbt v2 includes the dbt checks in `nodes`, with
+        resource_type "check". dbt-core's manifest schema has no such node type, so
+        `--defer --state` fails while reading it. Nothing else in the manifest refers
+        to the check nodes, and --defer only looks up models, seeds and snapshots.
+
+        Returns:
+            The number of check nodes removed
+        """
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        nodes = manifest.get("nodes", {})
+        checks = [
+            key for key, node in nodes.items() if node.get("resource_type") == "check"
+        ]
+        if checks:
+            for key in checks:
+                del nodes[key]
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+        return len(checks)
 
     @classmethod
     def update_manifests(cls, type: str, force: bool = False) -> None:

@@ -1,6 +1,10 @@
 """Tests for reading dbt manifests, across both engines."""
 
 import json
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 from dbtwiz.dbt.manifest import Manifest
 
@@ -144,3 +148,49 @@ def test_models_handles_a_node_absent_from_parent_map(tmp_path):
 
     assert models["my_model"]["parent_models"] == []
     assert models["my_model"]["child_models"] == []
+
+
+def test_remove_check_nodes(tmp_path):
+    """dbt v2's check nodes go; every other node stays."""
+    path = _write_manifest(
+        tmp_path,
+        nodes={
+            "model.dbt_core.my_model": _model_node(),
+            "check.my_checks.a_rule": {"resource_type": "check"},
+        },
+    )
+
+    assert Manifest.remove_check_nodes(path) == 1
+    nodes = json.loads(path.read_text(encoding="utf-8"))["nodes"]
+    assert list(nodes) == ["model.dbt_core.my_model"]
+    assert Manifest.remove_check_nodes(path) == 0
+
+
+@pytest.mark.parametrize("dbt_core, expected_nodes", [(True, 1), (False, 2)])
+def test_download_prod_manifest_removes_checks_for_dbt_core(
+    tmp_path, dbt_core, expected_nodes
+):
+    """The downloaded manifest loses its check nodes only where dbt-core reads it."""
+    manifest = {
+        "nodes": {
+            "model.dbt_core.my_model": _model_node(),
+            "check.my_checks.a_rule": {"resource_type": "check"},
+        }
+    }
+    target = tmp_path / "prod-state" / "manifest.json"
+    blob = MagicMock()
+    blob.download_to_filename.side_effect = lambda path: Path(path).write_text(
+        json.dumps(manifest), encoding="utf-8"
+    )
+    client = MagicMock()
+    client.bucket.return_value.blob.return_value = blob
+    with (
+        patch("dbtwiz.dbt.manifest.ensure_app_default_auth"),
+        patch("google.cloud.storage.Client", return_value=client),
+        patch("dbtwiz.dbt.manifest.dbt_core_installed", return_value=dbt_core),
+    ):
+        Manifest.download_prod_manifest(force=True, target_path=target)
+
+    assert (
+        len(json.loads(target.read_text(encoding="utf-8"))["nodes"]) == expected_nodes
+    )
