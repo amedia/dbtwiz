@@ -36,6 +36,7 @@ You can also run `dbtwiz --help`/`dbtwiz -h`, which will list the commands with 
   - [`partition-expiry`](docs/admin_partition_expiry.md) - Checks for mismatched partition expiry and allows updating to correct.
   - [`restore`](docs/admin_restore.md) - Restore a deleted BigQuery table from a snapshot using time travel.
   - [`sync-descriptions`](docs/admin_sync_descriptions.md) - Sync dbt descriptions from a manifest to BigQuery tables and columns.
+  - [`detect-metadata-only-changes`](docs/admin_detect_metadata_only_changes.md) - Detect whether every change against a state manifest is metadata only.
   - [`update-clustering`](docs/admin_update_clustering.md) - Update clustering configuration for a BigQuery table and re-cluster existing rows.
   - [`update-grants`](docs/admin_update_grants.md) - Update BigQuery table IAM grants for all dbt models based on manifest configuration.
   - [`incident-alert`](docs/admin_incident_alert.md) - Post to Slack when a job's latest run escalated or cleared an incident.
@@ -82,6 +83,11 @@ orphan_cleanup_skip_projects = [""] # Which projects not to look for orphaned mo
 # model config rules.
 # Ignored on dbt-core, where `dbt check` does not exist.
 validate_with_dbt_check = false
+
+# Metadata categories `dbtwiz admin detect-metadata-only-changes` treats as
+# metadata when no --ignore is given: description, tags, meta and freshness.
+# Unset means all.
+state_ignore = ["description", "tags", "meta", "freshness"]
 
 # Project variables offered as data expiration policies when creating an
 # incremental model, in the order they should be listed. The selected variable

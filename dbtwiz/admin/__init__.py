@@ -426,6 +426,116 @@ def sync_descriptions(
 
 @app.command()
 @description(
+    """Finds out whether every change against a state manifest is metadata only, so a
+CI build or deploy can skip running models, as it would for `[skip run]`.
+
+Lists `state:modified` against the state, then again against a temporary copy of it in
+which the metadata categories are taken from the current project. When the first
+listing selects something and the second selects nothing, only metadata changed. dbt
+itself decides what counts as modified both times; the copy is removed afterwards and
+used for nothing else.
+
+Categories:
+- `description`: model, source and column descriptions
+- `tags`: model, source and column tags
+- `meta`: model, source and column meta
+- `freshness`: source `freshness`, `loaded_at_field` and `loaded_at_query`
+
+The categories come from `--ignore`, else `state_ignore` in pyproject.toml, else all of
+them.
+
+A skipped run still has to bring metadata to production: `meta` feeds grants, applied
+by `dbtwiz admin update-grants`, and descriptions are applied by
+`dbtwiz admin sync-descriptions`.
+
+The command exits non-zero when dbt fails; treat that as a change beyond metadata.
+"""
+)
+@examples(
+    """Decide whether a deploy needs to run models:
+```shell
+$ dbtwiz admin detect-metadata-only-changes --state prod-state --target build --result-path result.json
+$ jq .metadata_only result.json
+```"""
+)
+def detect_metadata_only_changes(
+    state: Annotated[
+        Path,
+        typer.Option(
+            "--state",
+            help="Directory holding the manifest.json to compare against, as dbt's --state",
+        ),
+    ],
+    target: Annotated[
+        str,
+        typer.Option("--target", help="dbt target to list with"),
+    ] = None,
+    profiles_dir: Annotated[
+        str,
+        typer.Option("--profiles-dir", help="dbt profiles directory"),
+    ] = None,
+    ignore: Annotated[
+        List[str],
+        typer.Option(
+            "--ignore",
+            help="Metadata category to treat as metadata. Can be repeated.",
+        ),
+    ] = None,
+    result_path: Annotated[
+        Path,
+        typer.Option(
+            "--result-path",
+            help=(
+                "Write the result to this JSON file: metadata_only, categories, "
+                "modified and modified_beyond_metadata"
+            ),
+        ),
+    ] = None,
+) -> None:
+    """Detect whether every change against a state manifest is metadata only."""
+    import json
+
+    from ..dbt.state import METADATA_CATEGORIES
+    from ..dbt.state import (
+        detect_metadata_only_changes as command_detect_metadata_only_changes,
+    )
+    from ..utils.logger import info
+
+    categories = ignore or project_config().state_ignore or list(METADATA_CATEGORIES)
+    unknown = sorted(set(categories) - METADATA_CATEGORIES.keys())
+    if unknown:
+        raise InvalidArgumentsError(
+            f"Unknown metadata categories: {', '.join(unknown)}. "
+            f"Valid categories: {', '.join(METADATA_CATEGORIES)}"
+        )
+    dbt_options = {
+        key: value
+        for key, value in (("target", target), ("profiles_dir", profiles_dir))
+        if value
+    }
+
+    try:
+        result = command_detect_metadata_only_changes(state, categories, dbt_options)
+    except RuntimeError as ex:
+        error(str(ex))
+        raise typer.Exit(1)
+
+    if result["metadata_only"]:
+        info(
+            f"Only metadata changed: {len(result['modified'])} modified node(s), "
+            f"none beyond {', '.join(categories)}"
+        )
+    else:
+        info(
+            f"{len(result['modified_beyond_metadata'])} of "
+            f"{len(result['modified'])} modified node(s) changed beyond metadata"
+        )
+    if result_path:
+        Path(result_path).write_text(json.dumps(result, indent=2), encoding="utf-8")
+
+
+@app.command()
+@description(
     """Updates the clustering configuration for a BigQuery table and re-clusters all existing rows.
 
 The command will:
