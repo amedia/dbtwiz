@@ -193,6 +193,16 @@ class ProjectConfig(BaseModel):
         ),
     )
 
+    # Metadata categories `dbtwiz admin detect-metadata-only-changes` treats as metadata
+    # when no --ignore is given. Unset means every category.
+    state_ignore: Optional[List[str]] = Field(
+        None,
+        description=(
+            "Metadata categories `dbtwiz admin detect-metadata-only-changes` treats "
+            "as metadata: description, tags, meta and freshness"
+        ),
+    )
+
     # Expiration variables offered when creating an incremental model. Each project names
     # its own retention variables, so the list is declared rather than guessed from
     # variable names; the number of days behind each comes from the project's variables.
