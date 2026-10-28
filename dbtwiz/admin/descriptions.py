@@ -107,8 +107,16 @@ def _fetch_table(bq_client: Any, table_id: str, not_found_exc: type):
         return table_id, None, e
 
 
-def _collect_nodes(manifest: dict, model_names: Optional[List[str]]) -> Dict[str, dict]:
-    """Return {table_id: node} for all materialized models and snapshots in the manifest."""
+def _collect_nodes(
+    manifest: dict,
+    model_names: Optional[List[str]],
+    tags: Optional[List[str]] = None,
+) -> Dict[str, dict]:
+    """Return {table_id: node} for all materialized models and snapshots in the manifest.
+
+    With `tags`, only nodes carrying at least one of them are kept, matching dbt's
+    `tag:a tag:b` union selector.
+    """
     result = {}
     for node in manifest["nodes"].values():
         if node["resource_type"] not in ("model", "snapshot"):
@@ -117,6 +125,8 @@ def _collect_nodes(manifest: dict, model_names: Optional[List[str]]) -> Dict[str
             continue
         name = node["name"]
         if model_names and name not in model_names:
+            continue
+        if tags and not set(tags) & set(node.get("tags") or []):
             continue
         table_id = f"{node['database']}.{node['schema']}.{node.get('alias') or name}"
         result[table_id] = node
@@ -219,6 +229,7 @@ def sync_descriptions(
     model_names: Optional[List[str]] = None,
     manifest_path: Path = Manifest.PROD_MANIFEST_PATH,
     impersonate: bool = False,
+    tags: Optional[List[str]] = None,
 ) -> None:
     """Sync table and column descriptions from a manifest to BigQuery."""
     if manifest_path == Manifest.PROD_MANIFEST_PATH:
@@ -235,7 +246,7 @@ def sync_descriptions(
     bq_client = client.get_client()
     _expand_bq_connection_pool(bq_client)
 
-    nodes_by_table_id = _collect_nodes(manifest, model_names)
+    nodes_by_table_id = _collect_nodes(manifest, model_names, tags)
     if not nodes_by_table_id:
         info("No matching models found.")
         return
