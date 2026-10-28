@@ -5,6 +5,7 @@ import re
 import shutil
 import subprocess
 import sys
+from pathlib import Path
 
 
 def run(*cmd: str) -> None:
@@ -57,15 +58,15 @@ def main() -> None:
 
     run("git", "checkout", "-b", f"release/{tag}")
 
-    pyproject = open("pyproject.toml").read()
+    pyproject_path = Path("pyproject.toml")
     pyproject = re.sub(
         r'^version = ".*"',
         f'version = "{version}"',
-        pyproject,
+        pyproject_path.read_text(encoding="utf-8"),
         count=1,
         flags=re.MULTILINE,
     )
-    open("pyproject.toml", "w").write(pyproject)
+    pyproject_path.write_text(pyproject, encoding="utf-8")
 
     run("poetry", "lock")
     run("git", "add", "pyproject.toml", "poetry.lock")
