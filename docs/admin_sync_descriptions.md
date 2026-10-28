@@ -20,6 +20,10 @@ Path to dbt manifest.json. Defaults to the prod manifest download location.
 
 Limit sync to specific model name(s). Can be repeated.
 
+### `--tags`, `-t`
+
+Limit sync to models with this dbt tag. Can be repeated; a model matching any of the tags is included.
+
 ### `--dry-run`
 
 Show changes without applying them (default: --dry-run)

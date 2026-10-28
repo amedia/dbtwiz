@@ -395,6 +395,17 @@ def sync_descriptions(
             help="Limit sync to specific model name(s). Can be repeated.",
         ),
     ] = None,
+    tags: Annotated[
+        List[str],
+        typer.Option(
+            "--tag",
+            "-t",
+            help=(
+                "Limit sync to models with this dbt tag. Can be repeated; a model "
+                "matching any of the tags is included."
+            ),
+        ),
+    ] = None,
     dry_run: Annotated[
         bool,
         typer.Option(
@@ -421,6 +432,7 @@ def sync_descriptions(
         model_names=model_names or None,
         manifest_path=manifest_path,
         impersonate=impersonate,
+        tags=tags or None,
     )
 
 
