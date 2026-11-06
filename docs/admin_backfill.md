@@ -5,6 +5,10 @@ Backfill date-partitioned models in production for a specified date range.
 Spawns Cloud Run jobs to process multiple dates in parallel with configurable batch sizes.
 Use --retry to re-run only the failed tasks from the most recent execution.
 
+Without --batch-size, each batch is sized to finish within the prod job timeout: from
+the model's single-day run time in Elementary's run history (`incidents_elementary_dataset`),
+or, for models without history, from a dry run of a single day.
+
 ## Required arguments
 
 - `select`: Model selector passed to dbt
