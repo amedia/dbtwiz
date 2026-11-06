@@ -216,7 +216,8 @@ class ProjectConfig(BaseModel):
     )
 
     # Incidents — `dbtwiz admin incident-alert` and `incident-report` read Elementary's
-    # run history for models that keep failing.
+    # run history for models that keep failing. `dbtwiz admin backfill` reads it too, to
+    # size batches from run time.
     incidents_elementary_dataset: Optional[str] = Field(
         None,
         description="project.dataset holding Elementary's dbt_invocations and dbt_run_results",

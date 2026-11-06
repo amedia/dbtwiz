@@ -18,6 +18,40 @@ from ..utils.logger import debug, fatal, info, warn
 MAX_CONCURRENT_TASKS = 8
 YAML_FILE = project_dbtwiz_path("backfill-cloudrun.yaml")
 
+# Days of Elementary run history read when sizing batches from run time.
+RUNTIME_HISTORY_DAYS = 30
+
+# 90th percentile run time per model, over successful runs that built a single day.
+# A run without data_interval_end built the day given by data_interval_start, and a
+# run without either built today, so both count as single-day runs.
+SINGLE_DAY_RUNTIME_SQL = """
+with
+    single_day_invocations as (
+        select invocation_id,
+        from `{dataset}.dbt_invocations`
+        where
+            coalesce(
+                json_value(invocation_vars, '$.data_interval_end'),
+                json_value(invocation_vars, '$.data_interval_start'),
+                ''
+            )
+            = coalesce(json_value(invocation_vars, '$.data_interval_start'), '')
+    )
+
+select
+    r.name,
+    approx_quantiles(r.execution_time, 10)[offset(9)] as p90_execution_seconds,
+from `{dataset}.dbt_run_results` as r
+inner join single_day_invocations using (invocation_id)
+where
+    r.resource_type = 'model'
+    and r.name in unnest(@model_names)
+    and lower(r.status) = 'success'
+    and r.execution_time > 0
+    and r.created_at >= timestamp_sub(current_timestamp(), interval @history_days day)
+group by r.name
+"""
+
 
 def estimate_batch_size(
     models: list[dict],
@@ -112,6 +146,88 @@ def estimate_batch_size(
         return default_batch_size
 
     return min_batch_size
+
+
+def fetch_single_day_runtimes(model_names: list[str]) -> dict[str, float]:
+    """Seconds a single-day run of each model takes, from Elementary's run history.
+
+    Models without successful single-day runs in the last RUNTIME_HISTORY_DAYS are
+    left out, as are all models when the history can't be read.
+    """
+    from ..integrations.bigquery import GCP_LOCATION, BigQueryClient
+
+    dataset = project_config().incidents_elementary_dataset
+    if not dataset:
+        debug("incidents_elementary_dataset is not set, run time history skipped")
+        return {}
+
+    try:
+        client = BigQueryClient()
+        bq = client.get_bigquery()
+        job_config = bq.QueryJobConfig(
+            query_parameters=[
+                bq.ArrayQueryParameter("model_names", "STRING", model_names),
+                bq.ScalarQueryParameter("history_days", "INT64", RUNTIME_HISTORY_DAYS),
+            ]
+        )
+        rows = (
+            client.get_client()
+            .query(
+                SINGLE_DAY_RUNTIME_SQL.format(dataset=dataset),
+                job_config=job_config,
+                location=GCP_LOCATION,
+            )
+            .result()
+        )
+        return {r["name"]: r["p90_execution_seconds"] for r in rows}
+    except Exception as e:
+        warn(f"Failed to read run time history, sizing from dry runs only: {e}")
+        return {}
+
+
+def estimate_batch_size_from_runtime(
+    models: list[dict],
+    sample_date: date,
+    default_batch_size: int,
+    target_seconds: float,
+    target_bytes: int,
+) -> int:
+    """Size batches from how long a single-day run takes, so each task stays under
+    target_seconds.
+
+    Run time, not bytes scanned, is what a batch has to fit in the timeout. The two
+    part ways for models that read a lookback window: one day already scans the whole
+    window, while a batch of days scans little more. A batch of N days is assumed to
+    take at most N times a single day. Models with no run history fall back to the
+    dry-run estimate against target_bytes.
+    """
+    runtimes = fetch_single_day_runtimes([m["name"] for m in models])
+
+    batch_sizes = []
+    for model in models:
+        seconds = runtimes.get(model["name"])
+        if seconds is None:
+            continue
+        batch_size = min(default_batch_size, max(1, int(target_seconds / seconds)))
+        info(
+            f"Model {model.get('alias') or model['name']}: ~{seconds:.0f} s per day "
+            f"(p90 of the last {RUNTIME_HISTORY_DAYS} days) → batch size {batch_size} "
+            f"days (target {target_seconds:.0f} s/batch)"
+        )
+        batch_sizes.append(batch_size)
+
+    unmeasured = [m for m in models if m["name"] not in runtimes]
+    if unmeasured:
+        batch_sizes.append(
+            estimate_batch_size(
+                models=unmeasured,
+                sample_date=sample_date,
+                default_batch_size=default_batch_size,
+                target_bytes=target_bytes,
+            )
+        )
+
+    return min(batch_sizes)
 
 
 def chunk_date_range(
@@ -590,7 +706,11 @@ def backfill(
         incremental_models = [
             m for m in selected_models if m["config"]["materialized"] == "incremental"
         ]
-        # Target bytes per batch is derived from the prod job timeout:
+        # Batches must finish within the prod job timeout. Models with run history are
+        # sized from their single-day run time:
+        #   target = timeout_seconds × runtime_safety_margin = 600s × 0.9 = 540 s
+        # The run time is measured (p90), so its margin is smaller than the one below.
+        # Models without history are sized from a dry run, against target bytes:
         #   target = timeout_seconds × assumed_throughput × safety_margin
         #   = 600s × 0.1 GB/s × 0.8 ≈ 48 GB
         # The 0.1 GB/s is a conservative throughput assumption for complex models
@@ -600,13 +720,15 @@ def backfill(
         timeout_seconds = job_timeout("prod", default=600, leeway=0)
         assumed_throughput_gbps = 0.1
         safety_margin = 0.8
+        runtime_safety_margin = 0.9
         target_bytes = int(
             timeout_seconds * assumed_throughput_gbps * 1e9 * safety_margin
         )
-        batch_size = estimate_batch_size(
+        batch_size = estimate_batch_size_from_runtime(
             models=incremental_models,
             sample_date=last_date,
             default_batch_size=batch_size,
+            target_seconds=timeout_seconds * runtime_safety_margin,
             target_bytes=target_bytes,
         )
 

@@ -112,3 +112,110 @@ class TestEstimateBatchSize:
             [make_model("my_model", alias="aliased_table")], tmp_path, [2 * 10**9]
         )
         assert result == 5
+
+
+class TestEstimateBatchSizeFromRuntime:
+    DEFAULT = 30
+    TARGET_SECONDS = 480
+    TARGET_BYTES = 10 * 10**9
+    SAMPLE = date(2024, 1, 31)
+
+    def _run(self, models, runtimes, dry_run_batch_size=None):
+        from dbtwiz.admin.backfill import estimate_batch_size_from_runtime
+
+        with (
+            patch(
+                "dbtwiz.admin.backfill.fetch_single_day_runtimes", return_value=runtimes
+            ),
+            patch(
+                "dbtwiz.admin.backfill.estimate_batch_size",
+                return_value=dry_run_batch_size,
+            ) as mock_dry_run,
+        ):
+            result = estimate_batch_size_from_runtime(
+                models=models,
+                sample_date=self.SAMPLE,
+                default_batch_size=self.DEFAULT,
+                target_seconds=self.TARGET_SECONDS,
+                target_bytes=self.TARGET_BYTES,
+            )
+        return result, mock_dry_run
+
+    def test_calculates_batch_size_from_runtime(self):
+        result, mock_dry_run = self._run([make_model()], {"my_model": 40.0})
+        assert result == 12  # 480 s / 40 s
+        mock_dry_run.assert_not_called()
+
+    def test_capped_at_default(self):
+        result, _ = self._run([make_model()], {"my_model": 2.0})
+        assert result == self.DEFAULT
+
+    def test_minimum_is_one_when_runtime_exceeds_target(self):
+        result, _ = self._run([make_model()], {"my_model": 900.0})
+        assert result == 1
+
+    def test_falls_back_to_dry_run_without_history(self):
+        result, mock_dry_run = self._run([make_model()], {}, dry_run_batch_size=5)
+        assert result == 5
+        assert mock_dry_run.call_args.kwargs["models"] == [make_model()]
+
+    def test_dry_runs_only_unmeasured_models(self):
+        measured, unmeasured = make_model("model_a"), make_model("model_b")
+        result, mock_dry_run = self._run(
+            [measured, unmeasured], {"model_a": 40.0}, dry_run_batch_size=20
+        )
+        assert result == 12  # min of 12 from run time and 20 from the dry run
+        assert mock_dry_run.call_args.kwargs["models"] == [unmeasured]
+
+
+class TestFetchSingleDayRuntimes:
+    def test_skipped_without_elementary_dataset(self):
+        from dbtwiz.admin.backfill import fetch_single_day_runtimes
+
+        with (
+            patch("dbtwiz.admin.backfill.project_config") as mock_cfg,
+            patch("dbtwiz.integrations.bigquery.BigQueryClient") as mock_bq,
+        ):
+            mock_cfg.return_value.incidents_elementary_dataset = None
+            assert fetch_single_day_runtimes(["my_model"]) == {}
+            mock_bq.assert_not_called()
+
+    def test_empty_when_query_fails(self):
+        from dbtwiz.admin.backfill import fetch_single_day_runtimes
+
+        mock_bq = MagicMock()
+        mock_bq.get_client.return_value.query.side_effect = RuntimeError("denied")
+        with (
+            patch("dbtwiz.admin.backfill.project_config") as mock_cfg,
+            patch("dbtwiz.integrations.bigquery.BigQueryClient", return_value=mock_bq),
+        ):
+            mock_cfg.return_value.incidents_elementary_dataset = "project.elementary"
+            assert fetch_single_day_runtimes(["my_model"]) == {}
+
+    def test_maps_model_name_to_runtime(self):
+        from dbtwiz.admin.backfill import fetch_single_day_runtimes
+
+        mock_bq = MagicMock()
+        mock_bq.get_client.return_value.query.return_value.result.return_value = [
+            {"name": "my_model", "p90_execution_seconds": 40.0}
+        ]
+        with (
+            patch("dbtwiz.admin.backfill.project_config") as mock_cfg,
+            patch("dbtwiz.integrations.bigquery.BigQueryClient", return_value=mock_bq),
+        ):
+            mock_cfg.return_value.incidents_elementary_dataset = "project.elementary"
+            assert fetch_single_day_runtimes(["my_model"]) == {"my_model": 40.0}
+
+
+class TestBackfillTaskArgs:
+    def test_skips_checks_on_dbt_v2(self):
+        from dbtwiz.commands.build import backfill_task_args
+
+        with patch("dbtwiz.commands.build.dbt_core_installed", return_value=False):
+            assert backfill_task_args() == {"write-json": False, "skip-checks": True}
+
+    def test_no_skip_checks_on_dbt_core(self):
+        from dbtwiz.commands.build import backfill_task_args
+
+        with patch("dbtwiz.commands.build.dbt_core_installed", return_value=True):
+            assert backfill_task_args() == {"write-json": False}

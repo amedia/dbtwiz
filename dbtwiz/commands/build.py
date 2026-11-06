@@ -4,7 +4,7 @@ from datetime import date, timedelta
 
 from ..config.project import project_config, project_dbtwiz_path
 from ..dbt.manifest import Manifest
-from ..dbt.run import invoke
+from ..dbt.run import dbt_core_installed, invoke
 from ..integrations.gcp_auth import ensure_auth
 from ..utils.logger import debug, error, info
 
@@ -41,6 +41,17 @@ def parse_task_ranges(task_ranges: str) -> list[tuple[date, date]]:
             (date.fromisoformat(start_str.strip()), date.fromisoformat(end_str.strip()))
         )
     return ranges
+
+
+def backfill_task_args() -> dict:
+    """dbt arguments for one backfill task: no artifacts, and on dbt v2 no checks,
+    since checks inspect the project, not the backfilled data. dbt-core has no
+    --skip-checks.
+    """
+    args = {"write-json": False}
+    if not dbt_core_installed():
+        args["skip-checks"] = True
+    return args
 
 
 def build(
@@ -118,8 +129,7 @@ def build(
         args["full-refresh"] = True
 
     if use_task_index:
-        # No need for artifacts when backfilling
-        args["write-json"] = False
+        args.update(backfill_task_args())
 
     invoke(commands, **args)
 
