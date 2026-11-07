@@ -7,12 +7,11 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 
-def make_model(name="my_model", alias=None):
-    return {
-        "name": name,
-        "alias": alias or name,
-        "config": {"materialized": "incremental"},
-    }
+def make_model(name="my_model", alias=None, meta=None):
+    config = {"materialized": "incremental"}
+    if meta is not None:
+        config["meta"] = meta
+    return {"name": name, "alias": alias or name, "config": config}
 
 
 def write_compiled_sql(tmp_path: Path, model_name: str) -> Path:
@@ -166,6 +165,70 @@ class TestEstimateBatchSizeFromRuntime:
         )
         assert result == 12  # min of 12 from run time and 20 from the dry run
         assert mock_dry_run.call_args.kwargs["models"] == [unmeasured]
+
+    def test_meta_pins_batch_size_without_estimating(self):
+        from dbtwiz.admin.backfill import estimate_batch_size_from_runtime
+
+        pinned = make_model(meta={"backfill_batch_size": 7})
+        with (
+            patch("dbtwiz.admin.backfill.fetch_single_day_runtimes") as mock_runtimes,
+            patch("dbtwiz.admin.backfill.estimate_batch_size") as mock_dry_run,
+        ):
+            result = estimate_batch_size_from_runtime(
+                models=[pinned],
+                sample_date=self.SAMPLE,
+                default_batch_size=self.DEFAULT,
+                target_seconds=self.TARGET_SECONDS,
+                target_bytes=self.TARGET_BYTES,
+            )
+        assert result == 7
+        mock_runtimes.assert_not_called()
+        mock_dry_run.assert_not_called()
+
+    def test_meta_is_not_capped_at_default(self):
+        result, _ = self._run([make_model(meta={"backfill_batch_size": 90})], {})
+        assert result == 90
+
+    def test_meta_takes_part_in_minimum_across_models(self):
+        pinned = make_model("model_a", meta={"backfill_batch_size": 3})
+        estimated = make_model("model_b")
+        result, mock_dry_run = self._run(
+            [pinned, estimated], {"model_b": 40.0}, dry_run_batch_size=20
+        )
+        assert result == 3  # min of 3 pinned and 12 from run time
+        mock_dry_run.assert_not_called()
+
+    def test_only_unpinned_models_are_estimated(self):
+        pinned = make_model("model_a", meta={"backfill_batch_size": 25})
+        estimated = make_model("model_b")
+        result, mock_dry_run = self._run(
+            [pinned, estimated], {"model_b": 40.0}, dry_run_batch_size=20
+        )
+        assert result == 12
+        mock_dry_run.assert_not_called()
+
+    def test_other_meta_keys_are_ignored(self):
+        result, _ = self._run([make_model(meta={"teams": ["x"]})], {"my_model": 40.0})
+        assert result == 12
+
+    def test_unset_meta_value_means_not_pinned(self):
+        from dbtwiz.admin.backfill import configured_batch_size
+
+        assert configured_batch_size(make_model()) is None
+        assert configured_batch_size(make_model(meta={"other": 1})) is None
+        assert (
+            configured_batch_size(make_model(meta={"backfill_batch_size": None}))
+            is None
+        )
+
+    @pytest.mark.parametrize("value", [0, -1, 2.5, "7", True])
+    def test_invalid_meta_value_is_fatal(self, value):
+        import typer
+
+        from dbtwiz.admin.backfill import configured_batch_size
+
+        with pytest.raises(typer.Exit):
+            configured_batch_size(make_model(meta={"backfill_batch_size": value}))
 
 
 class TestFetchSingleDayRuntimes:
