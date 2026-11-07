@@ -21,6 +21,9 @@ YAML_FILE = project_dbtwiz_path("backfill-cloudrun.yaml")
 # Days of Elementary run history read when sizing batches from run time.
 RUNTIME_HISTORY_DAYS = 30
 
+# Model meta key that pins the batch size, for models where the estimate is wrong.
+BATCH_SIZE_META_KEY = "backfill_batch_size"
+
 # 90th percentile run time per model, over successful runs that built a single day.
 # A run without data_interval_end built the day given by data_interval_start, and a
 # run without either built today, so both count as single-day runs.
@@ -185,6 +188,26 @@ def fetch_single_day_runtimes(model_names: list[str]) -> dict[str, float]:
         return {}
 
 
+def configured_batch_size(model: dict) -> int | None:
+    """Batch size pinned on the model through meta.backfill_batch_size, if any.
+
+    Estimation can only see run time and bytes scanned, so a model whose batches
+    need sizing by something else can state the size itself. The value must be a
+    positive whole number; anything else stops the backfill rather than quietly
+    falling back to an estimate the model owner has said is wrong.
+    """
+    meta = model.get("config", {}).get("meta") or {}
+    value = meta.get(BATCH_SIZE_META_KEY)
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+        fatal(
+            f"Model {model['name']}: meta.{BATCH_SIZE_META_KEY} must be a positive "
+            f"whole number of days, got {value!r}"
+        )
+    return value
+
+
 def estimate_batch_size_from_runtime(
     models: list[dict],
     sample_date: date,
@@ -200,10 +223,30 @@ def estimate_batch_size_from_runtime(
     window, while a batch of days scans little more. A batch of N days is assumed to
     take at most N times a single day. Models with no run history fall back to the
     dry-run estimate against target_bytes.
+
+    A model with meta.backfill_batch_size is not estimated: its own value is used,
+    uncapped by default_batch_size. With several models, the smallest batch size
+    wins, whichever way it was found.
     """
+    batch_sizes = []
+    estimated = []
+    for model in models:
+        configured = configured_batch_size(model)
+        if configured is None:
+            estimated.append(model)
+            continue
+        info(
+            f"Model {model.get('alias') or model['name']}: batch size {configured} "
+            f"days from meta.{BATCH_SIZE_META_KEY}"
+        )
+        batch_sizes.append(configured)
+
+    if not estimated:
+        return min(batch_sizes)
+
+    models = estimated
     runtimes = fetch_single_day_runtimes([m["name"] for m in models])
 
-    batch_sizes = []
     for model in models:
         seconds = runtimes.get(model["name"])
         if seconds is None:

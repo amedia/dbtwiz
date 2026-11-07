@@ -60,6 +60,22 @@ def _validate_backfill_args(
 
 
 @app.command()
+@description(
+    """A model can pin its own batch size with `meta.backfill_batch_size` (a positive number of
+days), for cases the estimate gets wrong. A pinned model is not estimated, and its value is
+not capped by `backfill_default_batch_size`. When several models are selected, the smallest
+batch size wins, whether pinned or estimated. An explicit --batch-size still overrides all of
+this.
+
+```yaml
+models:
+  - name: my_model
+    config:
+      meta:
+        backfill_batch_size: 7
+```
+"""
+)
 @examples(
     """Example of the basic use-case:
 ```shell

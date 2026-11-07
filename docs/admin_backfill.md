@@ -9,6 +9,20 @@ Without --batch-size, each batch is sized to finish within the prod job timeout:
 the model's single-day run time in Elementary's run history (`incidents_elementary_dataset`),
 or, for models without history, from a dry run of a single day.
 
+A model can pin its own batch size with `meta.backfill_batch_size` (a positive number of
+days), for cases the estimate gets wrong. A pinned model is not estimated, and its value is
+not capped by `backfill_default_batch_size`. When several models are selected, the smallest
+batch size wins, whether pinned or estimated. An explicit --batch-size still overrides all of
+this.
+
+```yaml
+models:
+  - name: my_model
+    config:
+      meta:
+        backfill_batch_size: 7
+```
+
 ## Required arguments
 
 - `select`: Model selector passed to dbt
