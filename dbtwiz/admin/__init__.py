@@ -458,6 +458,57 @@ def sync_descriptions(
 
 @app.command()
 @description(
+    """Adds the labels configured as dataset_labels in pyproject.toml to the datasets of
+the models, seeds and snapshots in a dbt manifest. Run it after a deploy, the only time
+dbt creates new datasets, so storage billing can be attributed to dbt.
+
+Only datasets in the projects listed as dataset_labels_projects are labelled; a model
+can write to a dataset in another team's project, which is left alone.
+
+A label the dataset already has is left alone, also when its value differs (a warning is
+shown), and labels not in dataset_labels are kept. In dry-run mode (default), it lists
+which datasets are missing labels without making any changes. Use `--apply` to add them.
+It stops at the first permission error, and exits with an error when any update failed.
+"""
+)
+def add_dataset_labels(
+    manifest_path: Annotated[
+        Path,
+        typer.Option(
+            "--manifest-path",
+            help="Path to dbt manifest.json. Defaults to the prod manifest download location.",
+        ),
+    ] = Manifest.PROD_MANIFEST_PATH,
+    dry_run: Annotated[
+        bool,
+        typer.Option(
+            "--dry-run/--apply",
+            help="Show changes without applying them (default: --dry-run)",
+        ),
+    ] = True,
+    impersonate: Annotated[
+        bool,
+        typer.Option(
+            "--impersonate",
+            help=(
+                "Impersonate the service account configured as "
+                "service_account_identifier in pyproject.toml."
+            ),
+        ),
+    ] = False,
+) -> None:
+    """Add the configured dataset labels to the datasets of the models in a manifest."""
+    from .add_dataset_labels import add_dataset_labels as command_add_dataset_labels
+
+    command_add_dataset_labels(
+        dry_run=dry_run,
+        manifest_path=manifest_path,
+        impersonate=impersonate,
+    )
+
+
+@app.command()
+@description(
     """Finds out whether every change against a state manifest is metadata only, so a
 CI build or deploy can skip running models, as it would for `[skip run]`.
 

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dbtwiz"
-version = "0.3.21"
+version = "0.3.22"
 authors = [
     {name = "Amedia Produkt og Teknologi"}
 ]
@@ -32,6 +32,9 @@ dependencies = [
 
 [project.scripts]
 dbtwiz = "dbtwiz.cli.main:main"
+
+[tool.setuptools.packages.find]
+include = ["dbtwiz*"]
 
 [tool.ruff]
 line-length = 88
