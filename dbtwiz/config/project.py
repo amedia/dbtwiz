@@ -145,6 +145,19 @@ class ProjectConfig(BaseModel):
         description="IAM role to manage (defaults to roles/bigquery.dataViewer)",
     )
 
+    # Dataset labels — `dbtwiz admin add-dataset-labels` adds these to the datasets of
+    # the models in a manifest, in the projects dbt creates datasets in. A model can write
+    # to a dataset in another team's project, which is left alone. Either setting empty
+    # makes the command a no-op.
+    dataset_labels: Dict[str, str] = Field(
+        default_factory=dict,
+        description="Labels added to the datasets of the models in a manifest, e.g. {app = 'dbt'}",
+    )
+    dataset_labels_projects: List[str] = Field(
+        default_factory=list,
+        description="GCP project IDs whose datasets dbt creates; add-dataset-labels leaves datasets in other projects alone",
+    )
+
     # Source settings
     source_reader_service_accounts: Dict[str, str] = Field(
         default_factory=dict,

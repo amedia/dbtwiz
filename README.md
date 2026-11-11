@@ -36,6 +36,7 @@ You can also run `dbtwiz --help`/`dbtwiz -h`, which will list the commands with 
   - [`partition-expiry`](docs/admin_partition_expiry.md) - Checks for mismatched partition expiry and allows updating to correct.
   - [`restore`](docs/admin_restore.md) - Restore a deleted BigQuery table from a snapshot using time travel.
   - [`sync-descriptions`](docs/admin_sync_descriptions.md) - Sync dbt descriptions from a manifest to BigQuery tables and columns.
+  - [`add-dataset-labels`](docs/admin_add_dataset_labels.md) - Add the configured dataset labels to the datasets of the models in a manifest.
   - [`detect-metadata-only-changes`](docs/admin_detect_metadata_only_changes.md) - Detect whether every change against a state manifest is metadata only.
   - [`update-clustering`](docs/admin_update_clustering.md) - Update clustering configuration for a BigQuery table and re-cluster existing rows.
   - [`update-grants`](docs/admin_update_grants.md) - Update BigQuery table IAM grants for all dbt models based on manifest configuration.
@@ -78,6 +79,13 @@ docker_image_manifest_path = ""     # Path to manifest in docker image
 orphan_cleanup_bq_region = ""       # The region where data is materialized (e.g. region-eu)
 orphan_cleanup_projects = [""]      # Which projects to look for orphaned models in (e.g. prod)
 orphan_cleanup_skip_projects = [""] # Which projects not to look for orphaned moels in (e.g. dev)
+
+# Labels `dbtwiz admin add-dataset-labels` adds to the datasets of the models in a
+# manifest, so their storage cost can be attributed. Labels a dataset already has are
+# left alone. Only datasets in dataset_labels_projects are labelled, since a model can
+# write to a dataset in another team's project. Either one unset makes the command a no-op.
+dataset_labels = { app = "dbt" }
+dataset_labels_projects = [""]      # Projects whose datasets dbt creates
 
 # On dbt v2, let `dbtwiz model validate` check models with the project's own
 # `dbt check` checks instead of dbtwiz's name-against-folder, primary key and
