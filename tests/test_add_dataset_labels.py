@@ -65,20 +65,20 @@ def test_missing_labels_ignores_labels_already_set():
 
 
 def test_missing_labels_does_not_overwrite_another_value():
-    assert _missing_labels({"app": "prism"}, {"app": "dbt"}) == {}
+    assert _missing_labels({"app": "other"}, {"app": "dbt"}) == {}
 
 
 def test_conflicting_labels_reports_another_value():
-    assert _conflicting_labels({"app": "prism"}, {"app": "dbt"}) == {"app": "prism"}
+    assert _conflicting_labels({"app": "other"}, {"app": "dbt"}) == {"app": "other"}
     assert _conflicting_labels({"app": "dbt"}, {"app": "dbt"}) == {}
 
 
 def test_split_by_project_keeps_datasets_in_the_projects():
     included, excluded = _split_by_project(
-        {"core.b", "core.a", "marts.c", "asm.ssp"}, ["core", "marts"]
+        {"core.b", "core.a", "marts.c", "other.ds"}, ["core", "marts"]
     )
     assert included == ["core.a", "core.b", "marts.c"]
-    assert excluded == ["asm.ssp"]
+    assert excluded == ["other.ds"]
 
 
 def test_split_by_project_matches_the_whole_project_id():
