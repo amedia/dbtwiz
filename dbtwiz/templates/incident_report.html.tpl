@@ -90,12 +90,15 @@
   {% for n in range(6) %}.job-{{ n }} { --job-fg: var(--job-{{ n }}); --job-bg: var(--job-{{ n }}-bg); }
   {% endfor %}
   .radius { color: var(--orange); font-weight: 600; }
+  details ul.members { columns: 1; }
+  .meta { color: var(--muted); font-size: 12px; }
+  .kind { font-size: 11px; font-weight: 600; color: var(--muted); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; }
   details summary { cursor: pointer; }
   details ul { margin: 6px 0 0; padding-left: 18px; columns: 2; }
   .group { margin: 8px 0 0; font-size: 12px; font-weight: 600; }
   .group.shared { color: var(--orange); }
   .group.exposures { color: var(--red); }
-  .group.all { color: var(--muted); }
+  .group.other { color: var(--muted); }
   pre { white-space: pre-wrap; word-break: break-word; font-size: 12px; margin: 6px 0 0;
         background: var(--code-bg); padding: 8px; border-radius: 6px; }
   .empty { padding: 16px; margin: 0; color: var(--green); }
@@ -126,19 +129,20 @@
 </style>
 </head>
 <body>
+{% macro node(i) %}{% if i.model_url %}<a class="out" href="{{ i.model_url }}" target="_blank" rel="noopener"><code>{{ i.name }}</code></a>{% else %}<code>{{ i.name }}</code>{% endif %}{% if i.is_test %} <span class="kind">test</span>{% endif %}{% endmacro %}
 <header>
   <div class="inner">
     <div>
       <h1>Incident report</h1>
-      <p>Generated {{ generated_at }} ({{ tz_name }})<span id="age"></span> · an incident is a model's unbroken run of failed runs within one job · last {{ window_days }} days</p>
+      <p>Generated {{ generated_at }} ({{ tz_name }})<span id="age"></span> · an incident is a model's or test's unbroken run of failed runs within one job · last {{ window_days }} days</p>
     </div>
-    {% if open_incidents %}<span class="status bad">{{ open_incidents | length }} open</span>{% else %}<span class="status ok">All clear</span>{% endif %}
+    {% if open_count %}<span class="status bad">{{ open_count }} open</span>{% else %}<span class="status ok">All clear</span>{% endif %}
   </div>
 </header>
 <div class="stale" id="stale"><div class="inner">This report is <span id="stale-age"></span> old. It is refreshed by a scheduled job, so that job may have stopped running.</div></div>
 <main>
   <div class="summary">
-    <div class="tile {{ 'red' if open_incidents else 'quiet' }}"><b>{{ open_incidents | length }}</b>open incidents</div>
+    <div class="tile {{ 'red' if open_count else 'quiet' }}"><b>{{ open_count }}</b>open incidents</div>
     <div class="tile {{ 'orange' if downstream_total else 'quiet' }}"><b>{{ downstream_total }}</b>downstream models</div>
     <div class="tile green"><b>{{ cleared | length }}</b>cleared in {{ window_days }} days</div>
   </div>
@@ -163,24 +167,27 @@
   {% endif %}
 
   <h2 class="open">Open</h2>
-  {% if open_incidents %}
+  {% if open_groups %}
   <div class="scroll"><table>
-    <thead><tr><th>Job</th><th>Model</th><th>Failing since</th><th>For</th><th>Failed runs</th><th>Cause</th><th>Blast radius</th></tr></thead>
+    <thead><tr><th>Job</th><th>Cause</th><th>Failing</th><th>Failing since</th><th>For</th><th>Failed runs</th><th>Blast radius</th></tr></thead>
     <tbody>
-    {% for i in open_incidents %}
+    {% for i in open_groups %}
       <tr class="sev-{{ i.severity }}" data-job="{{ i.job_id }}">
         <td><span class="job job-{{ i.job_color }}">{{ i.job_id }}</span></td>
-        <td>{% if i.model_url %}<a class="out" href="{{ i.model_url }}" target="_blank" rel="noopener"><code>{{ i.name }}</code></a>{% else %}<code>{{ i.name }}</code>{% endif %}</td>
+        <td><details><summary>{{ i.cause }}</summary><pre>{{ i.message }}</pre></details>{% if i.query_url %}<a class="link out" href="{{ i.query_url }}" target="_blank" rel="noopener">BigQuery job &#8599;</a>{% endif %}</td>
+        <td>
+          {% if i.members | length == 1 %}{{ node(i) }}
+          {% else %}<details><summary>{{ i.nodes }}</summary><ul class="members">{% for m in i.members %}<li>{{ node(m) }} <span class="meta">{{ m.duration }}</span></li>{% endfor %}</ul></details>{% endif %}
+        </td>
         <td class="when">{% if i.is_start_truncated %}before {% endif %}{{ i.first_failed }}</td>
         <td class="num"><span class="badge">{{ i.duration }}</span></td>
         <td class="num">{{ i.failed_runs }}</td>
-        <td><details><summary>{{ i.cause }}</summary><pre>{{ i.message }}</pre></details>{% if i.query_url %}<a class="link out" href="{{ i.query_url }}" target="_blank" rel="noopener">BigQuery job &#8599;</a>{% endif %}</td>
         <td>
-          {% if i.downstream %}
-          <details><summary><span class="radius">{{ i.downstream | length }} downstream</span>{% if i.shared %}, {{ i.shared | length }} public/protected{% endif %}{% if i.exposures %}, {{ i.exposures | length }} exposures{% endif %}</summary>
-            {% if i.exposures %}<p class="group exposures">Exposures</p><ul>{% for n in i.exposures %}<li>{{ n }}</li>{% endfor %}</ul>{% endif %}
+          {% if i.downstream_count %}
+          <details><summary><span class="radius">{{ i.downstream_count }} downstream</span>{% if i.shared %}, {{ i.shared | length }} public/protected{% endif %}{% if i.exposure_count %}, {{ i.exposure_count }} exposures{% endif %}</summary>
+            {% for kind, names in i.exposures.items() %}<p class="group exposures">Exposures: {{ kind }}</p><ul>{% for n in names %}<li>{{ n }}</li>{% endfor %}</ul>{% endfor %}
             {% if i.shared %}<p class="group shared">Public/protected</p><ul>{% for n in i.shared %}<li><code>{{ n }}</code></li>{% endfor %}</ul>{% endif %}
-            <p class="group all">All downstream</p><ul>{% for n in i.downstream %}<li><code>{{ n }}</code></li>{% endfor %}</ul>
+            {% if i.unshared %}<p class="group other">Private and other</p><ul>{% for n in i.unshared %}<li><code>{{ n }}</code></li>{% endfor %}</ul>{% endif %}
           </details>
           {% else %}<span class="meta">nothing downstream</span>{% endif %}
         </td>
@@ -201,12 +208,12 @@
   <details class="section">
   <summary><h2 class="cleared">Cleared ({{ cleared | length }} in {{ window_days }} days)</h2></summary>
   <div class="scroll"><table>
-    <thead><tr><th>Job</th><th>Model</th><th>First failed</th><th>Cleared</th><th>Lasted</th><th>Failed runs</th><th>Cause</th></tr></thead>
+    <thead><tr><th>Job</th><th>Node</th><th>First failed</th><th>Cleared</th><th>Lasted</th><th>Failed runs</th><th>Cause</th></tr></thead>
     <tbody>
     {% for i in cleared %}
       <tr class="cleared-row" data-job="{{ i.job_id }}">
         <td><span class="job job-{{ i.job_color }}">{{ i.job_id }}</span></td>
-        <td>{% if i.model_url %}<a class="out" href="{{ i.model_url }}" target="_blank" rel="noopener"><code>{{ i.name }}</code></a>{% else %}<code>{{ i.name }}</code>{% endif %}</td>
+        <td>{{ node(i) }}</td>
         <td class="when">{% if i.is_start_truncated %}before {% endif %}{{ i.first_failed }}</td>
         <td class="when">{{ i.cleared }}</td>
         <td class="num"><span class="badge">{{ i.duration }}</span></td>

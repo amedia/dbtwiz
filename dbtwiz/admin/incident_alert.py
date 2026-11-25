@@ -1,7 +1,7 @@
 """Post to Slack when a job's latest run pushed an incident past an escalation threshold.
 
-Elementary alerts on every failed model in every run, so a model that fails for fourteen
-hours looks the same in Slack as one that failed once. This escalates instead: when an
+Elementary alerts on every failed model or test in every run, so a model that fails for
+fourteen hours looks the same in Slack as one that failed once. This escalates instead: when an
 incident has been failing for 3h, 6h, 12h, … (doubling from
 `incident_alert_escalation_hours`), and once more when an escalated incident clears.
 
@@ -33,7 +33,13 @@ from .incidents import (
     format_duration,
     format_ts,
     group_by_cause,
+    node_count,
 )
+
+# Past these, an escalation counts its failing nodes or exposures instead of naming
+# them: a sample of names says less than the count, and the report has the list.
+LISTED_NODES = 5
+LISTED_EXPOSURES = 8
 
 
 def crossed_threshold(
@@ -94,10 +100,17 @@ def _slack_escape(text: str) -> str:
     return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
-def _names(uids, graph: ManifestGraph, limit: int) -> str:
-    names = graph.sorted_names(uids)
-    shown = ", ".join(f"`{n}`" for n in names[:limit])
-    return shown + (f" and {len(names) - limit} more" if len(names) > limit else "")
+def _exposure_lines(uids, graph: ManifestGraph) -> List[str]:
+    """The exposures named per type, or past the limit in all only counted per type."""
+    by_type = graph.exposures_by_type(uids)
+    if len(uids) > LISTED_EXPOSURES:
+        counts = ", ".join(f"{kind} {len(names)}" for kind, names in by_type.items())
+        return [f"Exposures downstream by type: {counts}"]
+    return [
+        f"Downstream {kind} exposures: "
+        + ", ".join(f"`{_slack_escape(n)}`" for n in names)
+        for kind, names in by_type.items()
+    ]
 
 
 def _escalation_section(
@@ -107,28 +120,32 @@ def _escalation_section(
     graph: ManifestGraph,
     tz: tzinfo,
 ) -> str:
-    """The failing models sharing one cause, and their combined blast radius."""
+    """The failing nodes sharing one cause, and their combined blast radius."""
     lines = [f":rotating_light: *{_slack_escape(job_id)}*: {_slack_escape(cause)}"]
-    for i in members[:10]:
-        since = ("before " if i.is_start_truncated else "since ") + format_ts(
-            i.first_failed_ts, tz
-        )
-        lines.append(
+
+    def since(i: Incident) -> str:
+        prefix = "before " if i.is_start_truncated else "since "
+        return prefix + format_ts(i.first_failed_ts, tz)
+
+    if len(members) <= LISTED_NODES:
+        lines.extend(
             f"• `{i.name}` failing for {format_duration(i.failing_for)}"
-            f" ({i.failed_run_count} runs, {since})"
+            f" ({i.failed_run_count} runs, {since(i)})"
+            for i in members
         )
-    if len(members) > 10:
-        lines.append(f"• and {len(members) - 10} more")
+    else:
+        lead = max(members, key=lambda i: i.failing_for)
+        lines.append(
+            f"{node_count(members)} failing for up to"
+            f" {format_duration(lead.failing_for)} ({since(lead)})"
+        )
     radius = blast_radius(members, graph)
     if radius.downstream:
         impact = f"{len(radius.downstream)} downstream models"
         if radius.shared:
-            impact += f", {len(radius.shared)} of them public/protected: " + _names(
-                radius.shared, graph, 8
-            )
+            impact += f", {len(radius.shared)} of them public/protected"
         lines.append(f"Blast radius: {impact}")
-    if radius.exposures:
-        lines.append(f"Exposures downstream: {_names(radius.exposures, graph, 8)}")
+    lines.extend(_exposure_lines(radius.exposures, graph))
     return "\n".join(lines)
 
 
@@ -183,7 +200,7 @@ def slack_message(
 
     sections = [
         _escalation_section(job_id, cause, members, graph, tz)
-        for cause, members in group_by_cause(escalating).items()
+        for cause, members in group_by_cause(escalating, graph).items()
     ]
     if escalating and mentions:
         sections.append(" ".join(mentions))

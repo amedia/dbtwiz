@@ -9,20 +9,23 @@ renders an HTML page of every job's status and incidents:
   running once 1.5 intervals plus 15 minutes have passed since its latest run; the page
   works this out against the viewer's clock, so it stays right on a page left open.
   Clicking a job shows only its incidents.
-- **Open incidents** — a model's consecutive failed runs within one job — with their
-  blast radius from the manifest: every model downstream, the public/protected ones
-  among them, and the exposures downstream.
+- **Open incidents** — a model's, snapshot's, seed's or data test's consecutive failed
+  runs within one job — with their blast radius from the manifest: every model
+  downstream (for a test, of the node it checks, which is included), the
+  public/protected ones among them, and the exposures downstream by type. Incidents of one job
+  with the same cause are one row, as in `incident-alert`, listing the failing nodes.
 - **Cleared incidents** within `incidents_window_days`, collapsed.
 
 The page warns when it is older than `incident_report_stale_minutes`, which means the
-job refreshing it has stopped. Model names link into dbt docs when
+job refreshing it has stopped. Node names link into dbt docs when
 `incident_report_dbt_docs_url` is set, job names to their DAG when
 `incident_report_airflow_url` is set, and an error to its BigQuery job when the message
 carries the link.
 
 A JSON summary is written beside the page (`.html` replaced by `.json`) for an overview
 page to fetch: generation time and stale limit, each job's latest run, when it goes
-overdue and its open incident count, and the open incidents. Its field names follow
+overdue and its open incident count, and the open incidents with their `resource_type`.
+Its field names follow
 dlt-saga's report summary (`stale_after_minutes`, `last_attempt_at`, `usual_gap_minutes`,
 `overdue_at`, `failing_since`, `report_file`), so one page can read both.
 

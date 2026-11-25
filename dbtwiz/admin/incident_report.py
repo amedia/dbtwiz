@@ -10,7 +10,7 @@ import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone, tzinfo
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import quote
 
 from jinja2 import Environment
@@ -25,12 +25,14 @@ from .incidents import (
     blast_radius,
     display_timezone,
     drop_removed_nodes,
+    failure_detail,
     fetch_incidents,
     fetch_job_runs,
     format_duration,
     format_ts,
+    incident_cause,
+    node_count,
     query_link,
-    summarize_cause,
 )
 
 # Must match the job-N colours defined in the template.
@@ -77,6 +79,7 @@ def _iso(ts: datetime) -> str:
 def status_summary(
     incidents: List[Incident],
     job_runs: List[JobRun],
+    graph: ManifestGraph,
     generated_at: datetime,
     window_days: int,
     report_file: Optional[str],
@@ -126,9 +129,11 @@ def status_summary(
             {
                 "job_id": i.job_id,
                 "unique_id": i.unique_id,
+                "name": i.name,
+                "resource_type": i.resource_type,
                 "failing_since": _iso(i.first_failed_ts),
                 "failed_run_count": i.failed_run_count,
-                "cause": summarize_cause(i.last_message),
+                "cause": incident_cause(i, graph),
             }
             for i in sorted(open_incidents, key=lambda i: i.first_failed_ts)
         ],
@@ -158,13 +163,13 @@ def render_report(
     )
 
     def row(i: Incident) -> Dict[str, Any]:
-        radius = blast_radius([i], graph)
         return {
             "job_id": i.job_id,
             "job_color": job_colors[i.job_id],
             "job_url": links.job(i.job_id),
             "severity": severity(i.failing_for),
             "name": i.name,
+            "is_test": i.resource_type == "test",
             "model_url": links.model(i.unique_id),
             "first_failed": format_ts(i.first_failed_ts, tz),
             "is_start_truncated": i.is_start_truncated,
@@ -173,13 +178,30 @@ def render_report(
                 (i.cleared_ts or i.last_failed_ts) - i.first_failed_ts
             ),
             "failed_runs": i.failed_run_count,
-            "cause": summarize_cause(i.last_message),
+            "cause": incident_cause(i, graph),
             "query_url": query_link(i.last_message),
-            "message": i.last_message or "",
-            "downstream": graph.sorted_names(radius.downstream),
-            "shared": graph.sorted_names(radius.shared),
-            "exposures": graph.sorted_names(radius.exposures),
+            "message": failure_detail(i),
         }
+
+    def group_row(members: List[Incident]) -> Dict[str, Any]:
+        """Open incidents of one job sharing a cause, shown by the longest-failing."""
+        lead = max(members, key=lambda i: i.failing_for)
+        radius = blast_radius(members, graph)
+        return {
+            **row(lead),
+            "nodes": node_count(members),
+            "members": [row(i) for i in members],
+            "downstream_count": len(radius.downstream),
+            "shared": graph.sorted_names(radius.shared),
+            "unshared": graph.sorted_names(radius.downstream - radius.shared),
+            "exposure_count": len(radius.exposures),
+            "exposures": graph.exposures_by_type(radius.exposures),
+        }
+
+    # Grouped like the Slack alert, so one missing source is one row, not one per node.
+    groups: Dict[Tuple[str, str], List[Incident]] = {}
+    for i in open_incidents:
+        groups.setdefault((i.job_id, incident_cause(i, graph)), []).append(i)
 
     def job_card(run: JobRun) -> Dict[str, Any]:
         limit = run.overdue_after()
@@ -207,7 +229,8 @@ def render_report(
         tz_name=str(tz),
         window_days=window_days,
         jobs=[job_card(r) for r in sorted(job_runs, key=lambda r: r.job_id)],
-        open_incidents=[row(i) for i in open_incidents],
+        open_count=len(open_incidents),
+        open_groups=[group_row(members) for members in groups.values()],
         downstream_total=len(blast_radius(open_incidents, graph).downstream),
         cleared=[row(i) for i in cleared],
     )
@@ -285,6 +308,7 @@ def incident_report(
     summary = status_summary(
         incidents,
         job_runs,
+        graph,
         as_of,
         window_days,
         # Relative to the summary, which sits beside the page: the public URL is a

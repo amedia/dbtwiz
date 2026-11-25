@@ -1,7 +1,8 @@
 """Incidents read from Elementary's run history, shared by `incident-alert` and
 `incident-report`.
 
-An incident is a model's unbroken streak of failed runs within one orchestrator job.
+An incident is a node's unbroken streak of failed runs within one orchestrator job, where
+a node is a model, snapshot, seed or data test.
 Elementary already uploads every run's results (`dbt_invocations`, `dbt_run_results`),
 so incidents are derived from those on demand and nothing of our own is stored.
 
@@ -20,7 +21,10 @@ from typing import Dict, Iterable, List, Optional, Set
 from ..config.project import project_config
 from ..utils.logger import fatal, warn
 
-ERROR_STATUSES = ("error", "runtime error")
+# `fail` is a data test that found rows. A test with `warn` status was configured not to
+# fail, so it counts as clean.
+FAILURE_STATUSES = ("error", "runtime error", "fail")
+RESOURCE_TYPES = ("model", "snapshot", "seed", "test")
 
 # Downstream nodes that hold data; tests and unit tests below a failing model are not
 # part of what it takes down.
@@ -66,12 +70,14 @@ with
             i.job_run_id,
             r.unique_id,
             r.name,
+            r.resource_type,
             lower(r.status) as status,
             r.message,
+            r.failures,
         from `{dataset}.dbt_run_results` as r
         inner join invocations as i using (invocation_id)
         where
-            r.resource_type in ('model', 'snapshot', 'seed')
+            r.resource_type in unnest(@resource_types)
             and r.created_at between timestamp_sub(@as_of, interval @window_days + 1 day)
             and timestamp_add(@as_of, interval 1 day)
         qualify
@@ -90,10 +96,13 @@ with
             n.job_run_id,
             n.unique_id,
             n.name,
+            n.resource_type,
+            n.status,
             n.message,
+            n.failures,
             ru.run_start_ts,
-            n.status in unnest(@error_statuses) as is_error,
-            countif(n.status not in unnest(@error_statuses)) over (
+            n.status in unnest(@failure_statuses) as is_failed,
+            countif(n.status not in unnest(@failure_statuses)) over (
                 partition by n.job_id, n.unique_id
                 order by ru.run_start_ts
                 rows between unbounded preceding and current row
@@ -109,16 +118,17 @@ with
             unique_id,
             streak_id,
             any_value(name) as name,
+            any_value(resource_type) as resource_type,
             min(run_start_ts) as first_failed_ts,
             max(run_start_ts) as last_failed_ts,
             count(*) as failed_run_count,
             array_agg(
-                struct(job_run_id, run_start_ts, message)
+                struct(job_run_id, run_start_ts, status, message, failures)
                 order by run_start_ts desc
                 limit 2
             ) as last_failures,
         from flagged
-        where is_error
+        where is_failed
         group by job_id, unique_id, streak_id
     ),
 
@@ -131,18 +141,21 @@ with
             run_start_ts as cleared_ts,
             job_run_id as cleared_run_id,
         from flagged
-        where not is_error
+        where not is_failed
     )
 
 select
     i.job_id,
     i.unique_id,
     i.name,
+    i.resource_type,
     i.first_failed_ts,
     i.last_failed_ts,
     i.failed_run_count,
     i.streak_id = 0 as is_start_truncated,
+    i.last_failures[offset(0)].status as last_status,
     i.last_failures[offset(0)].message as last_message,
+    i.last_failures[offset(0)].failures as last_failure_count,
     i.last_failures[safe_offset(1)].run_start_ts as previous_failed_ts,
     c.cleared_ts,
     coalesce(i.last_failures[offset(0)].job_run_id = l.job_run_id, false)
@@ -229,18 +242,22 @@ class JobRun:
 
 @dataclass(frozen=True)
 class Incident:
-    """One model's unbroken streak of failed runs within one job.
+    """One node's unbroken streak of failed runs within one job.
 
     Attributes:
         job_id: Orchestrator job (the Airflow DAG) the runs belong to
         unique_id: dbt unique_id of the failing node
         name: Node name
+        resource_type: model, snapshot, seed or test
         first_failed_ts: Start of the first failed run in the streak
         last_failed_ts: Start of the latest failed run
         failed_run_count: Number of failed runs in the streak
         is_start_truncated: True when no clean run precedes the streak inside the
             window, so it may have started earlier than first_failed_ts
+        last_status: Status of the latest failed run: `fail` for a test that found
+            rows, else `error` or `runtime error`
         last_message: Error message from the latest failed run
+        last_failure_count: Rows the test returned in the latest failed run
         previous_failed_ts: Start of the failed run before the latest, if any
         cleared_ts: Start of the clean run that ended the streak, None while open
         is_failed_in_latest_run: The job's latest run is the latest failed run
@@ -250,11 +267,14 @@ class Incident:
     job_id: str
     unique_id: str
     name: str
+    resource_type: str
     first_failed_ts: datetime
     last_failed_ts: datetime
     failed_run_count: int
     is_start_truncated: bool
+    last_status: str
     last_message: Optional[str]
+    last_failure_count: Optional[int]
     previous_failed_ts: Optional[datetime]
     cleared_ts: Optional[datetime]
     is_failed_in_latest_run: bool
@@ -275,7 +295,8 @@ class BlastRadius:
     """Everything downstream of a set of failing nodes, whatever any run selected.
 
     Attributes:
-        downstream: Models, snapshots and seeds below the failing nodes
+        downstream: Models, snapshots and seeds below the failing nodes, including the
+            node a failing test checks
         shared: The downstream nodes with `access` public or protected, i.e. the ones
             other groups build on
         exposures: Exposures below the failing nodes
@@ -288,11 +309,20 @@ class BlastRadius:
 
 @dataclass
 class ManifestGraph:
-    """The parts of a manifest needed to work out a blast radius."""
+    """The parts of a manifest needed to work out a blast radius and name a cause.
+
+    Attributes:
+        tested: The nodes each data test checks
+        test_kinds: The generic test each generic data test is an instance of
+        exposure_types: Each exposure's dbt `type`, e.g. dashboard or application
+    """
 
     child_map: Dict[str, List[str]]
     access: Dict[str, str]
     names: Dict[str, str]
+    tested: Dict[str, List[str]] = field(default_factory=dict)
+    test_kinds: Dict[str, str] = field(default_factory=dict)
+    exposure_types: Dict[str, str] = field(default_factory=dict)
 
     @classmethod
     def load(cls, path: Path) -> "ManifestGraph":
@@ -304,6 +334,11 @@ class ManifestGraph:
             fatal(f"Could not read manifest {path}: {e}")
         nodes = manifest.get("nodes", {})
         exposures = manifest.get("exposures", {})
+        tests = {
+            uid: node
+            for uid, node in nodes.items()
+            if node.get("resource_type") == "test"
+        }
         return cls(
             child_map=manifest.get("child_map", {}),
             access={uid: node.get("access") or "" for uid, node in nodes.items()},
@@ -313,6 +348,26 @@ class ManifestGraph:
                     uid: exp.get("label") or exp.get("name", uid)
                     for uid, exp in exposures.items()
                 },
+            },
+            # A generic test on a model is attached to it; a source or singular test
+            # checks what it depends on.
+            tested={
+                uid: (
+                    [node["attached_node"]]
+                    if node.get("attached_node")
+                    else node.get("depends_on", {}).get("nodes", [])
+                )
+                for uid, node in tests.items()
+            },
+            test_kinds={
+                uid: ".".join(
+                    part for part in (meta.get("namespace"), meta["name"]) if part
+                )
+                for uid, node in tests.items()
+                if (meta := node.get("test_metadata") or {}).get("name")
+            },
+            exposure_types={
+                uid: exp.get("type") or "unknown" for uid, exp in exposures.items()
             },
         )
 
@@ -328,6 +383,16 @@ class ManifestGraph:
             stack.extend(self.child_map.get(uid, []))
         return seen
 
+    def at_risk(self, unique_id: str) -> Set[str]:
+        """What a failing node affects: its descendants, or for a data test the nodes
+        it checks and their descendants, since that is where the bad data is."""
+        if unique_id not in self.tested:
+            return self.descendants(unique_id)
+        affected: Set[str] = set()
+        for checked in self.tested[unique_id]:
+            affected |= {checked} | self.descendants(checked)
+        return affected
+
     def has_node(self, unique_id: str) -> bool:
         return unique_id in self.access
 
@@ -336,6 +401,14 @@ class ManifestGraph:
 
     def sorted_names(self, unique_ids: Iterable[str]) -> List[str]:
         return sorted(self.name(uid) for uid in unique_ids)
+
+    def exposures_by_type(self, unique_ids: Iterable[str]) -> Dict[str, List[str]]:
+        """Exposure names grouped by their type, types in alphabetical order."""
+        groups: Dict[str, List[str]] = {}
+        for uid in unique_ids:
+            kind = self.exposure_types.get(uid, "unknown")
+            groups.setdefault(kind, []).append(uid)
+        return {kind: self.sorted_names(groups[kind]) for kind in sorted(groups)}
 
 
 def blast_radius(incidents: Iterable[Incident], graph: ManifestGraph) -> BlastRadius:
@@ -347,7 +420,7 @@ def blast_radius(incidents: Iterable[Incident], graph: ManifestGraph) -> BlastRa
     failing = {i.unique_id for i in incidents}
     below: Set[str] = set()
     for uid in failing:
-        below |= graph.descendants(uid)
+        below |= graph.at_risk(uid)
     below -= failing
     downstream = {uid for uid in below if uid.startswith(DATA_NODE_PREFIXES)}
     return BlastRadius(
@@ -401,11 +474,41 @@ def query_link(message: Optional[str]) -> Optional[str]:
     return match.group(1) if match else None
 
 
-def group_by_cause(incidents: Iterable[Incident]) -> Dict[str, List[Incident]]:
-    """Group incidents by their summarized cause, longest-failing group first."""
+def incident_cause(incident: Incident, graph: ManifestGraph) -> str:
+    """What went wrong, worded so that incidents with one cause read the same.
+
+    A data test that found rows has no message worth showing, so its cause is the
+    generic test it is an instance of; a singular test is its own kind. A test that
+    could not run has an error message like any other node.
+    """
+    if incident.last_status == "fail":
+        kind = graph.test_kinds.get(incident.unique_id, incident.name)
+        return f"{kind} test failed"
+    return summarize_cause(incident.last_message)
+
+
+def failure_detail(incident: Incident) -> str:
+    """The latest failure in full: the error message, or the rows a test returned."""
+    if incident.last_status == "fail" and incident.last_failure_count is not None:
+        count = incident.last_failure_count
+        return f"The test returned {count} failing row{'' if count == 1 else 's'}."
+    return incident.last_message or ""
+
+
+def node_count(incidents: List[Incident]) -> str:
+    """How many models and tests are failing, e.g. `3 models, 30 tests`."""
+    tests = sum(1 for i in incidents if i.resource_type == "test")
+    counts = [(len(incidents) - tests, "model"), (tests, "test")]
+    return ", ".join(f"{n} {word}{'' if n == 1 else 's'}" for n, word in counts if n)
+
+
+def group_by_cause(
+    incidents: Iterable[Incident], graph: ManifestGraph
+) -> Dict[str, List[Incident]]:
+    """Group incidents by their cause, longest-failing group first."""
     groups: Dict[str, List[Incident]] = {}
     for incident in incidents:
-        groups.setdefault(summarize_cause(incident.last_message), []).append(incident)
+        groups.setdefault(incident_cause(incident, graph), []).append(incident)
     for members in groups.values():
         members.sort(key=lambda i: i.failing_for, reverse=True)
     return dict(sorted(groups.items(), key=lambda g: g[1][0].failing_for, reverse=True))
@@ -463,7 +566,10 @@ def fetch_incidents(as_of: datetime) -> List[Incident]:
             bq.ScalarQueryParameter(
                 "window_days", "INT64", config.incidents_window_days
             ),
-            bq.ArrayQueryParameter("error_statuses", "STRING", list(ERROR_STATUSES)),
+            bq.ArrayQueryParameter(
+                "failure_statuses", "STRING", list(FAILURE_STATUSES)
+            ),
+            bq.ArrayQueryParameter("resource_types", "STRING", list(RESOURCE_TYPES)),
         ]
     )
     rows = (
@@ -480,11 +586,14 @@ def fetch_incidents(as_of: datetime) -> List[Incident]:
             job_id=r["job_id"],
             unique_id=r["unique_id"],
             name=r["name"],
+            resource_type=r["resource_type"],
             first_failed_ts=r["first_failed_ts"],
             last_failed_ts=r["last_failed_ts"],
             failed_run_count=r["failed_run_count"],
             is_start_truncated=r["is_start_truncated"],
+            last_status=r["last_status"],
             last_message=r["last_message"],
+            last_failure_count=r["last_failure_count"],
             previous_failed_ts=r["previous_failed_ts"],
             cleared_ts=r["cleared_ts"],
             is_failed_in_latest_run=r["is_failed_in_latest_run"],
