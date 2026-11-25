@@ -29,6 +29,7 @@ from dbtwiz.admin.incidents import (
     drop_removed_nodes,
     format_duration,
     group_by_cause,
+    node_count,
     query_link,
     summarize_cause,
 )
@@ -54,16 +55,21 @@ def incident(
     failed_in_latest=True,
     cleared_in_latest=False,
     message=MISSING_SOURCE,
+    failures: int | None = None,
 ) -> Incident:
+    """A failing node; with `failures`, a data test that returned that many rows."""
     return Incident(
         job_id=job_id,
         unique_id=unique_id,
-        name=unique_id.split(".")[-1],
+        name=unique_id.split(".")[2],
+        resource_type=unique_id.split(".")[0],
         first_failed_ts=T0,
         last_failed_ts=T0 + timedelta(hours=hours_failing),
         failed_run_count=int(hours_failing) + 1,
         is_start_truncated=False,
-        last_message=message,
+        last_status="error" if failures is None else "fail",
+        last_message=message if failures is None else "Error",
+        last_failure_count=failures,
         previous_failed_ts=(
             T0 + timedelta(hours=previous_hours) if previous_hours is not None else None
         ),
@@ -82,13 +88,15 @@ GRAPH = ManifestGraph(
         "model.p.int_user__relations": [
             "model.p.int_user__a",
             "model.p.mrt_user__b",
-            "test.p.not_null_relations",
+            "test.p.not_null_relations.3",
         ],
         "model.p.int_user__a": ["model.p.mrt_user__c"],
         "model.p.mrt_user__b": ["exposure.p.looker_users"],
         "model.p.mrt_user__c": [],
         "model.p.int_other": ["model.p.mrt_other"],
         "model.p.mrt_other": [],
+        "source.p.src.a": ["model.p.int_other", "test.p.gaps_src_a.1"],
+        "source.p.src.b": ["model.p.int_other", "test.p.gaps_src_b.2"],
     },
     access={
         "model.p.int_user__relations": "private",
@@ -99,6 +107,17 @@ GRAPH = ManifestGraph(
         "model.p.mrt_other": "public",
     },
     names={"exposure.p.looker_users": "Looker: users"},
+    tested={
+        "test.p.gaps_src_a.1": ["source.p.src.a"],
+        "test.p.gaps_src_b.2": ["source.p.src.b"],
+        "test.p.not_null_relations.3": ["model.p.int_user__relations"],
+    },
+    test_kinds={
+        "test.p.gaps_src_a.1": "partition_gaps",
+        "test.p.gaps_src_b.2": "partition_gaps",
+        "test.p.not_null_relations.3": "not_null",
+    },
+    exposure_types={"exposure.p.looker_users": "dashboard"},
 )
 
 
@@ -171,7 +190,8 @@ def test_group_by_cause_merges_failures_with_one_cause():
             incident(5, 4),
             incident(14, 13, unique_id="model.p.int_user__other", message=other),
             incident(3, 2, unique_id="model.p.x", message="Runtime Error in x\n  boom"),
-        ]
+        ],
+        GRAPH,
     )
     causes = list(groups)
     assert len(causes) == 2
@@ -180,6 +200,21 @@ def test_group_by_cause_merges_failures_with_one_cause():
         "int_user__relations",
     ]
     assert causes[1] == "boom"
+
+
+def test_failing_tests_group_by_the_generic_test():
+    """A failing test's message says nothing; the test that failed is the cause."""
+    gaps_a = incident(6, 5, unique_id="test.p.gaps_src_a.1", failures=12)
+    gaps_b = incident(6, 5, unique_id="test.p.gaps_src_b.2", failures=1)
+    singular = incident(6, 5, unique_id="test.p.assert_x.4", failures=12)
+    broken = incident(
+        6, 5, unique_id="test.p.not_null_relations.3", message=MISSING_SOURCE
+    )
+    groups = group_by_cause([gaps_a, gaps_b, singular, broken], GRAPH)
+    assert groups["partition_gaps test failed"] == [gaps_a, gaps_b]
+    assert groups["assert_x test failed"] == [singular]
+    # A test that could not run is grouped by its error, like a model.
+    assert broken in groups[summarize_cause(MISSING_SOURCE)]
 
 
 def test_blast_radius_is_everything_downstream():
@@ -200,6 +235,62 @@ def test_blast_radius_excludes_the_failing_nodes_themselves():
         [incident(3, 2), incident(3, 2, unique_id="model.p.int_user__a")], GRAPH
     )
     assert "model.p.int_user__a" not in radius.downstream
+
+
+def test_blast_radius_of_a_failing_test_starts_at_what_it_checks():
+    """A model test puts the model at risk; a source test what is built on the source."""
+    on_model = blast_radius(
+        [incident(3, 2, unique_id="test.p.not_null_relations.3")], GRAPH
+    )
+    assert "model.p.int_user__relations" in on_model.downstream
+    assert "model.p.mrt_user__c" in on_model.downstream
+    on_source = blast_radius([incident(3, 2, unique_id="test.p.gaps_src_a.1")], GRAPH)
+    assert on_source.downstream == {"model.p.int_other", "model.p.mrt_other"}
+    assert on_source.shared == {"model.p.mrt_other"}
+
+
+def test_manifest_graph_reads_what_each_test_checks(tmp_path):
+    manifest = {
+        "nodes": {
+            "model.p.m": {"name": "m", "resource_type": "model"},
+            "test.p.not_null_m_id.1": {
+                "name": "not_null_m_id",
+                "resource_type": "test",
+                "attached_node": "model.p.m",
+                "depends_on": {"nodes": ["model.p.m"]},
+                "test_metadata": {"name": "not_null", "namespace": None},
+            },
+            "test.p.gaps_src_a.2": {
+                "name": "gaps_src_a",
+                "resource_type": "test",
+                "attached_node": None,
+                "depends_on": {"nodes": ["source.p.src.a"]},
+                "test_metadata": {"name": "partition_gaps", "namespace": "pkg"},
+            },
+            "test.p.assert_x.3": {
+                "name": "assert_x",
+                "resource_type": "test",
+                "depends_on": {"nodes": ["model.p.m"]},
+            },
+        },
+        "exposures": {
+            "exposure.p.sales": {"name": "sales", "type": "dashboard"},
+        },
+        "child_map": {},
+    }
+    path = tmp_path / "manifest.json"
+    path.write_text(json.dumps(manifest), encoding="utf-8")
+    graph = ManifestGraph.load(path)
+    assert graph.tested == {
+        "test.p.not_null_m_id.1": ["model.p.m"],
+        "test.p.gaps_src_a.2": ["source.p.src.a"],
+        "test.p.assert_x.3": ["model.p.m"],
+    }
+    assert graph.test_kinds == {
+        "test.p.not_null_m_id.1": "not_null",
+        "test.p.gaps_src_a.2": "pkg.partition_gaps",
+    }
+    assert graph.exposure_types == {"exposure.p.sales": "dashboard"}
 
 
 def test_open_incidents_of_removed_nodes_are_dropped():
@@ -239,10 +330,87 @@ def test_slack_message_for_an_escalation_and_a_recovery():
         in message
     )
     assert "3 downstream models, 2 of them public/protected" in message
-    assert "Looker: users" in message
+    assert "Downstream dashboard exposures: `Looker: users`" in message
     assert "`int_other` recovered after 15h" in message
     assert "int_daily" not in message
     assert message.endswith("<https://example.com/incidents|Incident report>")
+
+
+def test_failing_tests_escalate_as_one_section_per_generic_test():
+    message = slack_message(
+        "adp__daily",
+        [
+            incident(
+                24,
+                0,
+                job_id="adp__daily",
+                unique_id=f"test.p.gaps_src_{s}.{n}",
+                failures=12,
+            )
+            for n, s in ((1, "a"), (2, "b"))
+        ],
+        BASE,
+        GRAPH,
+        timezone.utc,
+        None,
+    )
+    assert message is not None
+    assert message.count(":rotating_light:") == 1
+    assert "*adp__daily*: partition_gaps test failed" in message
+    assert "`gaps_src_a` failing for 1d" in message
+    assert "2 downstream models, 1 of them public/protected" in message
+    # The blast radius is counted, not sampled by name.
+    assert "mrt_other" not in message
+
+
+@pytest.mark.parametrize(
+    "exports,expected",
+    [
+        (
+            6,
+            "Downstream application exposures: `export_0`, `export_1`, `export_2`,"
+            " `export_3`, `export_4`, `export_5`\n"
+            "Downstream dashboard exposures: `dash_0`, `dash_1`",
+        ),
+        # The limit is on all exposures, not on each type.
+        (7, "Exposures downstream by type: application 7, dashboard 2"),
+    ],
+)
+def test_exposures_are_named_by_type_or_counted_past_the_limit(exports, expected):
+    types = {
+        **{f"exposure.p.export_{n}": "application" for n in range(exports)},
+        **{f"exposure.p.dash_{n}": "dashboard" for n in range(2)},
+    }
+    graph = ManifestGraph(
+        child_map={"model.p.src": list(types)},
+        access={},
+        names={},
+        exposure_types=types,
+    )
+    message = slack_message(
+        "adp__hourly",
+        [incident(6, 5, unique_id="model.p.src")],
+        BASE,
+        graph,
+        timezone.utc,
+        None,
+    )
+    assert message is not None
+    assert message.endswith(expected)
+
+
+def test_a_large_escalation_gives_a_count_not_names():
+    message = slack_message(
+        "adp__hourly",
+        [incident(6, 5, unique_id=f"model.p.m{n}") for n in range(6)],
+        BASE,
+        GRAPH,
+        timezone.utc,
+        None,
+    )
+    assert message is not None
+    assert "6 models failing for up to 6h (since 2026-10-13 15:00)" in message
+    assert "`m0`" not in message
 
 
 def test_no_slack_message_between_thresholds():
@@ -279,6 +447,7 @@ def test_render_report_lists_open_and_cleared_incidents_escaped():
                 cleared_after_hours=6,
                 message="Runtime Error in x\n  <script>",
             ),
+            incident(2, 1, unique_id="test.p.gaps_src_a.1", failures=12),
         ],
         [],
         GRAPH,
@@ -288,9 +457,16 @@ def test_render_report_lists_open_and_cleared_incidents_escaped():
     )
     assert "int_user__relations" in html
     assert "3 downstream</span>, 2 public/protected, 1 exposures" in html
+    assert "Exposures: dashboard" in html
+    # Each downstream model is listed once: public/protected, or private and other.
+    assert html.count("<code>mrt_user__b</code>") == 1
+    assert "<code>int_user__a</code>" in html
     assert 'class="sev-high"' in html  # 14h open
     assert 'class="cleared-row"' in html
     assert "int_other" in html
+    assert '<code>gaps_src_a</code> <span class="kind">test</span>' in html
+    assert "partition_gaps test failed" in html
+    assert "The test returned 12 failing rows." in html
     # The error message is escaped, not injected into the page.
     assert "&lt;script&gt;" in html
     assert "Runtime Error in x\n  <script>" not in html
@@ -326,6 +502,39 @@ def test_query_link_is_taken_from_the_error_message():
     assert query_link(MISSING_SOURCE) is None
 
 
+def test_report_has_one_open_row_per_job_and_cause():
+    """Thirty tests failing on one cause are one row listing them, not thirty rows."""
+    html = render_report(
+        [
+            incident(6, 5, unique_id="test.p.gaps_src_a.1", failures=1),
+            incident(5, 4, unique_id="test.p.gaps_src_b.2", failures=3),
+            incident(3, 2),
+        ],
+        [],
+        GRAPH,
+        timezone.utc,
+        T0 + timedelta(hours=6),
+        30,
+    )
+    assert html.count('<tr class="sev-') == 2
+    assert "<summary>2 tests</summary>" in html
+    assert '<span class="status bad">3 open</span>' in html
+    # The combined blast radius of both source tests.
+    assert "2 downstream</span>, 1 public/protected" in html
+
+
+@pytest.mark.parametrize(
+    "unique_ids,expected",
+    [
+        (["model.p.a"], "1 model"),
+        (["test.p.a.1", "test.p.b.2"], "2 tests"),
+        (["model.p.a", "seed.p.b", "test.p.c.1"], "2 models, 1 test"),
+    ],
+)
+def test_node_count(unique_ids, expected):
+    assert node_count([incident(3, 2, unique_id=u) for u in unique_ids]) == expected
+
+
 def test_report_shows_job_status_and_links():
     links = ReportLinks(
         dbt_docs_url="https://docs/index.html", airflow_url="https://af"
@@ -353,8 +562,10 @@ def test_status_summary_for_an_overview_page():
         [
             incident(14, 13),
             incident(5, 4, unique_id="model.p.x", cleared_after_hours=6),
+            incident(15, 14, unique_id="test.p.gaps_src_a.1", failures=12),
         ],
         [HOURLY],
+        GRAPH,
         T0 + timedelta(hours=14, minutes=10),
         30,
         "incident_report.html",
@@ -363,7 +574,7 @@ def test_status_summary_for_an_overview_page():
     assert summary["schema_version"] == 1
     assert summary["stale_after_minutes"] == 1560
     assert summary["report_file"] == "incident_report.html"
-    assert summary["open_incident_count"] == 1
+    assert summary["open_incident_count"] == 2
     assert summary["cleared_incident_count"] == 1
     assert summary["jobs"] == [
         {
@@ -373,12 +584,16 @@ def test_status_summary_for_an_overview_page():
             # 1.5 hourly gaps plus 15 minutes after the last attempt
             "overdue_at": "2026-10-14T06:45:00+00:00",
             "is_overdue": False,
-            "open_incident_count": 1,
+            "open_incident_count": 2,
         }
     ]
-    first = summary["open_incidents"][0]
+    first, test = summary["open_incidents"]
     assert first["unique_id"] == "model.p.int_user__relations"
+    assert first["name"] == "int_user__relations"
+    assert first["resource_type"] == "model"
     assert first["failing_since"] == "2026-10-13T15:00:00+00:00"
+    assert test["resource_type"] == "test"
+    assert test["cause"] == "partition_gaps test failed"
     assert json.dumps(summary)  # plain data only
 
 

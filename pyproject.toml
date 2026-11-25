@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dbtwiz"
-version = "0.3.22"
+version = "0.3.23"
 authors = [
     {name = "Amedia Produkt og Teknologi"}
 ]
@@ -27,7 +27,9 @@ dependencies = [
     "typer>=0.16.1",
     "shandy-sqlfmt>=0.27.0",
     "pydantic>=2.9.1",
-    "google-auth>=2.44.0"
+    "google-auth>=2.44.0",
+    # zoneinfo needs it where the OS has no time zone database, as on Windows.
+    "tzdata>=2024.1"
 ]
 
 [project.scripts]

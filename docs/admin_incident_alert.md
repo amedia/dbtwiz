@@ -3,16 +3,20 @@
 Post to Slack when a job's latest run escalated or cleared an incident.
 
 Reads the run history Elementary uploads (`dbt_invocations`, `dbt_run_results`) and
-groups each model's consecutive failed runs within one orchestrator job into an incident.
-Only the given job's latest run is evaluated, and one Slack message is posted when that
+groups the consecutive failed runs of each model, snapshot, seed and data test within one
+orchestrator job into an incident. A test fails when it finds rows (`fail`) or cannot run
+(`error`); `warn` counts as passing. Only the given job's latest run is evaluated, and one Slack message is posted when that
 run pushed an incident past an escalation threshold — 3h, 6h, 12h, … from its first
 failed run, doubling from `incident_alert_escalation_hours` — or cleared one that had
 been escalated. Thresholds are in time, not runs, so a daily job escalates at its second
 failure.
 
-Escalations are grouped by cause. Each one lists its blast radius from the manifest:
-every model downstream of the failing ones, the public/protected ones among them, and
-the exposures downstream.
+Escalations are grouped by cause: the error, or for a failing test the generic test it is
+an instance of. Each one names its failing nodes, or counts them when there are more than
+five, and gives its blast radius from the manifest: how many models are downstream of the
+failing ones (for a test, of the node it checks, which is included), how many of them are
+public/protected, and the exposures downstream by `type` (e.g. dashboard, application):
+named when there are at most eight in all, and only counted per type past that.
 
 The Slack token is read from `DBTWIZ_SLACK_TOKEN`. Configured in `[tool.dbtwiz.project]`:
 `incidents_elementary_dataset` (required), `incidents_window_days`,
