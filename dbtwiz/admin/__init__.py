@@ -732,8 +732,9 @@ def update_grants(
     """Reads the run history Elementary uploads (`dbt_invocations`, `dbt_run_results`) and
 groups the consecutive failed runs of each model, snapshot, seed and data test within one
 orchestrator job into an incident. A test fails when it finds rows (`fail`) or cannot run
-(`error`); `warn` counts as passing. Only the given job's latest run is evaluated, and one Slack message is posted when that
-run pushed an incident past an escalation threshold — 3h, 6h, 12h, … from its first
+(`error`); `warn` counts as passing. A test is shown as the node and column it checks,
+like `orders.customer_id`, rather than by its generated name. Only the given job's latest
+run is evaluated, and one Slack message is posted when that run pushed an incident past an escalation threshold — 3h, 6h, 12h, … from its first
 failed run, doubling from `incident_alert_escalation_hours` — or cleared one that had
 been escalated. Thresholds are in time, not runs, so a daily job escalates at its second
 failure.
@@ -840,7 +841,8 @@ renders an HTML page of every job's status and incidents:
   runs within one job — with their blast radius from the manifest: every model
   downstream (for a test, of the node it checks, which is included), the
   public/protected ones among them, and the exposures downstream by type. Incidents of one job
-  with the same cause are one row, as in `incident-alert`, listing the failing nodes.
+  with the same cause are one row, as in `incident-alert`, listing the failing nodes; a
+  data test is shown as the node and column it checks.
 - **Cleared incidents** within `incidents_window_days`, collapsed.
 
 The page warns when it is older than `incident_report_stale_minutes`, which means the

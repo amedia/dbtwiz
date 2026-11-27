@@ -129,7 +129,7 @@ def _escalation_section(
 
     if len(members) <= LISTED_NODES:
         lines.extend(
-            f"• `{i.name}` failing for {format_duration(i.failing_for)}"
+            f"• `{graph.label(i)}` failing for {format_duration(i.failing_for)}"
             f" ({i.failed_run_count} runs, {since(i)})"
             for i in members
         )
@@ -206,8 +206,10 @@ def slack_message(
         sections.append(" ".join(mentions))
 
     for i in sorted(recovered, key=lambda i: i.failing_for, reverse=True):
+        kind = f" ({graph.test_kind(i)} test)" if i.resource_type == "test" else ""
         sections.append(
-            f":white_check_mark: *{_slack_escape(job_id)}*: `{i.name}` recovered after"
+            f":white_check_mark: *{_slack_escape(job_id)}*: `{graph.label(i)}`{kind}"
+            " recovered after"
             f" {format_duration(i.cleared_ts - i.first_failed_ts)}"
             f" ({i.failed_run_count} failed runs)"
         )

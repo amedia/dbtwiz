@@ -91,6 +91,8 @@
   {% endfor %}
   .radius { color: var(--orange); font-weight: 600; }
   details ul.members { columns: 1; }
+  /* Node names can be one long word; wrap them so the columns after stay in view. */
+  .nodes { max-width: 40ch; overflow-wrap: anywhere; }
   .meta { color: var(--muted); font-size: 12px; }
   .kind { font-size: 11px; font-weight: 600; color: var(--muted); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; }
   details summary { cursor: pointer; }
@@ -175,10 +177,10 @@
       <tr class="sev-{{ i.severity }}" data-job="{{ i.job_id }}">
         <td><span class="job job-{{ i.job_color }}">{{ i.job_id }}</span></td>
         <td><details><summary>{{ i.cause }}</summary><pre>{{ i.message }}</pre></details>{% if i.query_url %}<a class="link out" href="{{ i.query_url }}" target="_blank" rel="noopener">BigQuery job &#8599;</a>{% endif %}</td>
-        <td>
+        <td><div class="nodes">
           {% if i.members | length == 1 %}{{ node(i) }}
           {% else %}<details><summary>{{ i.nodes }}</summary><ul class="members">{% for m in i.members %}<li>{{ node(m) }} <span class="meta">{{ m.duration }}</span></li>{% endfor %}</ul></details>{% endif %}
-        </td>
+        </div></td>
         <td class="when">{% if i.is_start_truncated %}before {% endif %}{{ i.first_failed }}</td>
         <td class="num"><span class="badge">{{ i.duration }}</span></td>
         <td class="num">{{ i.failed_runs }}</td>
@@ -213,7 +215,7 @@
     {% for i in cleared %}
       <tr class="cleared-row" data-job="{{ i.job_id }}">
         <td><span class="job job-{{ i.job_color }}">{{ i.job_id }}</span></td>
-        <td>{{ node(i) }}</td>
+        <td><div class="nodes">{{ node(i) }}</div></td>
         <td class="when">{% if i.is_start_truncated %}before {% endif %}{{ i.first_failed }}</td>
         <td class="when">{{ i.cleared }}</td>
         <td class="num"><span class="badge">{{ i.duration }}</span></td>

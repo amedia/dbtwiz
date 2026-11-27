@@ -315,6 +315,7 @@ class ManifestGraph:
         tested: The nodes each data test checks
         test_kinds: The generic test each generic data test is an instance of
         exposure_types: Each exposure's dbt `type`, e.g. dashboard or application
+        test_columns: The column each column-level data test checks
     """
 
     child_map: Dict[str, List[str]]
@@ -323,6 +324,7 @@ class ManifestGraph:
     tested: Dict[str, List[str]] = field(default_factory=dict)
     test_kinds: Dict[str, str] = field(default_factory=dict)
     exposure_types: Dict[str, str] = field(default_factory=dict)
+    test_columns: Dict[str, str] = field(default_factory=dict)
 
     @classmethod
     def load(cls, path: Path) -> "ManifestGraph":
@@ -333,6 +335,7 @@ class ManifestGraph:
         except (OSError, json.JSONDecodeError) as e:
             fatal(f"Could not read manifest {path}: {e}")
         nodes = manifest.get("nodes", {})
+        sources = manifest.get("sources", {})
         exposures = manifest.get("exposures", {})
         tests = {
             uid: node
@@ -344,6 +347,7 @@ class ManifestGraph:
             access={uid: node.get("access") or "" for uid, node in nodes.items()},
             names={
                 **{uid: node.get("name", uid) for uid, node in nodes.items()},
+                **{uid: src.get("name", uid) for uid, src in sources.items()},
                 **{
                     uid: exp.get("label") or exp.get("name", uid)
                     for uid, exp in exposures.items()
@@ -368,6 +372,11 @@ class ManifestGraph:
             },
             exposure_types={
                 uid: exp.get("type") or "unknown" for uid, exp in exposures.items()
+            },
+            test_columns={
+                uid: node["column_name"]
+                for uid, node in tests.items()
+                if node.get("column_name")
             },
         )
 
@@ -401,6 +410,21 @@ class ManifestGraph:
 
     def sorted_names(self, unique_ids: Iterable[str]) -> List[str]:
         return sorted(self.name(uid) for uid in unique_ids)
+
+    def test_kind(self, incident: "Incident") -> str:
+        """The generic test a data test is an instance of; a singular test is its own."""
+        return self.test_kinds.get(incident.unique_id, incident.name)
+
+    def label(self, incident: "Incident") -> str:
+        """How a failing node is shown: a data test as the node and column it checks,
+        since its generated name is long and its cause already says which test it is.
+        A test checking several nodes keeps its own name."""
+        checked = self.tested.get(incident.unique_id, [])
+        if incident.resource_type != "test" or len(checked) != 1:
+            return incident.name
+        column = self.test_columns.get(incident.unique_id)
+        node = self.name(checked[0])
+        return f"{node}.{column}" if column else node
 
     def exposures_by_type(self, unique_ids: Iterable[str]) -> Dict[str, List[str]]:
         """Exposure names grouped by their type, types in alphabetical order."""
@@ -482,8 +506,7 @@ def incident_cause(incident: Incident, graph: ManifestGraph) -> str:
     could not run has an error message like any other node.
     """
     if incident.last_status == "fail":
-        kind = graph.test_kinds.get(incident.unique_id, incident.name)
-        return f"{kind} test failed"
+        return f"{graph.test_kind(incident)} test failed"
     return summarize_cause(incident.last_message)
 
 
