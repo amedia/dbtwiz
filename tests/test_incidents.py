@@ -106,7 +106,11 @@ GRAPH = ManifestGraph(
         "model.p.int_other": "private",
         "model.p.mrt_other": "public",
     },
-    names={"exposure.p.looker_users": "Looker: users"},
+    names={
+        "exposure.p.looker_users": "Looker: users",
+        "source.p.src.a": "src_a",
+        "source.p.src.b": "src_b",
+    },
     tested={
         "test.p.gaps_src_a.1": ["source.p.src.a"],
         "test.p.gaps_src_b.2": ["source.p.src.b"],
@@ -118,6 +122,7 @@ GRAPH = ManifestGraph(
         "test.p.not_null_relations.3": "not_null",
     },
     exposure_types={"exposure.p.looker_users": "dashboard"},
+    test_columns={"test.p.gaps_src_a.1": "day", "test.p.gaps_src_b.2": "day"},
 )
 
 
@@ -259,6 +264,7 @@ def test_manifest_graph_reads_what_each_test_checks(tmp_path):
                 "attached_node": "model.p.m",
                 "depends_on": {"nodes": ["model.p.m"]},
                 "test_metadata": {"name": "not_null", "namespace": None},
+                "column_name": "id",
             },
             "test.p.gaps_src_a.2": {
                 "name": "gaps_src_a",
@@ -273,6 +279,7 @@ def test_manifest_graph_reads_what_each_test_checks(tmp_path):
                 "depends_on": {"nodes": ["model.p.m"]},
             },
         },
+        "sources": {"source.p.src.a": {"name": "table_a"}},
         "exposures": {
             "exposure.p.sales": {"name": "sales", "type": "dashboard"},
         },
@@ -291,6 +298,46 @@ def test_manifest_graph_reads_what_each_test_checks(tmp_path):
         "test.p.gaps_src_a.2": "pkg.partition_gaps",
     }
     assert graph.exposure_types == {"exposure.p.sales": "dashboard"}
+    assert graph.test_columns == {"test.p.not_null_m_id.1": "id"}
+    assert graph.name("source.p.src.a") == "table_a"
+
+
+@pytest.mark.parametrize(
+    "unique_id,expected",
+    [
+        # A column test reads as the node and column it checks, a table test as the node.
+        ("test.p.not_null_relations.3", "int_user__relations"),
+        ("test.p.gaps_src_a.1", "src_a.day"),
+        # A test the graph doesn't know, and a model, keep their own name.
+        ("test.p.assert_x.4", "assert_x"),
+        ("model.p.int_other", "int_other"),
+    ],
+)
+def test_a_failing_node_is_labelled_by_what_it_checks(unique_id, expected):
+    assert GRAPH.label(incident(3, 2, unique_id=unique_id)) == expected
+
+
+def test_a_recovered_test_says_which_test_it_was():
+    message = slack_message(
+        "adp__hourly",
+        [
+            incident(
+                14,
+                13,
+                unique_id="test.p.gaps_src_a.1",
+                failures=1,
+                cleared_after_hours=15,
+                failed_in_latest=False,
+                cleared_in_latest=True,
+            )
+        ],
+        BASE,
+        GRAPH,
+        timezone.utc,
+        None,
+    )
+    assert message is not None
+    assert "`src_a.day` (partition_gaps test) recovered after 15h" in message
 
 
 def test_open_incidents_of_removed_nodes_are_dropped():
@@ -357,7 +404,7 @@ def test_failing_tests_escalate_as_one_section_per_generic_test():
     assert message is not None
     assert message.count(":rotating_light:") == 1
     assert "*adp__daily*: partition_gaps test failed" in message
-    assert "`gaps_src_a` failing for 1d" in message
+    assert "`src_a.day` failing for 1d" in message
     assert "2 downstream models, 1 of them public/protected" in message
     # The blast radius is counted, not sampled by name.
     assert "mrt_other" not in message
@@ -464,7 +511,7 @@ def test_render_report_lists_open_and_cleared_incidents_escaped():
     assert 'class="sev-high"' in html  # 14h open
     assert 'class="cleared-row"' in html
     assert "int_other" in html
-    assert '<code>gaps_src_a</code> <span class="kind">test</span>' in html
+    assert '<code>src_a.day</code> <span class="kind">test</span>' in html
     assert "partition_gaps test failed" in html
     assert "The test returned 12 failing rows." in html
     # The error message is escaped, not injected into the page.

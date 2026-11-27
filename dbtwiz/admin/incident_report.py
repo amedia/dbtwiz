@@ -129,7 +129,7 @@ def status_summary(
             {
                 "job_id": i.job_id,
                 "unique_id": i.unique_id,
-                "name": i.name,
+                "name": graph.label(i),
                 "resource_type": i.resource_type,
                 "failing_since": _iso(i.first_failed_ts),
                 "failed_run_count": i.failed_run_count,
@@ -168,7 +168,7 @@ def render_report(
             "job_color": job_colors[i.job_id],
             "job_url": links.job(i.job_id),
             "severity": severity(i.failing_for),
-            "name": i.name,
+            "name": graph.label(i),
             "is_test": i.resource_type == "test",
             "model_url": links.model(i.unique_id),
             "first_failed": format_ts(i.first_failed_ts, tz),

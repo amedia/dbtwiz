@@ -13,7 +13,8 @@ renders an HTML page of every job's status and incidents:
   runs within one job — with their blast radius from the manifest: every model
   downstream (for a test, of the node it checks, which is included), the
   public/protected ones among them, and the exposures downstream by type. Incidents of one job
-  with the same cause are one row, as in `incident-alert`, listing the failing nodes.
+  with the same cause are one row, as in `incident-alert`, listing the failing nodes; a
+  data test is shown as the node and column it checks.
 - **Cleared incidents** within `incidents_window_days`, collapsed.
 
 The page warns when it is older than `incident_report_stale_minutes`, which means the
